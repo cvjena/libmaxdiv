@@ -43,8 +43,9 @@ def calc_normalized_gaussian_kernel(X, kernel_sigma_sq = 1.0):
 # density power divergence (http://biomet.oxfordjournals.org/content/85/3/549.full.pdf).
 # Plugging everything together we derive at the following algorithm:
 
-def find_extreme_interval_kldivergence(K, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, extint_max_len = 150):
-    interval_scores = score_intervals_kldivergence(K, mode, alpha, extint_min_len, extint_max_len)
+def maxdiv_parzen(K, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, extint_max_len = 150):
+    """ Finding an extreme interval """
+    interval_scores = score_intervals_parzen(K, mode, alpha, extint_min_len, extint_max_len)
 
     a, boffset = np.unravel_index(np.argmax(interval_scores), interval_scores.shape)
     b = a + boffset
@@ -52,8 +53,8 @@ def find_extreme_interval_kldivergence(K, mode="OMEGA_I", alpha=1.0, extint_min_
     return a, b, interval_scores[a, boffset]
 
 
-def score_intervals_kldivergence(K, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, extint_max_len = 150):
-    """ Finding an extreme interval """
+def score_intervals_parzen(K, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, extint_max_len = 150):
+    """ Evaluating all possible intervals and returning the score matrix """
     # the minimal and maximal length of an extreme interval (extint_*_len)
     # this avoids trivial solutions of just one data point in the interval
     # and saves computation time
@@ -118,10 +119,57 @@ def score_intervals_kldivergence(K, mode="OMEGA_I", alpha=1.0, extint_min_len = 
 
     return interval_scores
 
+def maxdiv_gaussian(X, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, extint_max_len = 150):
+    """ Finding an extreme interval """
+    interval_scores = score_intervals_gaussian(X, mode, alpha, extint_min_len, extint_max_len)
+
+    a, boffset = np.unravel_index(np.argmax(interval_scores), interval_scores.shape)
+    b = a + boffset
+
+    return a, b, interval_scores[a, boffset]
+
+
+
+def score_intervals_gaussian(X, mode, alpha, extint_min_len, extint_max_len):
+    X_integral = np.cumsum(X, axis=1)
+    n = X.shape[1]
+
+    interval_scores = np.zeros([n, extint_max_len])
+    sums_all = X_integral[:, -1]
+
+
+
+    for i in range(n-extint_min_len):
+        for j in range(i+extint_min_len, min(i+extint_max_len,n)):
+            extreme_interval_length = j-i
+            non_extreme_points = n - extreme_interval_length
+            sums_extreme = X_integral[:, j] - X_integral[:, i]
+            sums_non_extreme = sums_all - sums_extreme
+            sums_extreme /= extreme_interval_length
+            sums_non_extreme /= non_extreme_points
+
+            score = 0.0
+            # the mode parameter determines which KL divergence to use
+            # mode == SYM does not make much sense right now for alpha != 1.0
+            if mode == "OMEGA_I" or mode == "SYM":
+                kl_Omega_I = np.sum((sums_extreme - sums_non_extreme)**2)
+                score += kl_Omega_I
+
+            # version for maximizing KL(p_I, p_Omega)
+            if mode == "I_OMEGA" or mode == "SYM":
+                kl_I_Omega = np.sum((sums_extreme - sums_non_extreme)**2)
+                score += kl_I_Omega
+
+            interval_scores[i,j-i] = score
+
+    return interval_scores
+
+
 
 
 
 def plot_matrix_with_interval(D, a, b):
+    """ Show a given kernel or distance matrix with a highlighted interval """
     plt.figure()
     plt.plot(range(D.shape[0]), a*np.ones([D.shape[0],1]), 'r-')
     plt.plot(range(D.shape[0]), b*np.ones([D.shape[0],1]), 'r-')
