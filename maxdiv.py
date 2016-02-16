@@ -49,19 +49,24 @@ def find_extreme_interval_kldivergence(K, mode="OMEGA_I", alpha=1.0, extint_min_
     a, boffset = np.unravel_index(np.argmax(interval_scores), interval_scores.shape)
     b = a + boffset
 
-    return a,b
+    return a, b, interval_scores[a, boffset]
 
 
 def score_intervals_kldivergence(K, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, extint_max_len = 150):
-    n = K.shape[0]
+    """ Finding an extreme interval (O(n*span-of-possible-intervals)) """
+    # the minimal and maximal length of an extreme interval (extint_*_len)
+    # this avoids trivial solutions of just one data point in the interval
+    # and saves computation time
+
+    endelement = -1
+    K_integral = np.cumsum(K, axis=0)
+    sums_all = K_integral[endelement,:]
+    n = K_integral.shape[0]
+
+    interval_scores = np.zeros([n, extint_max_len])
 
     # small constant to avoid problems with log(0)
     eps = 1e-7
-
-    # sum of all kernel values
-    sums_all = np.sum(K, axis=0)
-
-    interval_scores = np.zeros([n, extint_max_len])
 
     # loop through all possible intervals
     for i in range(n-extint_min_len):
@@ -70,7 +75,7 @@ def score_intervals_kldivergence(K, mode="OMEGA_I", alpha=1.0, extint_min_len = 
             non_extreme_points = n - extreme_interval_length
             # sum up kernel values to get non-normalized
             # kernel density estimates at single points for p_I and p_Omega
-            sums_extreme = np.sum(K[i:j,:], axis=0)
+            sums_extreme = K_integral[j, :] - K_integral[i, :]
             sums_non_extreme = sums_all - sums_extreme
 
             negative_kl = 0.0
