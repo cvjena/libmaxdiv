@@ -53,7 +53,7 @@ def find_extreme_interval_kldivergence(K, mode="OMEGA_I", alpha=1.0, extint_min_
 
 
 def score_intervals_kldivergence(K, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, extint_max_len = 150):
-    """ Finding an extreme interval (O(n*span-of-possible-intervals)) """
+    """ Finding an extreme interval """
     # the minimal and maximal length of an extreme interval (extint_*_len)
     # this avoids trivial solutions of just one data point in the interval
     # and saves computation time
@@ -77,29 +77,44 @@ def score_intervals_kldivergence(K, mode="OMEGA_I", alpha=1.0, extint_min_len = 
             # kernel density estimates at single points for p_I and p_Omega
             sums_extreme = K_integral[j, :] - K_integral[i, :]
             sums_non_extreme = sums_all - sums_extreme
+            sums_extreme /= extreme_interval_length
+            sums_non_extreme /= non_extreme_points
 
-            negative_kl = 0.0
+            score = 0.0
             # the mode parameter determines which KL divergence to use
             # mode == SYM does not make much sense right now for alpha != 1.0
             if mode == "OMEGA_I" or mode == "SYM":
                 # version for maximizing KL(p_Omega, p_I)
-                kl_integrand1 = np.mean(np.log(sums_extreme/extreme_interval_length + eps) *
-                                               sums_non_extreme/non_extreme_points)
-                kl_integrand2 = np.mean(np.log(sums_non_extreme/non_extreme_points + eps) *
-                                               sums_non_extreme/non_extreme_points)
+                kl_integrand1 = np.mean(np.log(sums_extreme + eps) *
+                                               sums_non_extreme)
+                kl_integrand2 = np.mean(np.log(sums_non_extreme + eps) *
+                                               sums_non_extreme)
                 negative_kl_Omega_I = alpha * kl_integrand1 - kl_integrand2
-                negative_kl += negative_kl_Omega_I
+                score += - negative_kl_Omega_I
 
             # version for maximizing KL(p_I, p_Omega)
             if mode == "I_OMEGA" or mode == "SYM":
-                kl_integrand1 = np.mean(np.log(sums_non_extreme/non_extreme_points + eps) *
-                                        sums_extreme/extreme_interval_length)
-                kl_integrand2 = np.mean(np.log(sums_extreme/extreme_interval_length + eps) *
-                                        sums_extreme/extreme_interval_length)
+                kl_integrand1 = np.mean(np.log(sums_non_extreme + eps) *
+                                        sums_extreme)
+                kl_integrand2 = np.mean(np.log(sums_extreme + eps) *
+                                        sums_extreme)
                 negative_kl_I_Omega = alpha * kl_integrand1 - kl_integrand2
-                negative_kl += negative_kl_I_Omega
+                score += - negative_kl_I_Omega
 
-            interval_scores[i,j-i] = - negative_kl
+            if mode == "LAMBDA":
+                sums_mixed = alpha * sums_extreme + (1-alpha) * sums_non_extreme
+                kl_integrand1 = np.mean(np.log(sums_mixed + eps) * sums_extreme)
+                kl_integrand2 = np.mean(np.log(sums_extreme + eps) * sums_extreme)
+                negative_kl_I_Mixed = kl_integrand1 - kl_integrand2
+                kl_integrand1 = np.mean(np.log(sums_mixed + eps) * sums_non_extreme)
+                kl_integrand2 = np.mean(np.log(sums_non_extreme + eps) * sums_non_extreme)
+                negative_kl_Omega_Mixed = kl_integrand1 - kl_integrand2
+
+                score += - (alpha * negative_kl_I_Mixed + (1-alpha) * negative_kl_Omega_Mixed)
+
+
+
+            interval_scores[i,j-i] = score
 
     return interval_scores
 
