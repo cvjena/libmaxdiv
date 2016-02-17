@@ -18,7 +18,7 @@ parser.add_argument('--method', help='maxdiv method', choices=['parzen', 'gaussi
 parser.add_argument('--kernel_sigma_sq', help='kernel sigma square hyperparameter for Parzen estimation', type=float, default=1.0)
 parser.add_argument('--extint_min_len', help='minimum length of the extreme interval', default=20, type=int)
 parser.add_argument('--extint_max_len', help='maximum length of the extreme interval', default=250, type=int)
-parser.add_argument('--alpha', help='Hyperparameter for the KL divergence', default='1.0')
+parser.add_argument('--alpha', help='Hyperparameter for the KL divergence', type=float, default=1.0)
 parser.add_argument('--mode', help='Mode for KL divergence computation', choices=['OMEGA_I', 'SYM', 'I_OMEGA', 'LAMBDA'], default='I_OMEGA')
 parser.add_argument('--timecol', help='name of the column for the date-time specification in the CSV file', default='DateTime')
 parser.add_argument('--variables', help='names of variables to consider', nargs='+')
@@ -86,4 +86,14 @@ plt.fill([ a, a, b, b ], [minv, maxv, maxv, minv], 'b', alpha=0.3)
 
 steps = (bv-av)//10
 plt.xticks(x[::steps], times[av:bv:steps], rotation=30)
+plt.title('Detected Extreme in the Time Series')
+
+plt.figure()
+non_extreme_sample = range(0,a) + range(b,-1)
+non_extreme_sample = np.random.choice(non_extreme_sample, 200)
+plt.scatter(X[0,a:b], X[1,a:b], color='red')
+plt.scatter(X[0,non_extreme_sample], X[1,non_extreme_sample], color='blue')
+plt.title('Data Distributions of the Extreme and All Data')
+plt.legend(['extreme', 'sampled from non-extreme'])
 plt.show()
+
