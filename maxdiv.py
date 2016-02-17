@@ -164,7 +164,7 @@ def calc_max_nonoverlapping_regions(interval_scores, num_intervals):
     while len(regions)<=num_intervals:
         negative_score_all, interval = interval_list.pop()
         a_all, b_all = interval
-        print ("Analyzing interval ({}): {} to {}".format(negative_score_all, a_all, b_all))
+        print ("Analyzing interval ({}): {} to {}".format(-negative_score_all, a_all, b_all))
         subseries = interval_scores[a_all:(b_all-interval_max_length), :]
         a_sub, b_offset = np.unravel_index(np.argmax(subseries), subseries.shape)
         a = a_sub + a_all

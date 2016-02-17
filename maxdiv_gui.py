@@ -9,6 +9,7 @@ import argparse
 import csv
 import datetime
 import time
+from scipy.io import savemat
 
 __author__ = "Erik Rodner"
 
@@ -29,6 +30,8 @@ parser.add_argument('--vissample', help='number of non-extreme points sampled fo
 parser.add_argument('--visborder', help='number of data points additionally displayed after and before extreme', default=10, type=int)
 parser.add_argument('--num_intervals', help='number of intervals to be displayed', default=5, type=int)
 parser.add_argument('--novis', action='store_true', help='skip the visualization')
+parser.add_argument('--matout', help='.mat file for results', default='results.mat')
+parser.parse_args()
 args = parser.parse_args()
 
 # prepare parameters for calling maxdiv
@@ -106,3 +109,4 @@ for region in regions:
         plt.legend(['sampled from non-extreme', 'extreme'])
         plt.show()
 
+savemat(args.matout, {'regions': regions, 'settings': args_dict})
