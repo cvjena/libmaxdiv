@@ -25,6 +25,8 @@ parser.add_argument('--variables', help='names of variables to consider', nargs=
 parser.add_argument('--maxdatapoints', help='maximum number of data points (for debugging)', type=int)
 parser.add_argument('--timeformat', help='format used for strptime to convert time specifications, ' +
         'see http://strftime.org for more information', default='%Y-%m-%d %H:%M:%S')
+parser.add_argument('--vissample', help='number of non-extreme points sampled for visualization', default=-1, type=int)
+parser.add_argument('--visborder', help='number of data points additionally displayed after and before extreme', default=10, type=int)
 args = parser.parse_args()
 
 # prepare parameters for calling maxdiv
@@ -39,7 +41,7 @@ times = []
 with open(args.input, 'r') as csvfile:
     reader = csv.DictReader(csvfile)
     if not args.timecol in reader.fieldnames:
-        raise Exception("No column with name {} found in the file".format(args.timerow))
+        raise Exception("No column with name {} found in the file".format(args.timecol))
     if args.variables is None:
         variables = list(reader.fieldnames)
     else:
@@ -73,8 +75,8 @@ print ("Extreme interval detected between data points {} and {}".format(a, b))
 print ("Extreme interval detected between {} and {}".format(a_time, b_time))
 print ("Score of the interval: {}".format(score))
 
-av = a - 10
-bv = b + 10
+av = max(a - args.visborder, 0)
+bv = min(b + args.visborder, X.shape[1])
 plt.figure()
 x = range(av, bv)
 for i in range(X.shape[0]):
@@ -89,11 +91,12 @@ plt.xticks(x[::steps], times[av:bv:steps], rotation=30)
 plt.title('Detected Extreme in the Time Series')
 
 plt.figure()
-non_extreme_sample = range(0,a) + range(b,-1)
-non_extreme_sample = np.random.choice(non_extreme_sample, 200)
-plt.scatter(X[0,a:b], X[1,a:b], color='red')
+non_extreme_sample = range(0,a) + range(b,X.shape[1])
+if args.vissample>0:
+	non_extreme_sample = np.random.choice(non_extreme_sample, args.vissample)
 plt.scatter(X[0,non_extreme_sample], X[1,non_extreme_sample], color='blue')
+plt.scatter(X[0,a:b], X[1,a:b], color='red')
 plt.title('Data Distributions of the Extreme and All Data')
-plt.legend(['extreme', 'sampled from non-extreme'])
+plt.legend(['sampled from non-extreme', 'extreme'])
 plt.show()
 
