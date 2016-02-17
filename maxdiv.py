@@ -1,6 +1,7 @@
 # coding: utf-8
+#
 # Detection of extreme intervals in multivariate time-series
-# Author: Erik Rodner together with Milan Flach (2015)
+# Author: Erik Rodner (2015-)
 
 # Novelty detection by finding by minimizing the KL divergence
 # In the following, we will derive a similar algorithm based on Kullback-Leibler (KL) divergence
@@ -119,6 +120,11 @@ def score_intervals_parzen(K, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, ex
 
     return interval_scores
 
+
+#
+# Maximally divergent regions using a Gaussian assumption
+#
+
 def maxdiv_gaussian(X, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, extint_max_len = 150):
     """ Finding an extreme interval """
     interval_scores = score_intervals_gaussian(X, mode, alpha, extint_min_len, extint_max_len)
@@ -131,13 +137,14 @@ def maxdiv_gaussian(X, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, extint_ma
 
 
 def score_intervals_gaussian(X, mode, alpha, extint_min_len, extint_max_len):
+    """ Evaluating all possible intervals and returning the score matrix for Gaussian
+        KL divergence """
+
     X_integral = np.cumsum(X, axis=1)
     n = X.shape[1]
 
     interval_scores = np.zeros([n, extint_max_len])
     sums_all = X_integral[:, -1]
-
-
 
     for i in range(n-extint_min_len):
         for j in range(i+extint_min_len, min(i+extint_max_len,n)):
