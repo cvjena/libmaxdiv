@@ -126,6 +126,10 @@ def maxdiv_gaussian(X, mode, alpha, extint_min_len, extint_max_len):
     interval_scores = np.zeros([n, extint_max_len])
     sums_all = X_integral[:, -1]
 
+    # compute integral series of the outer products
+    outer_X = np.apply_along_axis(lambda x: np.ravel(np.outer(x,x)), 0, X)
+    outer_X_integral = np.cumsum(outer_X, axis=1)
+
     for i in range(n-extint_min_len):
         for j in range(i+extint_min_len, min(i+extint_max_len,n)):
             extreme_interval_length = j-i
