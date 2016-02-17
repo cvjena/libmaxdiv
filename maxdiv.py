@@ -127,6 +127,7 @@ def score_intervals_parzen(K, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, ex
 
 def maxdiv_gaussian(X, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, extint_max_len = 150):
     """ Finding an extreme interval """
+
     interval_scores = score_intervals_gaussian(X, mode, alpha, extint_min_len, extint_max_len)
 
     a, boffset = np.unravel_index(np.argmax(interval_scores), interval_scores.shape)
@@ -138,7 +139,7 @@ def maxdiv_gaussian(X, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, extint_ma
 
 def score_intervals_gaussian(X, mode, alpha, extint_min_len, extint_max_len):
     """ Evaluating all possible intervals and returning the score matrix for Gaussian
-        KL divergence """
+        KL divergence, we assume data points given as columns """
 
     X_integral = np.cumsum(X, axis=1)
     n = X.shape[1]

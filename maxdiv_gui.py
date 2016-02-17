@@ -22,8 +22,9 @@ parser.add_argument('--alpha', help='Hyperparameter for the KL divergence', defa
 parser.add_argument('--mode', help='Mode for KL divergence computation', choices=['OMEGA_I', 'SYM', 'I_OMEGA', 'LAMBDA'], default='I_OMEGA')
 parser.add_argument('--timecol', help='name of the column for the date-time specification in the CSV file', default='DateTime')
 parser.add_argument('--variables', help='names of variables to consider', nargs='+')
+parser.add_argument('--maxdatapoints', help='maximum number of data points (for debugging)', type=int)
 parser.add_argument('--timeformat', help='format used for strptime to convert time specifications, ' +
-        'see https://docs.python.org/2/library/time.html#time.strftime for more information', default='%Y-%m-%d %H:%M:%S')
+        'see http://strftime.org for more information', default='%Y-%m-%d %H:%M:%S')
 args = parser.parse_args()
 
 # prepare parameters for calling maxdiv
@@ -50,14 +51,39 @@ with open(args.input, 'r') as csvfile:
     for row in reader:
         time_string = row[args.timecol]
         try:
-            current_time = time.strptime(time_string, args.timeformat)
+            current_time = datetime.datetime.strptime(time_string, args.timeformat)
         except:
             raise Exception("Unable to convert the time specification {} using the format {}".format(time_string, args.timeformat))
         times.append(current_time)
         vector = [ float(row[v]) for v in variables ]
         X.append(vector)
 
-X = np.vstack(X)
+        if not args.maxdatapoints is None and len(X) >= args.maxdatapoints:
+            break
+
+X = np.vstack(X).T
+print ("Data points in the time series: {}".format(X.shape[1]))
+print ("Dimensions for each data point: {}".format(X.shape[0]))
 
 a, b, score = maxdiv.maxdiv(X, kernelparameters={'kernel_sigma_sq': args.kernel_sigma_sq}, **parameters)
 
+a_time = times[a]
+b_time = times[b]
+print ("Extreme interval detected between data points {} and {}".format(a, b))
+print ("Extreme interval detected between {} and {}".format(a_time, b_time))
+print ("Score of the interval: {}".format(score))
+
+av = a - 10
+bv = b + 10
+plt.figure()
+x = range(av, bv)
+for i in range(X.shape[0]):
+    plt.plot(x, X[i,av:bv])
+
+minv = np.min(X[:, av:bv])
+maxv = np.max(X[:, av:bv])
+plt.fill([ a, a, b, b ], [minv, maxv, maxv, minv], 'b', alpha=0.3)
+
+steps = (bv-av)//10
+plt.xticks(x[::steps], times[av:bv:steps], rotation=30)
+plt.show()
