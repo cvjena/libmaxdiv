@@ -174,13 +174,13 @@ def score_intervals_gaussian(X, mode, alpha, extint_min_len, extint_max_len):
 
 def maxdiv(X, method = 'parzen', **kwargs):
     """ Wrapper function for calling maximum divergent regions """
-    if method == 'parzen':
-        if 'kernelparameters' in kwargs:
-            kernelparameters = kwargs['kernelparameters']
-            del kwargs['kernelparameters']
-        else:
-            kernelparameters = {'kernel_sigma_sq': 1.0}
+    if 'kernelparameters' in kwargs:
+        kernelparameters = kwargs['kernelparameters']
+        del kwargs['kernelparameters']
+    else:
+        kernelparameters = {'kernel_sigma_sq': 1.0}
 
+    if method == 'parzen':
         # compute kernel matrix first (Gaussian kernel)
         K = calc_normalized_gaussian_kernel(X, **kernelparameters)
         # obtain the interval [a,b] of the extreme event with score score
