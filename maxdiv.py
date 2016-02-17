@@ -15,6 +15,7 @@
 
 import numpy as np
 import matplotlib.pylab as plt
+import heapq
 
 def calc_euclidean_distances(X):
     """ Compute pairwise distances between columns in X """
@@ -44,17 +45,8 @@ def calc_normalized_gaussian_kernel(X, kernel_sigma_sq = 1.0):
 # density power divergence (http://biomet.oxfordjournals.org/content/85/3/549.full.pdf).
 # Plugging everything together we derive at the following algorithm:
 
+
 def maxdiv_parzen(K, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, extint_max_len = 150):
-    """ Finding an extreme interval """
-    interval_scores = score_intervals_parzen(K, mode, alpha, extint_min_len, extint_max_len)
-
-    a, boffset = np.unravel_index(np.argmax(interval_scores), interval_scores.shape)
-    b = a + boffset
-
-    return a, b, interval_scores[a, boffset]
-
-
-def score_intervals_parzen(K, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, extint_max_len = 150):
     """ Evaluating all possible intervals and returning the score matrix """
     # the minimal and maximal length of an extreme interval (extint_*_len)
     # this avoids trivial solutions of just one data point in the interval
@@ -124,20 +116,7 @@ def score_intervals_parzen(K, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, ex
 #
 # Maximally divergent regions using a Gaussian assumption
 #
-
-def maxdiv_gaussian(X, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, extint_max_len = 150):
-    """ Finding an extreme interval """
-
-    interval_scores = score_intervals_gaussian(X, mode, alpha, extint_min_len, extint_max_len)
-
-    a, boffset = np.unravel_index(np.argmax(interval_scores), interval_scores.shape)
-    b = a + boffset
-
-    return a, b, interval_scores[a, boffset]
-
-
-
-def score_intervals_gaussian(X, mode, alpha, extint_min_len, extint_max_len):
+def maxdiv_gaussian(X, mode, alpha, extint_min_len, extint_max_len):
     """ Evaluating all possible intervals and returning the score matrix for Gaussian
         KL divergence, we assume data points given as columns """
 
@@ -172,8 +151,38 @@ def score_intervals_gaussian(X, mode, alpha, extint_min_len, extint_max_len):
 
     return interval_scores
 
+#
+# Search non-overlapping regions
+#
+def calc_max_nonoverlapping_regions(interval_scores, num_intervals):
+    n = interval_scores.shape[0]
+    interval_list = []
+    heapq.heappush (interval_list, (float('-inf'), [0, n]))
+    interval_max_length = interval_scores.shape[1]
 
-def maxdiv(X, method = 'parzen', **kwargs):
+    regions = []
+    while len(regions)<=num_intervals:
+        negative_score_all, interval = interval_list.pop()
+        a_all, b_all = interval
+        print ("Analyzing interval ({}): {} to {}".format(negative_score_all, a_all, b_all))
+        subseries = interval_scores[a_all:(b_all-interval_max_length), :]
+        a_sub, b_offset = np.unravel_index(np.argmax(subseries), subseries.shape)
+        a = a_sub + a_all
+        b = a + b_offset
+        score = interval_scores[a, b_offset]
+        print ("Found region: {} to {}".format(a, b))
+        regions.append( [a, b, score] )
+        heapq.heappush(interval_list, (-score, [a_all, a]))
+        heapq.heappush(interval_list, (-score, [b, b_all]))
+
+    regions = sorted(regions, key=lambda r: r[2], reverse=True)
+    return regions[:num_intervals]
+
+
+#
+# Wrapper and utility functions
+#
+def maxdiv(X, method = 'parzen', num_intervals=1, **kwargs):
     """ Wrapper function for calling maximum divergent regions """
     if 'kernelparameters' in kwargs:
         kernelparameters = kwargs['kernelparameters']
@@ -185,11 +194,14 @@ def maxdiv(X, method = 'parzen', **kwargs):
         # compute kernel matrix first (Gaussian kernel)
         K = calc_normalized_gaussian_kernel(X, **kernelparameters)
         # obtain the interval [a,b] of the extreme event with score score
-        result = maxdiv_parzen(K, **kwargs)
-    elif method == 'gaussian':
-        result = maxdiv_gaussian(X, **kwargs)
+        interval_scores = maxdiv_parzen(K, **kwargs)
 
-    return result
+    elif method == 'gaussian':
+        interval_scores = maxdiv_gaussian(X, **kwargs)
+
+    regions = calc_max_nonoverlapping_regions(interval_scores, num_intervals)
+
+    return regions
 
 
 def plot_matrix_with_interval(D, a, b):
