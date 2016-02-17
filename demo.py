@@ -14,7 +14,7 @@ run_parzen = True
 np.random.seed(0)
 
 # generative some boring time series
-t = np.arange(0, 100, 0.001)
+t = np.arange(0, 100, 0.1)
 print ("Length of the time series: {}".format(len(t)))
 X = np.vstack([np.sin(t), np.cos(t)]) + 0.01*np.random.randn(2, len(t))
 # integrate a boring defect
@@ -28,15 +28,12 @@ if len(t)>5000:
 # run the Parzen version of the algorithm
 if run_parzen:
     print ("Running MDR Parzen case")
-    # compute kernel matrix first (Gaussian kernel)
-    K = maxdiv.calc_normalized_gaussian_kernel(X)
-    # obtain the interval [a,b] of the extreme event with score score
-    a, b, score = maxdiv.maxdiv_parzen(K, extint_min_len=10, extint_max_len=30, mode="I_OMEGA", alpha=1.0)
+    a, b, score = maxdiv.maxdiv(X, kernelparameters={'kernel_sigma_sq': 2.0})
     print ("Parzen: Extreme interval detected at {} to {} with scores {}".format(a, b, score))
 
 # run the Gaussian version of the algorithm
 print ("Running MDR Gaussian case")
-a, b, score = maxdiv.maxdiv_gaussian(X, extint_min_len=10, extint_max_len=30, mode="I_OMEGA", alpha=1.0)
+a, b, score = maxdiv.maxdiv(X, method='gaussian')
 print ("Parzen: Extreme interval detected at {} to {} with scores {}".format(a, b, score))
 
 
