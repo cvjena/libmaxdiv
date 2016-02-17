@@ -170,7 +170,7 @@ def calc_max_nonoverlapping_regions(interval_scores, num_intervals):
         a = a_sub + a_all
         b = a + b_offset
         score = interval_scores[a, b_offset]
-        print ("Found region: {} to {}".format(a, b))
+        print ("Found region: {} to {} with score {}".format(a, b, score))
         regions.append( [a, b, score] )
         heapq.heappush(interval_list, (-score, [a_all, a]))
         heapq.heappush(interval_list, (-score, [b, b_all]))
