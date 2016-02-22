@@ -151,6 +151,7 @@ def maxdiv_gaussian(X, mode, alpha, extint_min_len, extint_max_len):
     sums_all = X_integral[:, -1]
 
     # compute integral series of the outer products
+    # we will use this to compute covariance matrices
     outer_X = np.apply_along_axis(lambda x: np.ravel(np.outer(x,x)), 0, X)
     outer_X_integral = np.cumsum(outer_X, axis=1)
 
