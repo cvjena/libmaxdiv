@@ -16,6 +16,7 @@
 import numpy as np
 import matplotlib.pylab as plt
 import heapq
+from numpy.linalg import slogdet, inv
 
 #
 # Some helper functions for kernels
@@ -140,12 +141,13 @@ def maxdiv_parzen(K, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, extint_max_
 #
 # Maximally divergent regions using a Gaussian assumption
 #
-def maxdiv_gaussian(X, mode, alpha, extint_min_len, extint_max_len):
+def maxdiv_gaussian(X, mode, gaussian_mode, extint_min_len, extint_max_len):
     """ Evaluating all possible intervals and returning the score matrix for Gaussian
         KL divergence, we assume data points given as columns """
 
     X_integral = np.cumsum(X, axis=1)
     n = X.shape[1]
+    dimension = X.shape[0]
 
     interval_scores = np.zeros([n, extint_max_len])
     sums_all = X_integral[:, -1]
@@ -154,26 +156,50 @@ def maxdiv_gaussian(X, mode, alpha, extint_min_len, extint_max_len):
     # we will use this to compute covariance matrices
     outer_X = np.apply_along_axis(lambda x: np.ravel(np.outer(x,x)), 0, X)
     outer_X_integral = np.cumsum(outer_X, axis=1)
+    outer_sums_all = outer_X_integral[:, -1]
 
     for i in range(n-extint_min_len):
         for j in range(i+extint_min_len, min(i+extint_max_len,n)):
             extreme_interval_length = j-i
             non_extreme_points = n - extreme_interval_length
+            
             sums_extreme = X_integral[:, j] - X_integral[:, i]
             sums_non_extreme = sums_all - sums_extreme
             sums_extreme /= extreme_interval_length
             sums_non_extreme /= non_extreme_points
 
+            outer_sums_extreme = outer_X_integral[:, j] - outer_X_integral[:, i]
+            outer_sums_non_extreme = outer_sums_all - outer_sums_extreme
+            outer_sums_extreme /= extreme_interval_length
+            outer_sums_non_extreme /= non_extreme_points
+
+            cov_extreme = np.reshape(outer_sums_extreme, [dimension, dimension]) - \
+                    np.outer(sums_extreme, sums_extreme)
+            cov_non_extreme = np.reshape(outer_sums_non_extreme, [dimension, dimension]) - \
+                    np.outer(sums_non_extreme, sums_non_extreme)
+            eps = 1e-7
+            _, logdet_extreme = slogdet(cov_extreme + eps * np.eye(dimension))
+            _, logdet_non_extreme = slogdet(cov_non_extreme + eps * np.eye(dimension))
+
             score = 0.0
             # the mode parameter determines which KL divergence to use
             # mode == SYM does not make much sense right now for alpha != 1.0
+            diff = sums_extreme - sums_non_extreme
             if mode == "OMEGA_I" or mode == "SYM":
-                kl_Omega_I = np.sum((sums_extreme - sums_non_extreme)**2)
+                #kl_Omega_I = np.sum((sums_extreme - sums_non_extreme)**2)
+                inv_cov_extreme = inv(cov_extreme)
+                kl_Omega_I = diff.T * inv_cov_extreme * diff
+                kl_Omega_I += np.sum(inv_cov_extreme * cov_non_extreme)
+                kl_Omega_I += logdet_extreme - logdet_non_extreme
                 score += kl_Omega_I
 
             # version for maximizing KL(p_I, p_Omega)
             if mode == "I_OMEGA" or mode == "SYM":
                 kl_I_Omega = np.sum((sums_extreme - sums_non_extreme)**2)
+                inv_cov_non_extreme = inv(cov_non_extreme)
+                kl_I_Omega = np.dot(diff, np.dot(inv_cov_non_extreme, diff.T))
+                kl_I_Omega += np.sum(inv_cov_non_extreme * cov_extreme)
+                kl_I_Omega += logdet_non_extreme - logdet_extreme
                 score += kl_I_Omega
 
             interval_scores[i,j-i] = score
@@ -258,6 +284,8 @@ def maxdiv(X, method = 'parzen', num_intervals=1, **kwargs):
         interval_scores = maxdiv_parzen(K, **kwargs)
 
     elif method == 'gaussian':
+        del kwargs['alpha']
+        kwargs['gaussian_mode'] = 'fullcov'
         interval_scores = maxdiv_gaussian(X, **kwargs)
 
     # get the K best non-overlapping regions
