@@ -17,9 +17,14 @@ import numpy as np
 import matplotlib.pylab as plt
 import heapq
 
-def calc_euclidean_distances(X):
+#
+# Some helper functions for kernels
+#
+def calc_distance_matrix(X, metric='sqeuclidean'):
     """ Compute pairwise distances between columns in X """
     from scipy.spatial.distance import pdist, squareform
+    # results from pdist are usually not stored as a symmetric matrix,
+    # therefore, we use squareform to convert it
     D = squareform(pdist(X.T, 'sqeuclidean'))
     return D
 
@@ -27,7 +32,7 @@ def calc_normalized_gaussian_kernel(X, kernel_sigma_sq = 1.0):
     """ Calculate a normalized Gaussian kernel using the columns of X """
     # Let's first compute the kernel matrix from our squared Euclidean distances in $D$.
     dimension = X.shape[0]
-    D = calc_euclidean_distances(X)
+    D = calc_distance_matrix(X)
     # compute proper normalized Gaussian kernel values
     K = np.exp(-D/2.0)/((2*np.pi*kernel_sigma_sq)**(dimension/2))
     return K
@@ -52,28 +57,47 @@ def maxdiv_parzen(K, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, extint_max_
     # this avoids trivial solutions of just one data point in the interval
     # and saves computation time
 
+    # the index -1 represents the last element in a list/vector
+    # we use the variable endelement instead to increase
+    # code readability
     endelement = -1
+    # compute integral sums for each column within the kernel matrix 
     K_integral = np.cumsum(K, axis=0)
+    # the sum of all kernel values for each column
+    # is now given in the last row
     sums_all = K_integral[endelement,:]
+    # n is the number of data points considered
     n = K_integral.shape[0]
 
+    # initialize a matrix in which we will store the KL-divergence
+    # score for every possible interval
+    # e.g. interval_scores[a,c] will give us the score
+    # for the interval between a and a+c (including a and excluding a+c)
     interval_scores = np.zeros([n, extint_max_len])
 
     # small constant to avoid problems with log(0)
     eps = 1e-7
 
-    # loop through all possible intervals
+    # loop through all possible intervals from i to j
+    # including i excluding j
     for i in range(n-extint_min_len):
         for j in range(i+extint_min_len, min(i+extint_max_len,n)):
+            # number of data points in the current interval
             extreme_interval_length = j-i
+            # number of data points outside of the current interval
             non_extreme_points = n - extreme_interval_length
             # sum up kernel values to get non-normalized
             # kernel density estimates at single points for p_I and p_Omega
-            sums_extreme = K_integral[j, :] - K_integral[i, :]
+            # we use the integral sums in K_integral
+            # sums_extreme and sums_non_extreme are vectors of size n
+            sums_extreme = K_integral[j, :] - K_integral[i, :] 
             sums_non_extreme = sums_all - sums_extreme
+            # divide by the number of data points to get the final
+            # parzen scores for each data point
             sums_extreme /= extreme_interval_length
             sums_non_extreme /= non_extreme_points
 
+            # compute the KL divergence
             score = 0.0
             # the mode parameter determines which KL divergence to use
             # mode == SYM does not make much sense right now for alpha != 1.0
@@ -95,6 +119,7 @@ def maxdiv_parzen(K, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, extint_max_
                 negative_kl_I_Omega = alpha * kl_integrand1 - kl_integrand2
                 score += - negative_kl_I_Omega
 
+            # symmetrized kernel version using the mixture distribution
             if mode == "LAMBDA":
                 sums_mixed = alpha * sums_extreme + (1-alpha) * sums_non_extreme
                 kl_integrand1 = np.mean(np.log(sums_mixed + eps) * sums_extreme)
@@ -106,8 +131,7 @@ def maxdiv_parzen(K, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, extint_max_
 
                 score += - (alpha * negative_kl_I_Mixed + (1-alpha) * negative_kl_Omega_Mixed)
 
-
-
+            # store the score in the matrix interval_scores
             interval_scores[i,j-i] = score
 
     return interval_scores
@@ -159,27 +183,59 @@ def maxdiv_gaussian(X, mode, alpha, extint_min_len, extint_max_len):
 # Search non-overlapping regions
 #
 def calc_max_nonoverlapping_regions(interval_scores, num_intervals):
+    """ Given the scores for each interval as a matrix, we greedily select the num_intervals
+        intervals which are non-overlapping and have the highest score """
+
+    # number of data points
     n = interval_scores.shape[0]
+    # interval_list will contain scored intervals
+    # and we construct a priority queue to guide the selection
     interval_list = []
     heapq.heappush (interval_list, (float('-inf'), [0, n]))
+    # maximum length of an interval
     interval_max_length = interval_scores.shape[1]
 
+    # final list of regions
     regions = []
-    while len(regions)<=num_intervals:
+    # search for regions until we have enough + 1
+    # we indeed loop through one region since it might
+    # be theoretically the case that we get a better interval
+    # from the second half. this is best exemplified for 
+    # num_intervals = 2
+    # we get the maxdiv region first and the consider the interval
+    # left and right of it. we start with the left one and add it to 
+    # regions, however, we should also process the right one to make sure
+    # it has a smaller score
+    while len(regions)<=num_intervals or len(interval_list)>0:
+        # get the "best-scored" interval from the queue
+        # we store negative score, since the pop always gives us 
+        # the smallest element
         negative_score_all, interval = interval_list.pop()
         a_all, b_all = interval
+        max_length_within_interval = min(interval_max_length, b_all-a_all)
         print ("Analyzing interval ({}): {} to {}".format(-negative_score_all, a_all, b_all))
-        subseries = interval_scores[a_all:(b_all-interval_max_length), :]
+        # get the part of the interval_scores matrix we are interested in
+        subseries = interval_scores[a_all:(b_all-max_length_within_interval), :max_length_within_interval]
+        # compute the maximum within a part of interval_scores
         a_sub, b_offset = np.unravel_index(np.argmax(subseries), subseries.shape)
+        # convert the maximum position in subseries to a position
+        # in interval_scores
         a = a_sub + a_all
         b = a + b_offset
         score = interval_scores[a, b_offset]
         print ("Found region: {} to {} with score {}".format(a, b, score))
         regions.append( [a, b, score] )
-        heapq.heappush(interval_list, (-score, [a_all, a]))
-        heapq.heappush(interval_list, (-score, [b, b_all]))
+        # add the interval before and the interval after to the queue
+        # with the score of the current interval. maximum score within these
+        # intervals is bounded from above by the score of the current interval 
+        if a-a_all>0:
+            heapq.heappush(interval_list, (-score, [a_all, a]))
+        if b-b_all>0:
+            heapq.heappush(interval_list, (-score, [b, b_all]))
 
+    # sort the regions according to their score
     regions = sorted(regions, key=lambda r: r[2], reverse=True)
+    # return the right number of regions
     return regions[:num_intervals]
 
 
@@ -203,11 +259,14 @@ def maxdiv(X, method = 'parzen', num_intervals=1, **kwargs):
     elif method == 'gaussian':
         interval_scores = maxdiv_gaussian(X, **kwargs)
 
+    # get the K best non-overlapping regions
     regions = calc_max_nonoverlapping_regions(interval_scores, num_intervals)
 
     return regions
 
-
+#
+# Utility functions for visualization
+#
 def plot_matrix_with_interval(D, a, b):
     """ Show a given kernel or distance matrix with a highlighted interval """
     plt.figure()
