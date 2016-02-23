@@ -209,7 +209,7 @@ def maxdiv_gaussian(X, mode, gaussian_mode, extint_min_len, extint_max_len):
 #
 # Search non-overlapping regions
 #
-def calc_max_nonoverlapping_regions(interval_scores, num_intervals):
+def calc_max_nonoverlapping_regions(interval_scores, num_intervals, interval_min_length):
     """ Given the scores for each interval as a matrix, we greedily select the num_intervals
         intervals which are non-overlapping and have the highest score """
 
@@ -240,9 +240,11 @@ def calc_max_nonoverlapping_regions(interval_scores, num_intervals):
         negative_score_all, interval = interval_list.pop()
         a_all, b_all = interval
         max_length_within_interval = min(interval_max_length, b_all-a_all)
+	min_length_within_interval = interval_min_length
+	print max_length_within_interval
         print ("Analyzing interval ({}): {} to {}".format(-negative_score_all, a_all, b_all))
         # get the part of the interval_scores matrix we are interested in
-        subseries = interval_scores[a_all:(b_all-max_length_within_interval), :max_length_within_interval]
+        subseries = interval_scores[a_all:(b_all-min_length_within_interval), :max_length_within_interval]
         # compute the maximum within a part of interval_scores
         a_sub, b_offset = np.unravel_index(np.argmax(subseries), subseries.shape)
         # convert the maximum position in subseries to a position
@@ -289,7 +291,11 @@ def maxdiv(X, method = 'parzen', num_intervals=1, **kwargs):
         interval_scores = maxdiv_gaussian(X, **kwargs)
 
     # get the K best non-overlapping regions
-    regions = calc_max_nonoverlapping_regions(interval_scores, num_intervals)
+    if 'extint_min_len' in kwargs:
+	interval_min_length = kwargs['extint_min_len']
+    else:
+	interval_min_length = 20
+    regions = calc_max_nonoverlapping_regions(interval_scores, num_intervals, interval_min_length)
 
     return regions
 
