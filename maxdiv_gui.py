@@ -118,15 +118,18 @@ def main():
             plt.xticks(x[::steps], times[av:bv:steps], rotation=30)
             plt.title('Detected Extreme in the Time Series')
 
-            plt.figure()
-            non_extreme_sample = range(0,a) + range(b,X.shape[1])
-            if args.vissample>0:
-                non_extreme_sample = np.random.choice(non_extreme_sample, args.vissample)
-            plt.scatter(X[0,non_extreme_sample], X[1,non_extreme_sample], color='blue')
-            plt.scatter(X[0,a:b], X[1,a:b], color='red')
-            plt.title('Data Distributions of the Extreme and All Data')
-            plt.legend(['sampled from non-extreme', 'extreme'])
-            plt.show()
+            if X.shape[0]>=2:
+                plt.figure()
+                non_extreme_sample = range(0,a) + range(b,X.shape[1])
+                if args.vissample>0:
+                    non_extreme_sample = np.random.choice(non_extreme_sample, args.vissample)
+                plt.scatter(X[0,non_extreme_sample], X[1,non_extreme_sample], color='blue')
+                plt.scatter(X[0,a:b], X[1,a:b], color='red')
+                plt.title('Data Distributions of the Extreme and All Data')
+                plt.legend(['sampled from non-extreme', 'extreme'])
+                plt.show()
+            else:
+                print ("The time series has only one dimension, therefore the data distribution plot is skipped.")
 
     savemat(args.matout, {'regions': regions, 'settings': args_dict})
 
