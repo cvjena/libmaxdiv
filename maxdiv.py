@@ -258,7 +258,7 @@ def calc_max_nonoverlapping_regions(interval_scores, num_intervals, interval_min
         # intervals is bounded from above by the score of the current interval 
         if a-a_all>0:
             heapq.heappush(interval_list, (-score, [a_all, a]))
-        if b-b_all>0:
+        if b_all-b>0:
             heapq.heappush(interval_list, (-score, [b, b_all]))
 
     # sort the regions according to their score
