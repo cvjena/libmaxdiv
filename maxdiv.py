@@ -14,7 +14,6 @@
 # Similarly, we define $p_{\Omega}$ with $\Omega = \{1, \ldots, n\} \setminus I$.
 
 import numpy as np
-import matplotlib.pylab as plt
 import heapq
 from numpy.linalg import slogdet, inv
 
@@ -298,6 +297,7 @@ def maxdiv(X, method = 'parzen', num_intervals=1, **kwargs):
 #
 def plot_matrix_with_interval(D, a, b):
     """ Show a given kernel or distance matrix with a highlighted interval """
+    import matplotlib.pylab as plt
     plt.figure()
     plt.plot(range(D.shape[0]), a*np.ones([D.shape[0],1]), 'r-')
     plt.plot(range(D.shape[0]), b*np.ones([D.shape[0],1]), 'r-')
