@@ -127,9 +127,10 @@ def main():
                 plt.scatter(X[0,a:b], X[1,a:b], color='red')
                 plt.title('Data Distributions of the Extreme and All Data')
                 plt.legend(['sampled from non-extreme', 'extreme'])
-                plt.show()
             else:
                 print ("The time series has only one dimension, therefore the data distribution plot is skipped.")
+                
+            plt.show()
 
     # Since savemat cannot handle None values, we skip
     # all values from the settings with None values
