@@ -239,8 +239,8 @@ def calc_max_nonoverlapping_regions(interval_scores, num_intervals, interval_min
         negative_score_all, interval = interval_list.pop()
         a_all, b_all = interval
         max_length_within_interval = min(interval_max_length, b_all-a_all)
-	min_length_within_interval = interval_min_length
-	print max_length_within_interval
+    	min_length_within_interval = interval_min_length
+        print max_length_within_interval
         print ("Analyzing interval ({}): {} to {}".format(-negative_score_all, a_all, b_all))
         # get the part of the interval_scores matrix we are interested in
         subseries = interval_scores[a_all:(b_all-min_length_within_interval), :max_length_within_interval]
@@ -256,9 +256,9 @@ def calc_max_nonoverlapping_regions(interval_scores, num_intervals, interval_min
         # add the interval before and the interval after to the queue
         # with the score of the current interval. maximum score within these
         # intervals is bounded from above by the score of the current interval 
-        if a-a_all>0:
+        if a-a_all >= interval_min_length:
             heapq.heappush(interval_list, (-score, [a_all, a]))
-        if b_all-b>0:
+        if b_all-b >= interval_min_length:
             heapq.heappush(interval_list, (-score, [b, b_all]))
 
     # sort the regions according to their score
