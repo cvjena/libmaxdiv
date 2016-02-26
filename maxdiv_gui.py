@@ -131,7 +131,11 @@ def main():
             else:
                 print ("The time series has only one dimension, therefore the data distribution plot is skipped.")
 
-    savemat(args.matout, {'regions': regions, 'settings': args_dict})
+    # Since savemat cannot handle None values, we skip
+    # all values from the settings with None values
+    data_to_store = { key:value for value, key in enumerate(args_dict) if not value is None }
+    data_to_store['regions'] = regions
+    savemat(args.matout, data_to_store)
 
 #
 # Main program
