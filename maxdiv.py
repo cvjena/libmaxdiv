@@ -232,16 +232,22 @@ def calc_max_nonoverlapping_regions(interval_scores, num_intervals, interval_min
     # left and right of it. we start with the left one and add it to 
     # regions, however, we should also process the right one to make sure
     # it has a smaller score
-    while len(regions)<=num_intervals or len(interval_list)>0:
+    while len(regions)<=num_intervals and len(interval_list)>0:
         # get the "best-scored" interval from the queue
         # we store negative score, since the pop always gives us 
         # the smallest element
-        negative_score_all, interval = interval_list.pop()
+        negative_score_all, interval = heapq.heappop(interval_list)
+
         a_all, b_all = interval
         max_length_within_interval = min(interval_max_length, b_all-a_all)
     	min_length_within_interval = interval_min_length
-        print max_length_within_interval
         print ("Analyzing interval ({}): {} to {}".format(-negative_score_all, a_all, b_all))
+        
+        # score of 0.0 would relate to equivalent distributions
+        if negative_score_all == 0.0:
+            print ("Interval skipped due to zero score")
+            continue
+
         # get the part of the interval_scores matrix we are interested in
         subseries = interval_scores[a_all:(b_all-min_length_within_interval), :max_length_within_interval]
         # compute the maximum within a part of interval_scores
@@ -257,8 +263,10 @@ def calc_max_nonoverlapping_regions(interval_scores, num_intervals, interval_min
         # with the score of the current interval. maximum score within these
         # intervals is bounded from above by the score of the current interval 
         if a-a_all >= interval_min_length:
+            print ("Adding interval {} to {} with score {} to the queue".format(a_all, a, score))
             heapq.heappush(interval_list, (-score, [a_all, a]))
         if b_all-b >= interval_min_length:
+            print ("Adding interval {} to {} with score {} to the queue".format(b, b_all, score))
             heapq.heappush(interval_list, (-score, [b, b_all]))
 
     # sort the regions according to their score
