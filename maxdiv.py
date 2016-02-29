@@ -17,6 +17,9 @@ import numpy as np
 import heapq
 from numpy.linalg import slogdet, inv
 
+def get_available_methods():
+    return ['parzen', 'parzen_proper', 'gaussian']
+
 #
 # Some helper functions for kernels
 #
@@ -130,6 +133,88 @@ def maxdiv_parzen(K, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, extint_max_
                 negative_kl_Omega_Mixed = kl_integrand1 - kl_integrand2
 
                 score += - (alpha * negative_kl_I_Mixed + (1-alpha) * negative_kl_Omega_Mixed)
+
+            # store the score in the matrix interval_scores
+            interval_scores[i,j-i] = score
+
+    return interval_scores
+
+
+#
+# Mathematically more correct version
+#
+def maxdiv_parzen_proper_sampling(K, mode="OMEGA_I", alpha=1.0, extint_min_len = 20, extint_max_len = 150):
+    """ Evaluating all possible intervals and returning the score matrix """
+    # the minimal and maximal length of an extreme interval (extint_*_len)
+    # this avoids trivial solutions of just one data point in the interval
+    # and saves computation time
+
+    # the index -1 represents the last element in a list/vector
+    # we use the variable endelement instead to increase
+    # code readability
+    endelement = -1
+    # compute integral sums for each column within the kernel matrix 
+    K_integral = np.cumsum(K, axis=0)
+    # the sum of all kernel values for each column
+    # is now given in the last row
+    sums_all = K_integral[endelement,:]
+    # n is the number of data points considered
+    n = K_integral.shape[0]
+
+    # initialize a matrix in which we will store the KL-divergence
+    # score for every possible interval
+    # e.g. interval_scores[a,c] will give us the score
+    # for the interval between a and a+c (including a and excluding a+c)
+    interval_scores = np.zeros([n, extint_max_len])
+
+    # small constant to avoid problems with log(0)
+    eps = 1e-7
+
+    # loop through all possible intervals from i to j
+    # including i excluding j
+    for i in range(n-extint_min_len):
+        for j in range(i+extint_min_len, min(i+extint_max_len,n)):
+            # number of data points in the current interval
+            extreme_interval_length = j-i # TODO: +1
+            # number of data points outside of the current interval
+            non_extreme_points = n - extreme_interval_length
+            
+            # fast hack to do the indexing later on
+            # this should be speeded up later on when computing
+            # sums_extreme ...etc
+            extreme = np.zeros(n, dtype=bool)
+            extreme[i:j] = True
+            non_extreme = np.logical_not(extreme)
+
+            # sum up kernel values to get non-normalized
+            # kernel density estimates at single points for p_I and p_Omega
+            # we use the integral sums in K_integral
+            # sums_extreme and sums_non_extreme are vectors of size n
+            sums_extreme = K_integral[j, :] - K_integral[i, :] 
+            sums_non_extreme = sums_all - sums_extreme
+            # divide by the number of data points to get the final
+            # parzen scores for each data point
+            sums_extreme /= extreme_interval_length
+            sums_non_extreme /= non_extreme_points
+
+            # compute the KL divergence
+            score = 0.0
+            # the mode parameter determines which KL divergence to use
+            # mode == SYM does not make much sense right now for alpha != 1.0
+            if mode == "OMEGA_I" or mode == "SYM":
+                # version for maximizing KL(p_Omega, p_I)
+                # in this case we have p_Omega 
+                kl_integrand1 = np.mean(np.log(sums_extreme[non_extreme] + eps))
+                kl_integrand2 = np.mean(np.log(sums_non_extreme[non_extreme] + eps))
+                negative_kl_Omega_I = alpha * kl_integrand1 - kl_integrand2
+                score += - negative_kl_Omega_I
+
+            # version for maximizing KL(p_I, p_Omega)
+            if mode == "I_OMEGA" or mode == "SYM":
+                kl_integrand1 = np.mean(np.log(sums_non_extreme[extreme] + eps))
+                kl_integrand2 = np.mean(np.log(sums_extreme[extreme] + eps))
+                negative_kl_I_Omega = alpha * kl_integrand1 - kl_integrand2
+                score += - negative_kl_I_Omega
 
             # store the score in the matrix interval_scores
             interval_scores[i,j-i] = score
@@ -291,6 +376,12 @@ def maxdiv(X, method = 'parzen', num_intervals=1, **kwargs):
         K = calc_normalized_gaussian_kernel(X, **kernelparameters)
         # obtain the interval [a,b] of the extreme event with score score
         interval_scores = maxdiv_parzen(K, **kwargs)
+
+    elif method == 'parzen_proper':
+        # compute kernel matrix first (Gaussian kernel)
+        K = calc_normalized_gaussian_kernel(X, **kernelparameters)
+        # obtain the interval [a,b] of the extreme event with score score
+        interval_scores = maxdiv_parzen_proper_sampling(K, **kwargs)
 
     elif method == 'gaussian':
         del kwargs['alpha']

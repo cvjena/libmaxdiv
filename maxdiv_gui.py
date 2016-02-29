@@ -34,7 +34,7 @@ def main():
     #            required=True, type=argparse.FileType('r'), widget='FileChooser')
     #else:
     parser.add_argument('--input', help='time series in CSV format with column names', required=True)
-    parser.add_argument('--method', help='maxdiv method', choices=['parzen', 'gaussian'])
+    parser.add_argument('--method', help='maxdiv method', choices=maxdiv.get_available_methods())
     parser.add_argument('--kernel_sigma_sq', help='kernel sigma square hyperparameter for Parzen estimation', type=float, default=1.0)
     parser.add_argument('--extint_min_len', help='minimum length of the extreme interval', default=20, type=int)
     parser.add_argument('--extint_max_len', help='maximum length of the extreme interval', default=250, type=int)
