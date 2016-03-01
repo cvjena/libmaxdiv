@@ -93,7 +93,7 @@ def main():
 
     regions = maxdiv.maxdiv(X, kernelparameters={'kernel_sigma_sq': args.kernel_sigma_sq}, **parameters)
 
-    for region in regions:
+    for region_index, region in enumerate(regions):
         a, b, score = region
         a_time = times[a]
         b_time = times[b]
@@ -117,6 +117,7 @@ def main():
             steps = (bv-av)//10
             plt.xticks(x[::steps], times[av:bv:steps], rotation=30)
             plt.title('Detected Extreme in the Time Series')
+            plt.savefig('extreme-{:05d}.pdf'.format(region_index)) 
 
             if X.shape[0]>=2:
                 plt.figure()
@@ -127,9 +128,9 @@ def main():
                 plt.scatter(X[0,a:b], X[1,a:b], color='red')
                 plt.title('Data Distributions of the Extreme and All Data')
                 plt.legend(['sampled from non-extreme', 'extreme'])
+                plt.savefig('extreme-distribution-{:05d}.pdf'.format(region_index)) 
             else:
                 print ("The time series has only one dimension, therefore the data distribution plot is skipped.")
-                
             plt.show()
 
     # Since savemat cannot handle None values, we skip
