@@ -9,6 +9,8 @@ import argparse
 import csv
 import datetime
 import time
+import psutil
+import os
 from scipy.io import savemat
 #try:
 #    raise Exception("Skip Gooey support")
@@ -91,7 +93,13 @@ def main():
     print ("Data points in the time series: {}".format(X.shape[1]))
     print ("Dimensions for each data point: {}".format(X.shape[0]))
 
+    #
+    # Running our fancy maxdiv method
+    #
     regions = maxdiv.maxdiv(X, kernelparameters={'kernel_sigma_sq': args.kernel_sigma_sq}, **parameters)
+
+    process = psutil.Process(os.getpid())
+    print ("Memory used so far: {} MB".format(process.memory_info().rss/1024/1024))
 
     for region_index, region in enumerate(regions):
         a, b, score = region
@@ -117,7 +125,8 @@ def main():
             steps = (bv-av)//10
             plt.xticks(x[::steps], times[av:bv:steps], rotation=30)
             plt.title('Detected Extreme in the Time Series')
-            plt.savefig('extreme-{:05d}.pdf'.format(region_index)) 
+            plt.gcf().tight_layout()
+            plt.savefig('extreme-{:05d}.pdf'.format(region_index), bbox_inches='tight') 
 
             if X.shape[0]>=2:
                 plt.figure()
@@ -128,7 +137,7 @@ def main():
                 plt.scatter(X[0,a:b], X[1,a:b], color='red')
                 plt.title('Data Distributions of the Extreme and All Data')
                 plt.legend(['sampled from non-extreme', 'extreme'])
-                plt.savefig('extreme-distribution-{:05d}.pdf'.format(region_index)) 
+                plt.savefig('extreme-distribution-{:05d}.pdf'.format(region_index), bbox_inches='tight') 
             else:
                 print ("The time series has only one dimension, therefore the data distribution plot is skipped.")
             plt.show()
