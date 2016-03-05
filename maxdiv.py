@@ -278,7 +278,7 @@ def maxdiv_gaussian(X, mode, gaussian_mode, extint_min_len, extint_max_len):
                 # alternative version using implicit inversion
                 #kl_Omega_I = np.dot(diff, solve(cov_extreme, diff.T) )
                 #kl_Omega_I += np.sum(np.diag(solve(cov_extreme, cov_non_extreme)))
-                inv_cov_extreme = inv(cov_extreme)
+                inv_cov_extreme = inv(cov_extreme + eps * np.eye(dimension))
                 # term for the mahalanobis distance
                 kl_Omega_I = np.dot(diff, np.dot(inv_cov_extreme, diff.T))
                 # trace term
@@ -289,7 +289,7 @@ def maxdiv_gaussian(X, mode, gaussian_mode, extint_min_len, extint_max_len):
 
             # version for maximizing KL(p_I, p_Omega)
             if mode == "I_OMEGA" or mode == "SYM":
-                inv_cov_non_extreme = inv(cov_non_extreme)
+                inv_cov_non_extreme = inv(cov_non_extreme + eps * np.eye(dimension))
                 # term for the mahalanobis distance
                 kl_I_Omega = np.dot(diff, np.dot(inv_cov_non_extreme, diff.T))
                 # trace term
