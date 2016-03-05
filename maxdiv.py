@@ -278,13 +278,11 @@ def maxdiv_gaussian(X, mode, gaussian_mode, extint_min_len, extint_max_len):
                 # alternative version using implicit inversion
                 #kl_Omega_I = np.dot(diff, solve(cov_extreme, diff.T) )
                 #kl_Omega_I += np.sum(np.diag(solve(cov_extreme, cov_non_extreme)))
-
                 inv_cov_extreme = inv(cov_extreme)
                 # term for the mahalanobis distance
                 kl_Omega_I = np.dot(diff, np.dot(inv_cov_extreme, diff.T))
                 # trace term
-                kl_Omega_I += np.sum(np.diag(np.dot(inv_cov_extreme, cov_non_extreme)))
-
+                kl_Omega_I += 0.5*np.sum(np.diag(np.dot(inv_cov_extreme, cov_non_extreme)))
                 # logdet terms
                 kl_Omega_I += logdet_extreme - logdet_non_extreme
                 score += kl_Omega_I
@@ -295,7 +293,7 @@ def maxdiv_gaussian(X, mode, gaussian_mode, extint_min_len, extint_max_len):
                 # term for the mahalanobis distance
                 kl_I_Omega = np.dot(diff, np.dot(inv_cov_non_extreme, diff.T))
                 # trace term
-                kl_I_Omega += np.sum(np.diag(np.dot(inv_cov_non_extreme, cov_extreme)))
+                kl_I_Omega += 0.5*np.sum(np.diag(np.dot(inv_cov_non_extreme, cov_extreme)))
                 # logdet terms
                 kl_I_Omega += logdet_non_extreme - logdet_extreme
                 score += kl_I_Omega
