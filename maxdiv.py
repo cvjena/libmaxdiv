@@ -15,7 +15,9 @@
 
 import numpy as np
 import heapq
-from numpy.linalg import slogdet, inv
+import logging
+from numpy.linalg import slogdet, inv, solve
+import time
 
 def get_available_methods():
     return ['parzen', 'parzen_proper', 'gaussian']
@@ -238,10 +240,13 @@ def maxdiv_gaussian(X, mode, gaussian_mode, extint_min_len, extint_max_len):
 
     # compute integral series of the outer products
     # we will use this to compute covariance matrices
+    print ("Computing outer products...")
     outer_X = np.apply_along_axis(lambda x: np.ravel(np.outer(x,x)), 0, X)
     outer_X_integral = np.cumsum(outer_X, axis=1)
     outer_sums_all = outer_X_integral[:, -1]
 
+    print ("Looping through all intervals")
+    start = time.time()
     for i in range(n-extint_min_len):
         for j in range(i+extint_min_len, min(i+extint_max_len,n)):
             extreme_interval_length = j-i
@@ -270,24 +275,34 @@ def maxdiv_gaussian(X, mode, gaussian_mode, extint_min_len, extint_max_len):
             # mode == SYM does not make much sense right now for alpha != 1.0
             diff = sums_extreme - sums_non_extreme
             if mode == "OMEGA_I" or mode == "SYM":
-                #kl_Omega_I = np.sum((sums_extreme - sums_non_extreme)**2)
+                # alternative version using implicit inversion
+                #kl_Omega_I = np.dot(diff, solve(cov_extreme, diff.T) )
+                #kl_Omega_I += np.sum(np.diag(solve(cov_extreme, cov_non_extreme)))
+
                 inv_cov_extreme = inv(cov_extreme)
-                kl_Omega_I = diff.T * inv_cov_extreme * diff
-                kl_Omega_I += np.sum(inv_cov_extreme * cov_non_extreme)
+                # term for the mahalanobis distance
+                kl_Omega_I = np.dot(diff, np.dot(inv_cov_extreme, diff.T))
+                # trace term
+                kl_Omega_I += np.sum(np.diag(np.dot(inv_cov_extreme, cov_non_extreme)))
+
+                # logdet terms
                 kl_Omega_I += logdet_extreme - logdet_non_extreme
                 score += kl_Omega_I
 
             # version for maximizing KL(p_I, p_Omega)
             if mode == "I_OMEGA" or mode == "SYM":
-                kl_I_Omega = np.sum((sums_extreme - sums_non_extreme)**2)
                 inv_cov_non_extreme = inv(cov_non_extreme)
+                # term for the mahalanobis distance
                 kl_I_Omega = np.dot(diff, np.dot(inv_cov_non_extreme, diff.T))
-                kl_I_Omega += np.sum(inv_cov_non_extreme * cov_extreme)
+                # trace term
+                kl_I_Omega += np.sum(np.diag(np.dot(inv_cov_non_extreme, cov_extreme)))
+                # logdet terms
                 kl_I_Omega += logdet_non_extreme - logdet_extreme
                 score += kl_I_Omega
 
             interval_scores[i,j-i] = score
 
+    print ("End of optimization: {}".format(time.time() - start))
     return interval_scores
 
 #
@@ -387,12 +402,15 @@ def maxdiv(X, method = 'parzen', num_intervals=1, **kwargs):
         del kwargs['alpha']
         kwargs['gaussian_mode'] = 'fullcov'
         interval_scores = maxdiv_gaussian(X, **kwargs)
+    else:
+        raise Exception("Unknown method {}".format(method))
 
     # get the K best non-overlapping regions
     if 'extint_min_len' in kwargs:
-	interval_min_length = kwargs['extint_min_len']
+	    interval_min_length = kwargs['extint_min_len']
     else:
-	interval_min_length = 20
+	    interval_min_length = 20
+    
     regions = calc_max_nonoverlapping_regions(interval_scores, num_intervals, interval_min_length)
 
     return regions
