@@ -9,6 +9,8 @@ import argparse
 import csv
 import datetime
 import time
+import sys
+import cProfile as profile
 from scipy.io import savemat
 #try:
 #    raise Exception("Skip Gooey support")
@@ -49,6 +51,7 @@ def main():
     parser.add_argument('--visborder', help='number of data points additionally displayed after and before extreme', default=10, type=int)
     parser.add_argument('--num_intervals', help='number of intervals to be displayed', default=5, type=int)
     parser.add_argument('--novis', action='store_true', help='skip the visualization')
+    parser.add_argument('--profile', action='store_true', help='run the profiler')
     parser.add_argument('--matout', help='.mat file for results', default='results.mat')
     parser.parse_args()
     args = parser.parse_args()
@@ -91,7 +94,15 @@ def main():
     print ("Data points in the time series: {}".format(X.shape[1]))
     print ("Dimensions for each data point: {}".format(X.shape[0]))
 
+    if args.profile:
+        pr = profile.Profile()
+        pr.enable()
     regions = maxdiv.maxdiv(X, kernelparameters={'kernel_sigma_sq': args.kernel_sigma_sq}, **parameters)
+    if args.profile:
+        pr.disable()
+        pr.dump_stats('profile-stats.pr')
+        pr.print_stats(sort=1)
+        sys.exit(0)
 
     for region_index, region in enumerate(regions):
         a, b, score = region
