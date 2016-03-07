@@ -347,7 +347,7 @@ def calc_max_nonoverlapping_regions(interval_scores, num_intervals, interval_min
             continue
 
         # get the part of the interval_scores matrix we are interested in
-        subseries = interval_scores[a_all:(b_all-min_length_within_interval), :max_length_within_interval]
+        subseries = interval_scores[a_all:(b_all-min_length_within_interval+1), :max_length_within_interval]
         # compute the maximum within a part of interval_scores
         a_sub, b_offset = np.unravel_index(np.argmax(subseries), subseries.shape)
         # convert the maximum position in subseries to a position
