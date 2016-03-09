@@ -30,9 +30,10 @@ print ("Minimal and maximal length of one extreme {} - {}".format(defect_minlen,
 #plt.figure()
 y['meanshift'] = []
 for i in range(numf):
-    defect_start = np.random.randint(0,n-defect_minlen)
-    defect_end = np.random.randint(defect_start+defect_minlen,min(defect_start+defect_maxlen,n))
-    defect = range(defect_start, defect_end)
+    defect_start = int(np.random.randint(0,n-defect_minlen))
+    defect_end = int(np.random.randint(defect_start+defect_minlen,min(defect_start+defect_maxlen,n)))
+    defect = np.zeros(n, dtype=bool)
+    defect[defect_start:defect_end] = True
     y['meanshift'].append(defect)
     f['meanshift'][i][defect] -= np.random.rand()*2.0 + 0.5 
     #plt.plot(X.T, f1[i])
