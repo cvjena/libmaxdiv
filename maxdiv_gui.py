@@ -114,16 +114,8 @@ def main():
 
         # visualization
         if not args.novis:
-            av = max(a - args.visborder, 0)
-            bv = min(b + args.visborder, X.shape[1])
             plt.figure()
-            x = range(av, bv)
-            for i in range(X.shape[0]):
-                plt.plot(x, X[i,av:bv])
-
-            minv = np.min(X[:, av:bv])
-            maxv = np.max(X[:, av:bv])
-            plt.fill([ a, a, b, b ], [minv, maxv, maxv, minv], 'b', alpha=0.3)
+            maxdiv.show_interval(x, X, a, b, args.visborder)
 
             steps = (bv-av)//10
             plt.xticks(x[::steps], times[av:bv:steps], rotation=30)
