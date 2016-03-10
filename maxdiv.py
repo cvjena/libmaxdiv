@@ -415,7 +415,7 @@ def maxdiv(X, method = 'parzen', num_intervals=1, **kwargs):
             X = preproc.local_linear_regression(X)
         elif kwargs['preproc']=='td':
             X = preproc.td(X)
-        else:
+        elif not kwargs['preproc'] is None:
             raise Exception("Unknown preprocessing method {}".format(kwargs['preproc']))
         del kwargs['preproc']
 
@@ -467,7 +467,7 @@ def plot_matrix_with_interval(D, a, b):
     plt.imshow(D)
     plt.show()
 
-def show_interval(x, f, a, b, visborder=100):
+def show_interval(f, a, b, visborder=100):
     """ Plot a timeseries together with a marked interval """
     import matplotlib.pylab as plt
     av = max(a - visborder, 0)
@@ -480,4 +480,4 @@ def show_interval(x, f, a, b, visborder=100):
     maxv = np.max(f[:, av:bv])
     plt.fill([ a, a, b, b ], [minv, maxv, maxv, minv], 'b', alpha=0.3)
 
-
+    return x, av, bv

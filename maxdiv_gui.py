@@ -3,6 +3,7 @@
 """ GUI/Analysis program for finding extreme intervals using maximally divergent regions """
 
 import maxdiv
+import preproc
 import numpy as np
 import matplotlib.pylab as plt
 import argparse
@@ -53,11 +54,12 @@ def main():
     parser.add_argument('--novis', action='store_true', help='skip the visualization')
     parser.add_argument('--profile', action='store_true', help='run the profiler')
     parser.add_argument('--matout', help='.mat file for results', default='results.mat')
+    parser.add_argument('--preproc', help='use a pre-processing method', default=None, choices=preproc.get_available_methods())
     parser.parse_args()
     args = parser.parse_args()
 
     # prepare parameters for calling maxdiv
-    method_parameter_names = ['extint_min_len', 'extint_max_len', 'alpha', 'mode', 'method', 'num_intervals']
+    method_parameter_names = ['extint_min_len', 'extint_max_len', 'alpha', 'mode', 'method', 'num_intervals', 'preproc']
     args_dict = vars(args)
     parameters = {parameter_name: args_dict[parameter_name] for parameter_name in method_parameter_names}
 
@@ -115,7 +117,7 @@ def main():
         # visualization
         if not args.novis:
             plt.figure()
-            maxdiv.show_interval(x, X, a, b, args.visborder)
+            x, av, bv = maxdiv.show_interval(X, a, b, args.visborder)
 
             steps = (bv-av)//10
             plt.xticks(x[::steps], times[av:bv:steps], rotation=30)
