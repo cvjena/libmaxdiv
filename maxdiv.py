@@ -18,6 +18,7 @@ import heapq
 import logging
 from numpy.linalg import slogdet, inv, solve
 import time
+import preproc
 
 def get_available_methods():
     return ['parzen', 'parzen_proper', 'gaussian']
@@ -409,6 +410,15 @@ def calc_max_nonoverlapping_regions(interval_scores, num_intervals, interval_min
 #
 def maxdiv(X, method = 'parzen', num_intervals=1, **kwargs):
     """ Wrapper function for calling maximum divergent regions """
+    if 'preproc' in kwargs:
+        if kwargs['preproc']=='local_linear':
+            X = preproc.local_linear_regression(X)
+        elif kwargs['preproc']=='td':
+            X = preproc.td(X)
+        else:
+            raise Exception("Unknown preprocessing method {}".format(kwargs['preproc']))
+        del kwargs['preproc']
+
     if 'kernelparameters' in kwargs:
         kernelparameters = kwargs['kernelparameters']
         del kwargs['kernelparameters']

@@ -2,6 +2,7 @@ import cPickle as pickle
 import numpy as np
 import matplotlib.pylab as plt
 import maxdiv
+import preproc
 import argparse
 import sklearn
 import sklearn.metrics
@@ -16,12 +17,13 @@ parser.add_argument('--num_intervals', help='number of intervals to be displayed
 parser.add_argument('--alpha', help='Hyperparameter for the KL divergence', type=float, default=1.0)
 parser.add_argument('--mode', help='Mode for KL divergence computation', choices=['OMEGA_I', 'SYM', 'I_OMEGA', 'LAMBDA'], default='I_OMEGA')
 parser.add_argument('--extremetypes', help='types of extremes to be tested', nargs='+',default=[])
+parser.add_argument('--preproc', help='use a pre-processing method', default=None, choices=preproc.get_available_methods())
 
 parser.parse_args()
 args = parser.parse_args()
 
 # prepare parameters for calling maxdiv
-method_parameter_names = ['extint_min_len', 'extint_max_len', 'alpha', 'mode', 'method', 'num_intervals']
+method_parameter_names = ['extint_min_len', 'extint_max_len', 'alpha', 'mode', 'method', 'num_intervals', 'preproc']
 args_dict = vars(args)
 parameters = {parameter_name: args_dict[parameter_name] for parameter_name in method_parameter_names}
 
