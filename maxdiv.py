@@ -38,14 +38,31 @@ def calc_distance_matrix(X, metric='sqeuclidean'):
     D = squareform(pdist(X.T, 'sqeuclidean'))
     return D
 
-def calc_normalized_gaussian_kernel(X, kernel_sigma_sq = 1.0):
+def calc_gaussian_kernel(X, kernel_sigma_sq = 1.0, normalized=True):
     """ Calculate a normalized Gaussian kernel using the columns of X """
     # Let's first compute the kernel matrix from our squared Euclidean distances in $D$.
     dimension = X.shape[0]
     D = calc_distance_matrix(X)
     # compute proper normalized Gaussian kernel values
-    K = np.exp(-D/2.0)/((2*np.pi*kernel_sigma_sq)**(dimension/2))
+    K = np.exp(-D/(2.0*kernel_sigma_sq))
+    if normalized:
+        K = K / ((2*np.pi*kernel_sigma_sq)**(dimension/2))
     return K
+
+def calc_nonstationary_gaussian_kernel(X, kernel_sigma_sq_vec):
+    """ Calculate a normalized Gaussian kernel using the columns of X """
+    # Let's first compute the kernel matrix from our squared Euclidean distances in $D$.
+    dimension = X.shape[0]
+    n = X.shape[1]
+    D = calc_distance_matrix(X)
+    S = np.tile(kernel_sigma_sq_vec, [n,1])
+    S_sum = S + S.T
+    S_prod = S * S.T
+    
+    # compute Gaussian kernel values
+    K = np.exp(-D/(0.5*S_sum))*(np.power(S_prod,0.25)/np.sqrt(0.5*S_sum))
+    return K
+
 
 # Let's derive the algorithm where we try to maximize the KL divergence between the two distributions:
 #
@@ -400,13 +417,13 @@ def maxdiv(X, method = 'parzen', num_intervals=1, **kwargs):
 
     if method == 'parzen':
         # compute kernel matrix first (Gaussian kernel)
-        K = calc_normalized_gaussian_kernel(X, **kernelparameters)
+        K = calc_gaussian_kernel(X, **kernelparameters)
         # obtain the interval [a,b] of the extreme event with score score
         interval_scores = maxdiv_parzen(K, **kwargs)
 
     elif method == 'parzen_proper':
         # compute kernel matrix first (Gaussian kernel)
-        K = calc_normalized_gaussian_kernel(X, **kernelparameters)
+        K = calc_gaussian_kernel(X, **kernelparameters)
         # obtain the interval [a,b] of the extreme event with score score
         interval_scores = maxdiv_parzen_proper_sampling(K, **kwargs)
 

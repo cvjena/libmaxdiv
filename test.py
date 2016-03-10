@@ -15,6 +15,7 @@ parser.add_argument('--novis', action='store_true', help='skip the visualization
 parser.add_argument('--num_intervals', help='number of intervals to be displayed', default=5, type=int)
 parser.add_argument('--alpha', help='Hyperparameter for the KL divergence', type=float, default=1.0)
 parser.add_argument('--mode', help='Mode for KL divergence computation', choices=['OMEGA_I', 'SYM', 'I_OMEGA', 'LAMBDA'], default='I_OMEGA')
+parser.add_argument('--extremetypes', help='types of extremes to be tested', nargs='+',default=[])
 
 parser.parse_args()
 args = parser.parse_args()
@@ -30,8 +31,13 @@ with open('testcube.pickle', 'rb') as fin:
     f = cube['f']
     y = cube['y']
 
+extremetypes = set(args.extremetypes)
+
 aucs = {}
 for ftype in f:
+    if len(extremetypes)>0 and not ftype in extremetypes:
+        continue
+
     funcs = f[ftype]
     ygts = y[ftype]
     aucs[ftype] = []
@@ -43,6 +49,7 @@ for ftype in f:
         scores = np.zeros(len(ygt))
         for i in range(len(regions)):
             a, b, score = regions[i]
+            print "Region {}/{}: {} - {}".format(i, len(regions), a, b)
             scores[a:b] = score
 
             if not args.novis:
