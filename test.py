@@ -46,7 +46,7 @@ for ftype in f:
     for i in range(len(funcs)):
         func = funcs[i]
         ygt = ygts[i]
-        regions = maxdiv.maxdiv(func, **parameters)
+        regions = maxdiv.maxdiv(func, kernelparameters={'kernel_sigma_sq': args.kernel_sigma_sq}, **parameters)
 
         scores = np.zeros(len(ygt))
         for i in range(len(regions)):
