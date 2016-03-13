@@ -194,22 +194,19 @@ def maxdiv_parzen_proper_sampling(K, mode="OMEGA_I", alpha=1.0, extint_min_len =
     # small constant to avoid problems with log(0)
     eps = 1e-7
 
+    extreme = np.zeros(n, dtype=bool)
+    non_extreme = np.ones(n, dtype=bool)
     # loop through all possible intervals from i to j
     # including i excluding j
     for i in range(n-extint_min_len):
+        extreme[i:(i+extint_min_len)] = True
+        non_extreme = np.logical_not(extreme)
         for j in range(i+extint_min_len, min(i+extint_max_len,n)):
             # number of data points in the current interval
             extreme_interval_length = j-i # TODO: +1
             # number of data points outside of the current interval
             non_extreme_points = n - extreme_interval_length
             
-            # fast hack to do the indexing later on
-            # this should be speeded up later on when computing
-            # sums_extreme ...etc
-            extreme = np.zeros(n, dtype=bool)
-            extreme[i:j] = True
-            non_extreme = np.logical_not(extreme)
-
             # compute the KL divergence
             score = 0.0
             # the mode parameter determines which KL divergence to use
@@ -247,6 +244,9 @@ def maxdiv_parzen_proper_sampling(K, mode="OMEGA_I", alpha=1.0, extint_min_len =
 
             # store the score in the matrix interval_scores
             interval_scores[i,j-i] = score
+            if j<n-1:
+                extreme[j+1] = True
+                non_extreme[j+1] = False
 
     return interval_scores
 
