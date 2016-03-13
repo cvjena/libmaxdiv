@@ -55,6 +55,7 @@ def main():
     parser.add_argument('--profile', action='store_true', help='run the profiler')
     parser.add_argument('--matout', help='.mat file for results', default='results.mat')
     parser.add_argument('--preproc', help='use a pre-processing method', default=None, choices=preproc.get_available_methods())
+    parser.add_argument('--outfmt', help='output format used to store results', default='matlab', choices=['matlab', 'nabcsv'] )
     parser.parse_args()
     args = parser.parse_args()
 
@@ -138,11 +139,32 @@ def main():
                 print ("The time series has only one dimension, therefore the data distribution plot is skipped.")
             plt.show()
 
-    # Since savemat cannot handle None values, we skip
-    # all values from the settings with None values
-    data_to_store = { key:value for value, key in enumerate(args_dict) if not value is None }
-    data_to_store['regions'] = regions
-    savemat(args.matout, data_to_store)
+    if args.outfmt=='nabcsv':
+        # store the dates in times, X (one-dimensional), and the scores
+        n = X.shape[1]
+        scores = np.zeros(n)
+        labels = np.zeros(n)
+        for a, b, score in regions:
+            scores[a:b] = score
+            labels[a:b] = 1
+        with open(args.matout, 'w') as fout:
+            csvout = csv.DictWriter(fout, fieldnames=['timestamp', 'value', 
+                'anomaly_score', 'reward_high_TP_rate', 'reward_low_FP_rate', 'label'])
+            csvout.writeheader()
+            for i in range(n):
+                csvout.writerow({'timestamp': times[i],
+                              'value': X[0, i], 
+                              'anomaly_score': scores[i], 
+                              'label': labels[i],
+                              'reward_low_FP_rate': scores[i],
+                              'reward_high_TP_rate': scores[i]})
+
+    else:
+        # Since savemat cannot handle None values, we skip
+        # all values from the settings with None values
+        data_to_store = { key:value for value, key in enumerate(args_dict) if not value is None }
+        data_to_store['regions'] = regions
+        savemat(args.matout, data_to_store)
 
 #
 # Main program
