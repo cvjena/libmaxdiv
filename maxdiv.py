@@ -210,33 +210,38 @@ def maxdiv_parzen_proper_sampling(K, mode="OMEGA_I", alpha=1.0, extint_min_len =
             extreme[i:j] = True
             non_extreme = np.logical_not(extreme)
 
-            # sum up kernel values to get non-normalized
-            # kernel density estimates at single points for p_I and p_Omega
-            # we use the integral sums in K_integral
-            # sums_extreme and sums_non_extreme are vectors of size n
-            sums_extreme = K_integral[j, :] - K_integral[i, :] 
-            sums_non_extreme = sums_all - sums_extreme
-            # divide by the number of data points to get the final
-            # parzen scores for each data point
-            sums_extreme /= extreme_interval_length
-            sums_non_extreme /= non_extreme_points
-
             # compute the KL divergence
             score = 0.0
             # the mode parameter determines which KL divergence to use
             # mode == SYM does not make much sense right now for alpha != 1.0
             if mode == "OMEGA_I" or mode == "SYM":
+                # sum up kernel values to get non-normalized
+                # kernel density estimates at single points for p_I and p_Omega
+                # we use the integral sums in K_integral
+                # sums_extreme and sums_non_extreme are vectors of size n
+                sums_extreme = K_integral[j, non_extreme] - K_integral[i, non_extreme] 
+                sums_non_extreme = sums_all[non_extreme] - sums_extreme
+                # divide by the number of data points to get the final
+                # parzen scores for each data point
+                sums_extreme /= extreme_interval_length
+                sums_non_extreme /= non_extreme_points
+
                 # version for maximizing KL(p_Omega, p_I)
                 # in this case we have p_Omega 
-                kl_integrand1 = np.mean(np.log(sums_extreme[non_extreme] + eps))
-                kl_integrand2 = np.mean(np.log(sums_non_extreme[non_extreme] + eps))
+                kl_integrand1 = np.mean(np.log(sums_extreme + eps))
+                kl_integrand2 = np.mean(np.log(sums_non_extreme + eps))
                 negative_kl_Omega_I = alpha * kl_integrand1 - kl_integrand2
                 score += - negative_kl_Omega_I
 
             # version for maximizing KL(p_I, p_Omega)
             if mode == "I_OMEGA" or mode == "SYM":
-                kl_integrand1 = np.mean(np.log(sums_non_extreme[extreme] + eps))
-                kl_integrand2 = np.mean(np.log(sums_extreme[extreme] + eps))
+                # for comments see OMEGA_I
+                sums_extreme = K_integral[j, extreme] - K_integral[i, extreme] 
+                sums_non_extreme = sums_all[extreme] - sums_extreme
+                sums_extreme /= extreme_interval_length
+                sums_non_extreme /= non_extreme_points
+                kl_integrand1 = np.mean(np.log(sums_non_extreme + eps))
+                kl_integrand2 = np.mean(np.log(sums_extreme + eps))
                 negative_kl_I_Omega = alpha * kl_integrand1 - kl_integrand2
                 score += - negative_kl_I_Omega
 
