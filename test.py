@@ -2,30 +2,23 @@ import cPickle as pickle
 import numpy as np
 import matplotlib.pylab as plt
 import maxdiv
+import maxdiv_tools
 import preproc
 import argparse
 import sklearn
 import sklearn.metrics
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('--method', help='maxdiv method', choices=maxdiv.get_available_methods(), required=True)
-parser.add_argument('--kernel_sigma_sq', help='kernel sigma square hyperparameter for Parzen estimation', type=float, default=1.0)
-parser.add_argument('--extint_min_len', help='minimum length of the extreme interval', default=12, type=int)
-parser.add_argument('--extint_max_len', help='maximum length of the extreme interval', default=50, type=int)
 parser.add_argument('--novis', action='store_true', help='skip the visualization')
-parser.add_argument('--num_intervals', help='number of intervals to be displayed', default=5, type=int)
-parser.add_argument('--alpha', help='Hyperparameter for the KL divergence', type=float, default=1.0)
-parser.add_argument('--mode', help='Mode for KL divergence computation', choices=['OMEGA_I', 'SYM', 'I_OMEGA', 'LAMBDA', 'IS_I_OMEGA'], default='I_OMEGA')
 parser.add_argument('--extremetypes', help='types of extremes to be tested', nargs='+',default=[])
-parser.add_argument('--preproc', help='use a pre-processing method', default=None, choices=preproc.get_available_methods())
 
-parser.parse_args()
+maxdiv_tools.add_algorithm_parameters(parser)
+
 args = parser.parse_args()
 
 # prepare parameters for calling maxdiv
-method_parameter_names = ['extint_min_len', 'extint_max_len', 'alpha', 'mode', 'method', 'num_intervals', 'preproc']
 args_dict = vars(args)
-parameters = {parameter_name: args_dict[parameter_name] for parameter_name in method_parameter_names}
+parameters = {parameter_name: args_dict[parameter_name] for parameter_name in maxdiv_tools.get_algorithm_parameters()}
 
 
 with open('testcube.pickle', 'rb') as fin:
