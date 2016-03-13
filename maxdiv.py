@@ -229,11 +229,6 @@ def maxdiv_parzen_proper_sampling(K, mode="OMEGA_I", alpha=1.0, extint_min_len =
                 # in this case we have p_Omega 
                 kl_integrand1 = np.mean(np.log(sums_extreme + eps))
                 kl_integrand2 = np.mean(np.log(sums_non_extreme + eps))
-                if np.isnan(kl_integrand1):
-                    print sums_extreme
-                    print non_extreme
-                    print i, j, n
-                    raise Exception("ups!")
                 negative_kl_Omega_I = alpha * kl_integrand1 - kl_integrand2
                 score += - negative_kl_Omega_I
 
