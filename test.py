@@ -15,7 +15,7 @@ parser.add_argument('--extint_max_len', help='maximum length of the extreme inte
 parser.add_argument('--novis', action='store_true', help='skip the visualization')
 parser.add_argument('--num_intervals', help='number of intervals to be displayed', default=5, type=int)
 parser.add_argument('--alpha', help='Hyperparameter for the KL divergence', type=float, default=1.0)
-parser.add_argument('--mode', help='Mode for KL divergence computation', choices=['OMEGA_I', 'SYM', 'I_OMEGA', 'LAMBDA'], default='I_OMEGA')
+parser.add_argument('--mode', help='Mode for KL divergence computation', choices=['OMEGA_I', 'SYM', 'I_OMEGA', 'LAMBDA', 'IS_I_OMEGA'], default='I_OMEGA')
 parser.add_argument('--extremetypes', help='types of extremes to be tested', nargs='+',default=[])
 parser.add_argument('--preproc', help='use a pre-processing method', default=None, choices=preproc.get_available_methods())
 
@@ -34,6 +34,8 @@ with open('testcube.pickle', 'rb') as fin:
     y = cube['y']
 
 extremetypes = set(args.extremetypes)
+
+detailedvis = False
 
 aucs = {}
 for ftype in f:
@@ -57,7 +59,21 @@ for ftype in f:
             if not args.novis:
                 plt.figure()
                 maxdiv.show_interval(func, a, b, 10000)
-                plt.show()
+
+                if detailedvis:
+                    plt.figure()
+                    if func.shape[0]==1:
+                        h_nonextreme, bin_edges = np.histogram( np.hstack([ func[0,:a], func[0, b:] ]), bins=40 )
+                        h_extreme, _ = np.histogram(func[0,a:b], bins=bin_edges)
+                        bin_means = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+                        plt.plot(bin_means, h_extreme)
+                        plt.plot(bin_means, h_nonextreme)
+                    else:
+                        X_nonextreme = np.hstack([ func[:2, :a], func[:2, b:] ])
+                        X_extreme = func[:2, a:b]
+                        plt.plot( X_nonextreme[0], X_nonextreme[0], 'bo' )
+                        plt.plot( X_extreme[0], X_extreme[0], 'r+' )
+                    plt.show()
             
         fpr, tpr, thresholds = sklearn.metrics.roc_curve(ygt, scores, pos_label=1)
         auc = sklearn.metrics.auc(fpr, tpr)

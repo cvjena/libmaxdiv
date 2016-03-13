@@ -213,6 +213,22 @@ def maxdiv_parzen_proper_sampling(K, mode="OMEGA_I", alpha=1.0, extint_min_len =
             score = 0.0
             # the mode parameter determines which KL divergence to use
             # mode == SYM does not make much sense right now for alpha != 1.0
+            if mode == "IS_I_OMEGA":
+                # for comments see OMEGA_I
+                # this is a very experimental mode that exploits importance sampling
+                sums_extreme = K_integral[j, :] - K_integral[i, :] 
+                sums_non_extreme = sums_all - sums_extreme
+                sums_extreme /= extreme_interval_length
+                sums_non_extreme /= non_extreme_points
+                weights = sums_extreme / (sums_non_extreme + eps)
+                weights[extreme] = 1.0
+                weights /= np.sum(weights)
+                kl_integrand1 = np.sum(weights * np.log(sums_non_extreme + eps))
+                kl_integrand2 = np.sum(weights * np.log(sums_extreme + eps))
+                negative_kl_I_Omega = alpha * kl_integrand1 - kl_integrand2
+                score += - negative_kl_I_Omega
+
+
             if mode == "OMEGA_I" or mode == "SYM":
                 # sum up kernel values to get non-normalized
                 # kernel density estimates at single points for p_I and p_Omega
@@ -385,7 +401,7 @@ def calc_max_nonoverlapping_regions(interval_scores, num_intervals, interval_min
         subseries = interval_scores[a_all:(b_all-min_length_within_interval+1), :max_length_within_interval]
         # still some impossible positions are left
         x,y = np.meshgrid(np.arange(0,subseries.shape[1],1), np.arange(0,subseries.shape[0],1))
-        subseries[x+y > b_all] = 0.0
+        subseries[x+y > b_all - a_all] = 0.0
 
         # compute the maximum within a part of interval_scores
         a_sub, b_offset = np.unravel_index(np.argmax(subseries), subseries.shape)
