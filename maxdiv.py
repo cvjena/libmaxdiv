@@ -199,11 +199,13 @@ def maxdiv_parzen_proper_sampling(K, mode="OMEGA_I", alpha=1.0, extint_min_len =
     # loop through all possible intervals from i to j
     # including i excluding j
     for i in range(n-extint_min_len):
+        extreme[:] = False
         extreme[i:(i+extint_min_len)] = True
         non_extreme = np.logical_not(extreme)
+
         for j in range(i+extint_min_len, min(i+extint_max_len,n)):
             # number of data points in the current interval
-            extreme_interval_length = j-i # TODO: +1
+            extreme_interval_length = j - i
             # number of data points outside of the current interval
             non_extreme_points = n - extreme_interval_length
             
@@ -227,6 +229,11 @@ def maxdiv_parzen_proper_sampling(K, mode="OMEGA_I", alpha=1.0, extint_min_len =
                 # in this case we have p_Omega 
                 kl_integrand1 = np.mean(np.log(sums_extreme + eps))
                 kl_integrand2 = np.mean(np.log(sums_non_extreme + eps))
+                if np.isnan(kl_integrand1):
+                    print sums_extreme
+                    print non_extreme
+                    print i, j, n
+                    raise Exception("ups!")
                 negative_kl_Omega_I = alpha * kl_integrand1 - kl_integrand2
                 score += - negative_kl_Omega_I
 
@@ -450,12 +457,18 @@ def maxdiv(X, method = 'parzen', num_intervals=1, **kwargs):
     else:
         raise Exception("Unknown method {}".format(method))
 
-    # get the K best non-overlapping regions
+    xnans, ynans = np.where(np.isnan(interval_scores))
+    if len(xnans)>0:
+        print xnans
+        raise Exception("NaNs found in interval_scores!")
+
+
     if 'extint_min_len' in kwargs:
 	    interval_min_length = kwargs['extint_min_len']
     else:
 	    interval_min_length = 20
     
+    # get the K best non-overlapping regions
     regions = calc_max_nonoverlapping_regions(interval_scores, num_intervals, interval_min_length)
 
     return regions
