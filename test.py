@@ -44,7 +44,7 @@ for ftype in f:
     ygts = y[ftype]
     aucs[ftype] = []
     for i in range(len(funcs)):
-        func = np.reshape(funcs[i], [1, len(funcs[i])])
+        func = funcs[i]
         ygt = ygts[i]
         regions = maxdiv.maxdiv(func, **parameters)
 
@@ -56,7 +56,7 @@ for ftype in f:
 
             if not args.novis:
                 plt.figure()
-                maxdiv.show_interval(range(len(funcs[i])), func, a, b, 10000)
+                maxdiv.show_interval(func, a, b, 10000)
                 plt.show()
             
         fpr, tpr, thresholds = sklearn.metrics.roc_curve(ygt, scores, pos_label=1)

@@ -47,42 +47,47 @@ print ("Minimal and maximal length of one extreme {} - {}".format(defect_minlen,
 
 sigma = 0.02
 y['meanshift'] = []
-f['meanshift'] = sample_gp(X, zeroy, sigma, numf)
+gps = sample_gp(X, zeroy, sigma, numf)
+f['meanshift'] = np.reshape(gps, [gps.shape[0], 1, gps.shape[1]])
 for i in range(numf):
     defect, _, _ = sample_interval(n, defect_minlen, defect_maxlen)
     y['meanshift'].append(defect)
-    f['meanshift'][i,defect] -= np.random.rand()*0.5 + 0.5
+    f['meanshift'][i,0,defect] -= np.random.rand()*0.5 + 0.5
 #    plt.plot(X.T, f['meanshift'][i])
 #plt.show()
 
-y['contmeanshift'] = []
-plt.figure()
+y['amplitude_change'] = []
+f['amplitude_change'] = np.zeros([numf, 1, n])
 for i in range(numf):
     defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
-    y['contmeanshift'].append(defect)
-    contmean = np.copy(zeroy)
-    halflen = (b-a)/2
-    contmean[a:(a+halflen)] = np.linspace(0,1,halflen)
-    contmean[(a+halflen):b] = np.linspace(1,0,b-a-halflen)
-    func = sample_gp(X, contmean, sigma, 1)
-    if 'contmeanshift' in f:
-        f['contmeanshift'] = np.vstack([f['contmeanshift'], func])
-    else:
-        f['contmeanshift'] = func
+    y['amplitude_change'].append(defect)
+    func = sample_gp(X, zeroy, sigma, 1)
+    sigmaw = (b-a)/4.0
+    mu = (a+b)/2.0
+    gauss = np.array([ np.exp(-(xp-mu)**2/(2*sigmaw*sigmaw)) for xp in range(n) ])
+    func = func * (2.0*gauss/np.max(gauss)+1)
+    f['amplitude_change'][i, 0] = func
 #    plt.plot(X.T, func[0])
 #plt.show()
  
 y['frequency_change'] = []
+f['frequency_change'] = np.zeros([numf, 1, n])
 for i in range(numf):
     defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
     y['frequency_change'].append(defect)
     func = sample_gp_nonstat(X, zeroy, (1-defect)*0.01+0.0001, 1)
-    if 'frequency_change' in f:
-        f['frequency_change'] = np.vstack([f['frequency_change'], func])
-    else:
-        f['frequency_change'] = func
-    plt.plot(X.T, func[0])
-plt.show()
+    f['frequency_change'][i, 0] = func
+#    plt.plot(X.T, func[0])
+#plt.show()
+
+y['frequency_change_multvar'] = []
+f['frequency_change_multvar'] = np.zeros([numf, 5, n])
+for i in range(numf):
+    defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
+    y['frequency_change_multvar'].append(defect)
+    func_defect = sample_gp_nonstat(X, zeroy, (1-defect)*0.01+0.0001, 1)
+    func_ok = sample_gp(X, zeroy, sigma, 4)
+    f['frequency_change_multvar'][i] = np.vstack([func_defect, func_ok])
 
  
 with open('testcube.pickle', 'wb') as fout:
