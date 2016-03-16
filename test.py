@@ -66,7 +66,7 @@ for ftype in f:
                         X_extreme = func[:2, a:b]
                         plt.plot( X_nonextreme[0], X_nonextreme[0], 'bo' )
                         plt.plot( X_extreme[0], X_extreme[0], 'r+' )
-                    plt.show()
+                plt.show()
             
         fpr, tpr, thresholds = sklearn.metrics.roc_curve(ygt, scores, pos_label=1)
         auc = sklearn.metrics.auc(fpr, tpr)
