@@ -15,7 +15,10 @@
 
 import numpy as np
 import heapq
-from numpy.linalg import slogdet, inv
+import logging
+from numpy.linalg import slogdet, inv, solve
+import time
+import preproc
 
 def get_available_methods():
     return ['parzen', 'parzen_proper', 'gaussian']
@@ -23,6 +26,11 @@ def get_available_methods():
 #
 # Some helper functions for kernels
 #
+def enforce_multivariate_timeseries(X):
+    if X.ndim==1:
+        X = np.reshape(X, 1, len(X))
+
+
 def calc_distance_matrix(X, metric='sqeuclidean'):
     """ Compute pairwise distances between columns in X """
     from scipy.spatial.distance import pdist, squareform
@@ -31,13 +39,29 @@ def calc_distance_matrix(X, metric='sqeuclidean'):
     D = squareform(pdist(X.T, 'sqeuclidean'))
     return D
 
-def calc_normalized_gaussian_kernel(X, kernel_sigma_sq = 1.0):
+def calc_gaussian_kernel(X, kernel_sigma_sq = 1.0, normalized=True):
     """ Calculate a normalized Gaussian kernel using the columns of X """
     # Let's first compute the kernel matrix from our squared Euclidean distances in $D$.
     dimension = X.shape[0]
     D = calc_distance_matrix(X)
     # compute proper normalized Gaussian kernel values
-    K = np.exp(-D/2.0)/((2*np.pi*kernel_sigma_sq)**(dimension/2))
+    K = np.exp(-D/(2.0*kernel_sigma_sq))
+    if normalized:
+        K = K / ((2*np.pi*kernel_sigma_sq)**(dimension/2))
+    return K
+
+def calc_nonstationary_gaussian_kernel(X, kernel_sigma_sq_vec):
+    """ Calculate a normalized Gaussian kernel using the columns of X """
+    # Let's first compute the kernel matrix from our squared Euclidean distances in $D$.
+    dimension = X.shape[0]
+    n = X.shape[1]
+    D = calc_distance_matrix(X)
+    S = np.tile(kernel_sigma_sq_vec, [n,1])
+    S_sum = S + S.T
+    S_prod = S * S.T
+    
+    # compute Gaussian kernel values
+    K = np.exp(-D/(0.5*S_sum))*(np.power(S_prod,0.25)/np.sqrt(0.5*S_sum))
     return K
 
 
@@ -170,54 +194,77 @@ def maxdiv_parzen_proper_sampling(K, mode="OMEGA_I", alpha=1.0, extint_min_len =
     # small constant to avoid problems with log(0)
     eps = 1e-7
 
+    extreme = np.zeros(n, dtype=bool)
+    non_extreme = np.ones(n, dtype=bool)
     # loop through all possible intervals from i to j
     # including i excluding j
     for i in range(n-extint_min_len):
+        extreme[:] = False
+        extreme[i:(i+extint_min_len)] = True
+        non_extreme = np.logical_not(extreme)
+
         for j in range(i+extint_min_len, min(i+extint_max_len,n)):
             # number of data points in the current interval
-            extreme_interval_length = j-i # TODO: +1
+            extreme_interval_length = j - i
             # number of data points outside of the current interval
             non_extreme_points = n - extreme_interval_length
             
-            # fast hack to do the indexing later on
-            # this should be speeded up later on when computing
-            # sums_extreme ...etc
-            extreme = np.zeros(n, dtype=bool)
-            extreme[i:j] = True
-            non_extreme = np.logical_not(extreme)
-
-            # sum up kernel values to get non-normalized
-            # kernel density estimates at single points for p_I and p_Omega
-            # we use the integral sums in K_integral
-            # sums_extreme and sums_non_extreme are vectors of size n
-            sums_extreme = K_integral[j, :] - K_integral[i, :] 
-            sums_non_extreme = sums_all - sums_extreme
-            # divide by the number of data points to get the final
-            # parzen scores for each data point
-            sums_extreme /= extreme_interval_length
-            sums_non_extreme /= non_extreme_points
-
             # compute the KL divergence
             score = 0.0
             # the mode parameter determines which KL divergence to use
             # mode == SYM does not make much sense right now for alpha != 1.0
+            if mode == "IS_I_OMEGA":
+                # for comments see OMEGA_I
+                # this is a very experimental mode that exploits importance sampling
+                sums_extreme = K_integral[j, :] - K_integral[i, :] 
+                sums_non_extreme = sums_all - sums_extreme
+                sums_extreme /= extreme_interval_length
+                sums_non_extreme /= non_extreme_points
+                weights = sums_extreme / (sums_non_extreme + eps)
+                weights[extreme] = 1.0
+                weights /= np.sum(weights)
+                kl_integrand1 = np.sum(weights * np.log(sums_non_extreme + eps))
+                kl_integrand2 = np.sum(weights * np.log(sums_extreme + eps))
+                negative_kl_I_Omega = alpha * kl_integrand1 - kl_integrand2
+                score += - negative_kl_I_Omega
+
+
             if mode == "OMEGA_I" or mode == "SYM":
+                # sum up kernel values to get non-normalized
+                # kernel density estimates at single points for p_I and p_Omega
+                # we use the integral sums in K_integral
+                # sums_extreme and sums_non_extreme are vectors of size n
+                sums_extreme = K_integral[j, non_extreme] - K_integral[i, non_extreme] 
+                sums_non_extreme = sums_all[non_extreme] - sums_extreme
+                # divide by the number of data points to get the final
+                # parzen scores for each data point
+                sums_extreme /= extreme_interval_length
+                sums_non_extreme /= non_extreme_points
+
                 # version for maximizing KL(p_Omega, p_I)
                 # in this case we have p_Omega 
-                kl_integrand1 = np.mean(np.log(sums_extreme[non_extreme] + eps))
-                kl_integrand2 = np.mean(np.log(sums_non_extreme[non_extreme] + eps))
+                kl_integrand1 = np.mean(np.log(sums_extreme + eps))
+                kl_integrand2 = np.mean(np.log(sums_non_extreme + eps))
                 negative_kl_Omega_I = alpha * kl_integrand1 - kl_integrand2
                 score += - negative_kl_Omega_I
 
             # version for maximizing KL(p_I, p_Omega)
             if mode == "I_OMEGA" or mode == "SYM":
-                kl_integrand1 = np.mean(np.log(sums_non_extreme[extreme] + eps))
-                kl_integrand2 = np.mean(np.log(sums_extreme[extreme] + eps))
+                # for comments see OMEGA_I
+                sums_extreme = K_integral[j, extreme] - K_integral[i, extreme] 
+                sums_non_extreme = sums_all[extreme] - sums_extreme
+                sums_extreme /= extreme_interval_length
+                sums_non_extreme /= non_extreme_points
+                kl_integrand1 = np.mean(np.log(sums_non_extreme + eps))
+                kl_integrand2 = np.mean(np.log(sums_extreme + eps))
                 negative_kl_I_Omega = alpha * kl_integrand1 - kl_integrand2
                 score += - negative_kl_I_Omega
 
             # store the score in the matrix interval_scores
             interval_scores[i,j-i] = score
+            if j<n-1:
+                extreme[j+1] = True
+                non_extreme[j+1] = False
 
     return interval_scores
 
@@ -225,7 +272,7 @@ def maxdiv_parzen_proper_sampling(K, mode="OMEGA_I", alpha=1.0, extint_min_len =
 #
 # Maximally divergent regions using a Gaussian assumption
 #
-def maxdiv_gaussian(X, mode, gaussian_mode, extint_min_len, extint_max_len):
+def maxdiv_gaussian(X, mode='OMEGA_I', gaussian_mode='COV', extint_min_len=20, extint_max_len=150):
     """ Evaluating all possible intervals and returning the score matrix for Gaussian
         KL divergence, we assume data points given as columns """
 
@@ -238,10 +285,14 @@ def maxdiv_gaussian(X, mode, gaussian_mode, extint_min_len, extint_max_len):
 
     # compute integral series of the outer products
     # we will use this to compute covariance matrices
+    print ("Computing outer products...")
     outer_X = np.apply_along_axis(lambda x: np.ravel(np.outer(x,x)), 0, X)
     outer_X_integral = np.cumsum(outer_X, axis=1)
     outer_sums_all = outer_X_integral[:, -1]
 
+    print ("Looping through all intervals")
+    start = time.time()
+    eps = 1e-7
     for i in range(n-extint_min_len):
         for j in range(i+extint_min_len, min(i+extint_max_len,n)):
             extreme_interval_length = j-i
@@ -258,36 +309,49 @@ def maxdiv_gaussian(X, mode, gaussian_mode, extint_min_len, extint_max_len):
             outer_sums_non_extreme /= non_extreme_points
 
             cov_extreme = np.reshape(outer_sums_extreme, [dimension, dimension]) - \
-                    np.outer(sums_extreme, sums_extreme)
+                    np.outer(sums_extreme, sums_extreme) + eps * np.eye(dimension)
             cov_non_extreme = np.reshape(outer_sums_non_extreme, [dimension, dimension]) - \
-                    np.outer(sums_non_extreme, sums_non_extreme)
-            eps = 1e-7
-            _, logdet_extreme = slogdet(cov_extreme + eps * np.eye(dimension))
-            _, logdet_non_extreme = slogdet(cov_non_extreme + eps * np.eye(dimension))
+                    np.outer(sums_non_extreme, sums_non_extreme) + eps * np.eye(dimension)
+            
+            #cov_extreme = np.eye(dimension)
+            #cov_non_extreme = np.eye(dimension)
+
+            _, logdet_extreme = slogdet(cov_extreme)
+            _, logdet_non_extreme = slogdet(cov_non_extreme)
 
             score = 0.0
             # the mode parameter determines which KL divergence to use
             # mode == SYM does not make much sense right now for alpha != 1.0
             diff = sums_extreme - sums_non_extreme
             if mode == "OMEGA_I" or mode == "SYM":
-                #kl_Omega_I = np.sum((sums_extreme - sums_non_extreme)**2)
+                # alternative version using implicit inversion
+                #kl_Omega_I = np.dot(diff, solve(cov_extreme, diff.T) )
+                #kl_Omega_I += np.sum(np.diag(solve(cov_extreme, cov_non_extreme)))
                 inv_cov_extreme = inv(cov_extreme)
-                kl_Omega_I = diff.T * inv_cov_extreme * diff
-                kl_Omega_I += np.sum(inv_cov_extreme * cov_non_extreme)
+                # term for the mahalanobis distance
+                kl_Omega_I = np.dot(diff, np.dot(inv_cov_extreme, diff.T))
+                # trace term
+                kl_Omega_I += np.trace(np.dot(inv_cov_extreme, cov_non_extreme))
+                # logdet terms
                 kl_Omega_I += logdet_extreme - logdet_non_extreme
                 score += kl_Omega_I
 
             # version for maximizing KL(p_I, p_Omega)
             if mode == "I_OMEGA" or mode == "SYM":
-                kl_I_Omega = np.sum((sums_extreme - sums_non_extreme)**2)
                 inv_cov_non_extreme = inv(cov_non_extreme)
+                # term for the mahalanobis distance
                 kl_I_Omega = np.dot(diff, np.dot(inv_cov_non_extreme, diff.T))
-                kl_I_Omega += np.sum(inv_cov_non_extreme * cov_extreme)
+                # trace term
+                kl_I_Omega += np.trace(np.dot(inv_cov_non_extreme, cov_extreme))
+                # logdet terms
                 kl_I_Omega += logdet_non_extreme - logdet_extreme
                 score += kl_I_Omega
+            
+            #print score, cov_extreme, cov_non_extreme, diff
 
             interval_scores[i,j-i] = score
 
+    print ("End of optimization: {}".format(time.time() - start))
     return interval_scores
 
 #
@@ -334,7 +398,11 @@ def calc_max_nonoverlapping_regions(interval_scores, num_intervals, interval_min
             continue
 
         # get the part of the interval_scores matrix we are interested in
-        subseries = interval_scores[a_all:(b_all-min_length_within_interval), :max_length_within_interval]
+        subseries = interval_scores[a_all:(b_all-min_length_within_interval+1), :max_length_within_interval]
+        # still some impossible positions are left
+        x,y = np.meshgrid(np.arange(0,subseries.shape[1],1), np.arange(0,subseries.shape[0],1))
+        subseries[x+y > b_all - a_all] = 0.0
+
         # compute the maximum within a part of interval_scores
         a_sub, b_offset = np.unravel_index(np.argmax(subseries), subseries.shape)
         # convert the maximum position in subseries to a position
@@ -365,6 +433,15 @@ def calc_max_nonoverlapping_regions(interval_scores, num_intervals, interval_min
 #
 def maxdiv(X, method = 'parzen', num_intervals=1, **kwargs):
     """ Wrapper function for calling maximum divergent regions """
+    if 'preproc' in kwargs:
+        if kwargs['preproc']=='local_linear':
+            X = preproc.local_linear_regression(X)
+        elif kwargs['preproc']=='td':
+            X = preproc.td(X)
+        elif not kwargs['preproc'] is None:
+            raise Exception("Unknown preprocessing method {}".format(kwargs['preproc']))
+        del kwargs['preproc']
+
     if 'kernelparameters' in kwargs:
         kernelparameters = kwargs['kernelparameters']
         del kwargs['kernelparameters']
@@ -373,26 +450,36 @@ def maxdiv(X, method = 'parzen', num_intervals=1, **kwargs):
 
     if method == 'parzen':
         # compute kernel matrix first (Gaussian kernel)
-        K = calc_normalized_gaussian_kernel(X, **kernelparameters)
+        K = calc_gaussian_kernel(X, **kernelparameters)
         # obtain the interval [a,b] of the extreme event with score score
         interval_scores = maxdiv_parzen(K, **kwargs)
 
     elif method == 'parzen_proper':
         # compute kernel matrix first (Gaussian kernel)
-        K = calc_normalized_gaussian_kernel(X, **kernelparameters)
+        K = calc_gaussian_kernel(X, **kernelparameters)
         # obtain the interval [a,b] of the extreme event with score score
         interval_scores = maxdiv_parzen_proper_sampling(K, **kwargs)
 
     elif method == 'gaussian':
-        del kwargs['alpha']
+        if 'alpha' in kwargs:
+            del kwargs['alpha']
         kwargs['gaussian_mode'] = 'fullcov'
         interval_scores = maxdiv_gaussian(X, **kwargs)
-
-    # get the K best non-overlapping regions
-    if 'extint_min_len' in kwargs:
-	interval_min_length = kwargs['extint_min_len']
     else:
-	interval_min_length = 20
+        raise Exception("Unknown method {}".format(method))
+
+    xnans, ynans = np.where(np.isnan(interval_scores))
+    if len(xnans)>0:
+        print xnans
+        raise Exception("NaNs found in interval_scores!")
+
+
+    if 'extint_min_len' in kwargs:
+	    interval_min_length = kwargs['extint_min_len']
+    else:
+	    interval_min_length = 20
+    
+    # get the K best non-overlapping regions
     regions = calc_max_nonoverlapping_regions(interval_scores, num_intervals, interval_min_length)
 
     return regions
@@ -409,4 +496,17 @@ def plot_matrix_with_interval(D, a, b):
     plt.imshow(D)
     plt.show()
 
+def show_interval(f, a, b, visborder=100):
+    """ Plot a timeseries together with a marked interval """
+    import matplotlib.pylab as plt
+    av = max(a - visborder, 0)
+    bv = min(b + visborder, f.shape[1])
+    x = range(av, bv)
+    for i in range(f.shape[0]):
+        plt.plot(x, f[i,av:bv])
 
+    minv = np.min(f[:, av:bv])
+    maxv = np.max(f[:, av:bv])
+    plt.fill([ a, a, b, b ], [minv, maxv, maxv, minv], 'b', alpha=0.3)
+
+    return x, av, bv
