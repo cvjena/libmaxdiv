@@ -8,6 +8,8 @@ import argparse
 import sklearn
 import sklearn.metrics
 import time
+import matplotlib.lines as mlines
+import matplotlib.patches as mpatches
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--novis', action='store_true', help='skip the visualization')
@@ -65,7 +67,12 @@ for ftype in f:
                 b_gt = np.max(np.nonzero(ygt))
                 maxdiv.show_interval(func, a_gt, b_gt, 10000, 'r', 1.0, plot_function=False, border=True)
                 maxdiv.show_interval(func, a, b, 10000)
-                plt.legend(['gt extreme', 'time series', 'detect. extreme'], loc='center', mode='expand', ncol=3, bbox_to_anchor=(0,1,1,0), shadow=True, fancybox=True)
+
+                patch_detected_extreme = mpatches.Patch(color='blue', alpha=0.3, label='detect. extreme')
+                patch_gt_extreme = mlines.Line2D([], [], color='red', label='gt extreme')
+                patch_time_series = mlines.Line2D([], [], color='blue', label='time series')
+
+                plt.legend(handles=[patch_time_series, patch_gt_extreme, patch_detected_extreme], loc='center', mode='expand', ncol=3, bbox_to_anchor=(0,1,1,0), shadow=True, fancybox=True)
 
                 if detailedvis:
                     plt.figure()
