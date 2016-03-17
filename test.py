@@ -7,10 +7,12 @@ import preproc
 import argparse
 import sklearn
 import sklearn.metrics
+import time
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--novis', action='store_true', help='skip the visualization')
 parser.add_argument('--extremetypes', help='types of extremes to be tested', nargs='+',default=[])
+parser.add_argument('--demomode', help='show results with a given delay and store images to disk', action='store_true')
 
 maxdiv_tools.add_algorithm_parameters(parser)
 
@@ -31,6 +33,7 @@ extremetypes = set(args.extremetypes)
 detailedvis = False
 
 aucs = {}
+num = 0
 for ftype in f:
     if len(extremetypes)>0 and not ftype in extremetypes:
         continue
@@ -50,8 +53,19 @@ for ftype in f:
             scores[a:b] = score
 
             if not args.novis:
-                plt.figure()
+                if num==0:
+                    plt.figure()
+                    if args.demomode:
+                        plt.ion()
+                        plt.show()
+
+
+                # assuming that there is only one extreme present
+                a_gt = np.min(np.nonzero(ygt))
+                b_gt = np.max(np.nonzero(ygt))
+                maxdiv.show_interval(func, a_gt, b_gt, 10000, 'r', 1.0, plot_function=False, border=True)
                 maxdiv.show_interval(func, a, b, 10000)
+                plt.legend(['gt extreme', 'time series', 'detect. extreme'], loc='center', mode='expand', ncol=3, bbox_to_anchor=(0,1,1,0), shadow=True, fancybox=True)
 
                 if detailedvis:
                     plt.figure()
@@ -66,7 +80,14 @@ for ftype in f:
                         X_extreme = func[:2, a:b]
                         plt.plot( X_nonextreme[0], X_nonextreme[0], 'bo' )
                         plt.plot( X_extreme[0], X_extreme[0], 'r+' )
-                plt.show()
+                if args.demomode:
+                    plt.savefig('vis{:010}.png'.format(num))
+                    plt.draw()
+                    #time.sleep(0.25)
+                    plt.clf()
+                else:
+                    plt.show()
+                num += 1
             
         fpr, tpr, thresholds = sklearn.metrics.roc_curve(ygt, scores, pos_label=1)
         auc = sklearn.metrics.auc(fpr, tpr)

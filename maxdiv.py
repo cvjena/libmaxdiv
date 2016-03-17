@@ -496,17 +496,25 @@ def plot_matrix_with_interval(D, a, b):
     plt.imshow(D)
     plt.show()
 
-def show_interval(f, a, b, visborder=100):
+def show_interval(f, a, b, visborder=100, color='b', alpha=0.3, plot_function=True, border=False):
     """ Plot a timeseries together with a marked interval """
     import matplotlib.pylab as plt
     av = max(a - visborder, 0)
     bv = min(b + visborder, f.shape[1])
     x = range(av, bv)
-    for i in range(f.shape[0]):
-        plt.plot(x, f[i,av:bv])
-
     minv = np.min(f[:, av:bv])
     maxv = np.max(f[:, av:bv])
-    plt.fill([ a, a, b, b ], [minv, maxv, maxv, minv], 'b', alpha=0.3)
+    if plot_function:
+        for i in range(f.shape[0]):
+            plt.plot(x, f[i,av:bv])
+
+    if border:
+        plt.plot([ a, a, b, b, a ], [minv, maxv, maxv, minv, minv], color, alpha=alpha, linewidth=3)
+    else:
+        plt.fill([ a, a, b, b ], [minv, maxv, maxv, minv], color, alpha=alpha)
+
+
+    yborder = abs(maxv-minv)*0.05
+    plt.ylim([minv-yborder, maxv+yborder])
 
     return x, av, bv
