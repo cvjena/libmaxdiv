@@ -17,11 +17,12 @@ import numpy as np
 import heapq
 import logging
 from numpy.linalg import slogdet, inv, solve
+from scipy.linalg import cholesky, solve_triangular
 import time
 import preproc
 
 def get_available_methods():
-    return ['parzen', 'parzen_proper', 'gaussian']
+    return ['parzen', 'parzen_proper', 'gaussian_cov', 'gaussian_id_cov', 'gaussian_global_cov']
 
 #
 # Some helper functions for kernels
@@ -268,6 +269,59 @@ def maxdiv_parzen_proper_sampling(K, mode="OMEGA_I", alpha=1.0, extint_min_len =
 
     return interval_scores
 
+#
+# Maximally divergent regions using a Gaussian assumption
+#
+def maxdiv_gaussian_globalcov(X, mode='OMEGA_I', gaussian_mode='GLOBAL_COV', extint_min_len=20, extint_max_len=150):
+    """ Evaluating all possible intervals and returning the score matrix for Gaussian
+        KL divergence, we assume data points given as columns and that 
+        Omega and I have the same covariance matrix """
+
+    n = X.shape[1]
+    dimension = X.shape[0]
+
+    # simply normalize the time series beforehand
+    if gaussian_mode=='GLOBAL_COV':
+        cov = np.cov(X)
+        if dimension==1:
+            X_norm = X/np.sqrt(cov)
+        else:
+            cov_chol = cholesky(cov)
+            cov_chol_inv = solve_triangular(cov_chol, np.eye(cov_chol.shape[0]))
+            X_norm = np.dot( cov_chol_inv, X )
+    elif gaussian_mode=='ID_COV':
+        X_norm = X
+    else:
+        raise Exception("Unknown Gaussian mode: {}".format(gaussian_mode))
+
+    X_integral = np.cumsum(X_norm, axis=1)
+
+    interval_scores = np.zeros([n, extint_max_len])
+    sums_all = X_integral[:, -1]
+
+    print ("Looping through all intervals")
+    start = time.time()
+    eps = 1e-7
+    for i in range(n-extint_min_len):
+        for j in range(i+extint_min_len, min(i+extint_max_len,n)):
+            extreme_interval_length = j-i
+            non_extreme_points = n - extreme_interval_length
+            
+            sums_extreme = X_integral[:, j] - X_integral[:, i]
+            sums_non_extreme = sums_all - sums_extreme
+            sums_extreme /= extreme_interval_length
+            sums_non_extreme /= non_extreme_points
+
+            score = 0.0
+            # the mode parameter determines which KL divergence to use
+            # mode == SYM does not make much sense right now for alpha != 1.0
+            diff = sums_extreme - sums_non_extreme
+            score = np.sum(diff * diff)
+            interval_scores[i,j-i] = score
+
+    print ("End of optimization: {}".format(time.time() - start))
+    return interval_scores
+
 
 #
 # Maximally divergent regions using a Gaussian assumption
@@ -275,6 +329,9 @@ def maxdiv_parzen_proper_sampling(K, mode="OMEGA_I", alpha=1.0, extint_min_len =
 def maxdiv_gaussian(X, mode='OMEGA_I', gaussian_mode='COV', extint_min_len=20, extint_max_len=150):
     """ Evaluating all possible intervals and returning the score matrix for Gaussian
         KL divergence, we assume data points given as columns """
+
+    if gaussian_mode!='COV':
+        return maxdiv_gaussian_globalcov(X, mode, gaussian_mode, extint_min_len, extint_max_len)
 
     X_integral = np.cumsum(X, axis=1)
     n = X.shape[1]
@@ -460,10 +517,10 @@ def maxdiv(X, method = 'parzen', num_intervals=1, **kwargs):
         # obtain the interval [a,b] of the extreme event with score score
         interval_scores = maxdiv_parzen_proper_sampling(K, **kwargs)
 
-    elif method == 'gaussian':
+    elif method.startswith('gaussian'):
         if 'alpha' in kwargs:
             del kwargs['alpha']
-        kwargs['gaussian_mode'] = 'fullcov'
+        kwargs['gaussian_mode'] = method[9:].upper()
         interval_scores = maxdiv_gaussian(X, **kwargs)
     else:
         raise Exception("Unknown method {}".format(method))

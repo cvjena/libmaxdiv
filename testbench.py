@@ -52,7 +52,20 @@ f['meanshift'] = np.reshape(gps, [gps.shape[0], 1, gps.shape[1]])
 for i in range(numf):
     defect, _, _ = sample_interval(n, defect_minlen, defect_maxlen)
     y['meanshift'].append(defect)
-    f['meanshift'][i,0,defect] -= np.random.rand()*0.5 + 0.5
+    f['meanshift'][i,0,defect] -= np.random.rand()*1.0 + 3.0 # easy
+    #f['meanshift'][i,0,defect] -= np.random.rand()*0.5 + 0.5 # hard
+#    plt.plot(X.T, f['meanshift'][i])
+#plt.show()
+
+sigma = 0.02
+y['meanshift_multvar'] = []
+gps = sample_gp(X, zeroy, sigma, numf*4)
+f['meanshift_multvar'] = np.reshape(gps, [numf, 4, gps.shape[1]])
+for i in range(numf):
+    defect, _, _ = sample_interval(n, defect_minlen, defect_maxlen)
+    y['meanshift_multvar'].append(defect)
+    f['meanshift_multvar'][i,0,defect] -= np.random.rand()*1.0 + 3.0 # easy
+    #f['meanshift'][i,0,defect] -= np.random.rand()*0.5 + 0.5 # hard
 #    plt.plot(X.T, f['meanshift'][i])
 #plt.show()
 
@@ -65,11 +78,27 @@ for i in range(numf):
     sigmaw = (b-a)/4.0
     mu = (a+b)/2.0
     gauss = np.array([ np.exp(-(xp-mu)**2/(2*sigmaw*sigmaw)) for xp in range(n) ])
+    gauss[gauss>0.2] = 0.2
     func = func * (2.0*gauss/np.max(gauss)+1)
     f['amplitude_change'][i, 0] = func
 #    plt.plot(X.T, func[0])
 #plt.show()
  
+y['amplitude_change_multvar'] = []
+f['amplitude_change_multvar'] = np.zeros([numf, 4, n])
+for i in range(numf):
+    defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
+    y['amplitude_change_multvar'].append(defect)
+    func = sample_gp(X, zeroy, sigma, 4)
+    sigmaw = (b-a)/4.0
+    mu = (a+b)/2.0
+    gauss = np.array([ np.exp(-(xp-mu)**2/(2*sigmaw*sigmaw)) for xp in range(n) ])
+    gauss[gauss>0.2] = 0.2
+    func[0,:] = func[0,:] * (2.0*gauss/np.max(gauss)+1)
+    f['amplitude_change_multvar'][i, :] = func
+#    plt.plot(X.T, func[0])
+#plt.show()
+
 y['frequency_change'] = []
 f['frequency_change'] = np.zeros([numf, 1, n])
 for i in range(numf):
