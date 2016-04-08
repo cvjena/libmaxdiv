@@ -20,6 +20,7 @@ from numpy.linalg import slogdet, inv, solve
 from scipy.linalg import cholesky, solve_triangular
 import time
 import preproc
+import sys
 
 def get_available_methods():
     return ['parzen', 'parzen_proper', 'gaussian_cov', 'gaussian_id_cov', 'gaussian_global_cov']
@@ -284,10 +285,13 @@ def maxdiv_gaussian_globalcov(X, mode='OMEGA_I', gaussian_mode='GLOBAL_COV', ext
     if gaussian_mode=='GLOBAL_COV':
         cov = np.cov(X)
         if dimension==1:
-            X_norm = X/np.sqrt(cov)
+            X_norm = X/np.sqrt(cov) # not really necessary
         else:
+            # compute inverse "square root of cov"
             cov_chol = cholesky(cov)
             cov_chol_inv = solve_triangular(cov_chol, np.eye(cov_chol.shape[0]))
+            # DEBUG print np.dot(inv(cov_chol_inv.T), inv(cov_chol_inv)) - cov
+            # DEBUG sys.exit(-1)
             X_norm = np.dot( cov_chol_inv, X )
     elif gaussian_mode=='ID_COV':
         X_norm = X
