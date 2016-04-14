@@ -3,7 +3,12 @@
 import maxdiv
 import numpy as np
 import matplotlib.pylab as plt
-import cPickle as pickle
+try:
+    import cPickle as pickle
+except ImportError:
+    # cPickle has been "hidden" in Python 3 and will be imported automatically by
+    # pickle if available.
+    import pickle
 
 # ensure reproducable results
 np.random.seed(0)

@@ -446,7 +446,7 @@ def calc_max_nonoverlapping_regions(interval_scores, num_intervals, interval_min
 
         a_all, b_all = interval
         max_length_within_interval = min(interval_max_length, b_all-a_all)
-    	min_length_within_interval = interval_min_length
+        min_length_within_interval = interval_min_length
         print ("Analyzing interval ({}): {} to {}".format(-negative_score_all, a_all, b_all))
         
         # score of 0.0 would relate to equivalent distributions
@@ -532,9 +532,9 @@ def maxdiv(X, method = 'parzen', num_intervals=1, **kwargs):
 
 
     if 'extint_min_len' in kwargs:
-	    interval_min_length = kwargs['extint_min_len']
+        interval_min_length = kwargs['extint_min_len']
     else:
-	    interval_min_length = 20
+        interval_min_length = 20
     
     # get the K best non-overlapping regions
     regions = calc_max_nonoverlapping_regions(interval_scores, num_intervals, interval_min_length)
