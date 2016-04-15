@@ -1,4 +1,3 @@
-import cPickle as pickle
 import numpy as np
 import matplotlib.pylab as plt
 import maxdiv
@@ -10,6 +9,12 @@ import sklearn.metrics
 import time
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
+try:
+    import cPickle as pickle
+except ImportError:
+    # cPickle has been "hidden" in Python 3 and will be imported automatically by
+    # pickle if available.
+    import pickle
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--novis', action='store_true', help='skip the visualization')
@@ -23,6 +28,8 @@ args = parser.parse_args()
 # prepare parameters for calling maxdiv
 args_dict = vars(args)
 parameters = {parameter_name: args_dict[parameter_name] for parameter_name in maxdiv_tools.get_algorithm_parameters()}
+if ('num_intervals' in parameters) and (parameters['num_intervals'] <= 0):
+    parameters['num_intervals'] = None
 
 
 with open('testcube.pickle', 'rb') as fin:
@@ -39,6 +46,8 @@ num = 0
 for ftype in f:
     if len(extremetypes)>0 and not ftype in extremetypes:
         continue
+    
+    print('-- {} --'.format(ftype))
 
     funcs = f[ftype]
     ygts = y[ftype]
@@ -51,7 +60,7 @@ for ftype in f:
         scores = np.zeros(len(ygt))
         for i in range(len(regions)):
             a, b, score = regions[i]
-            print "Region {}/{}: {} - {}".format(i, len(regions), a, b)
+            print ("Region {}/{}: {} - {}".format(i, len(regions), a, b))
             scores[a:b] = score
 
             if not args.novis:
@@ -101,5 +110,6 @@ for ftype in f:
         aucs[ftype].append(auc)
         print ("AUC: {}".format(auc))
 
+print('-- Aggregated Results --')
 for ftype in aucs:
     print ("{}: {} (+/- {})".format(ftype, np.mean(aucs[ftype]), np.std(aucs[ftype])))

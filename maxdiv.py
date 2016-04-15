@@ -414,9 +414,58 @@ def maxdiv_gaussian(X, mode='OMEGA_I', gaussian_mode='COV', extint_min_len=20, e
 #
 # Search non-overlapping regions
 #
+def find_max_regions(interval_scores, num_intervals = None, overlap_th = 0.0):
+    """ Given the scores for each interval as a matrix, we select the num_intervals intervals
+        which are non-overlapping and have the highest score.
+        
+        overlap_th specifies a threshold for non-maxima suppression: Intervals with an Intersection
+        over Union (IoU) greater than this threshold will be considered overlapping.
+        
+        num_intervals may be set to None to retrieve all non-overlapping regions.
+        
+        Returns: List of 3-tuples (a, b, score), specifying the score for an interval [a,b).
+                 This list will be ordered decreasingly by the score.
+    """
+    
+    # Shortcut if only the maximum is of interest
+    if num_intervals == 1:
+        a, b_offs = np.unravel_index(interval_scores.argmax(), interval_scores.shape)
+        return [(a, a + b_offs, interval_scores[a, b_offs])]
+    
+    # Retrieve indices of sorted scores
+    starts, lengths = np.unravel_index(interval_scores.argsort(axis = None)[::-1], interval_scores.shape)
+    
+    # Non-maxima suppression
+    include = np.ones(len(starts), dtype = bool) # suppressed intervals will be set to False
+    found_intervals = 0
+    for i in range(len(starts)):
+        if include[i]:
+            
+            # Terminate non-maxima suppression if we already have found enough intervals
+            found_intervals += 1
+            if (num_intervals is not None) and (found_intervals >= num_intervals):
+                include[i+1:] = False
+                break
+            
+            # Exclude intervals with a lower score overlapping this one
+            for j in range(i + 1, len(starts)):
+                if include[j] and ((interval_scores[starts[j], lengths[j]] == 0) or (IoU(starts[i], lengths[i], starts[j], lengths[j]) > overlap_th)):
+                    include[j] = False
+    
+    # Convert remaining indices to intervals
+    return [(a, a + b_offs, interval_scores[a, b_offs]) for a, b_offs in zip(starts[include], lengths[include])]
+
+
+def IoU(start1, len1, start2, len2):
+    """ Computes the intersection over union of two intervals starting at start1 and start2 with lengths len1 and len2. """
+    intersection = max(0, min(start1 + len1, start2 + len2) - max(start1, start2))
+    return float(intersection) / (len1 + len2 - intersection)
+
+
 def calc_max_nonoverlapping_regions(interval_scores, num_intervals, interval_min_length):
     """ Given the scores for each interval as a matrix, we greedily select the num_intervals
         intervals which are non-overlapping and have the highest score """
+    # THIS METHOD DOES NOT PRODUCE CORRECT RESULTS.
 
     # number of data points
     n = interval_scores.shape[0]
@@ -447,11 +496,11 @@ def calc_max_nonoverlapping_regions(interval_scores, num_intervals, interval_min
         a_all, b_all = interval
         max_length_within_interval = min(interval_max_length, b_all-a_all)
         min_length_within_interval = interval_min_length
-        print ("Analyzing interval ({}): {} to {}".format(-negative_score_all, a_all, b_all))
+        #print ("Analyzing interval ({}): {} to {}".format(-negative_score_all, a_all, b_all))
         
         # score of 0.0 would relate to equivalent distributions
         if negative_score_all == 0.0:
-            print ("Interval skipped due to zero score")
+            #print ("Interval skipped due to zero score")
             continue
 
         # get the part of the interval_scores matrix we are interested in
@@ -467,16 +516,16 @@ def calc_max_nonoverlapping_regions(interval_scores, num_intervals, interval_min
         a = a_sub + a_all
         b = a + b_offset
         score = interval_scores[a, b_offset]
-        print ("Found region: {} to {} with score {}".format(a, b, score))
+        #print ("Found region: {} to {} with score {}".format(a, b, score))
         regions.append( [a, b, score] )
         # add the interval before and the interval after to the queue
         # with the score of the current interval. maximum score within these
         # intervals is bounded from above by the score of the current interval 
         if a-a_all >= interval_min_length:
-            print ("Adding interval {} to {} with score {} to the queue".format(a_all, a, score))
+            #print ("Adding interval {} to {} with score {} to the queue".format(a_all, a, score))
             heapq.heappush(interval_list, (-score, [a_all, a]))
         if b_all-b >= interval_min_length:
-            print ("Adding interval {} to {} with score {} to the queue".format(b, b_all, score))
+            #print ("Adding interval {} to {} with score {} to the queue".format(b, b_all, score))
             heapq.heappush(interval_list, (-score, [b, b_all]))
 
     # sort the regions according to their score
@@ -527,7 +576,7 @@ def maxdiv(X, method = 'parzen', num_intervals=1, **kwargs):
 
     xnans, ynans = np.where(np.isnan(interval_scores))
     if len(xnans)>0:
-        print xnans
+        print (xnans)
         raise Exception("NaNs found in interval_scores!")
 
 
@@ -537,7 +586,7 @@ def maxdiv(X, method = 'parzen', num_intervals=1, **kwargs):
         interval_min_length = 20
     
     # get the K best non-overlapping regions
-    regions = calc_max_nonoverlapping_regions(interval_scores, num_intervals, interval_min_length)
+    regions = find_max_regions(interval_scores, num_intervals)
 
     return regions
 
