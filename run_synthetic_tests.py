@@ -1,14 +1,7 @@
 import numpy as np
 import matplotlib.pylab as plt
-import maxdiv
-import maxdiv_tools
-import preproc
-import argparse
-import sklearn
-import sklearn.metrics
-import time
-import matplotlib.lines as mlines
-import matplotlib.patches as mpatches
+import maxdiv, maxdiv_tools, preproc, eval
+import argparse, time
 try:
     import cPickle as pickle
 except ImportError:
@@ -42,6 +35,7 @@ extremetypes = set(args.extremetypes)
 detailedvis = False
 
 aucs = {}
+aps = {}
 num = 0
 for ftype in f:
     if len(extremetypes)>0 and not ftype in extremetypes:
@@ -52,64 +46,37 @@ for ftype in f:
     funcs = f[ftype]
     ygts = y[ftype]
     aucs[ftype] = []
+    regions = []
     for i in range(len(funcs)):
         func = funcs[i]
         ygt = ygts[i]
-        regions = maxdiv.maxdiv(func, kernelparameters={'kernel_sigma_sq': args.kernel_sigma_sq}, **parameters)
+        gt_regions = eval.pointwiseLabelsToIntervals(ygt)
+        regions.append(maxdiv.maxdiv(func, kernelparameters={'kernel_sigma_sq': args.kernel_sigma_sq}, **parameters))
 
-        scores = np.zeros(len(ygt))
-        for i in range(len(regions)):
-            a, b, score = regions[i]
-            print ("Region {}/{}: {} - {}".format(i, len(regions), a, b))
-            scores[a:b] = score
-
-            if not args.novis:
-                if num==0:
-                    plt.figure()
-                    if args.demomode:
-                        plt.ion()
-                        plt.show()
-
-
-                # assuming that there is only one extreme present
-                a_gt = np.min(np.nonzero(ygt))
-                b_gt = np.max(np.nonzero(ygt))
-                maxdiv.show_interval(func, a_gt, b_gt, 10000, 'r', 1.0, plot_function=False, border=True)
-                maxdiv.show_interval(func, a, b, 10000)
-
-                patch_detected_extreme = mpatches.Patch(color='blue', alpha=0.3, label='detect. extreme')
-                patch_gt_extreme = mlines.Line2D([], [], color='red', label='gt extreme')
-                patch_time_series = mlines.Line2D([], [], color='blue', label='time series')
-
-                plt.legend(handles=[patch_time_series, patch_gt_extreme, patch_detected_extreme], loc='center', mode='expand', ncol=3, bbox_to_anchor=(0,1,1,0), shadow=True, fancybox=True)
-
-                if detailedvis:
-                    plt.figure()
-                    if func.shape[0]==1:
-                        h_nonextreme, bin_edges = np.histogram( np.hstack([ func[0,:a], func[0, b:] ]), bins=40 )
-                        h_extreme, _ = np.histogram(func[0,a:b], bins=bin_edges)
-                        bin_means = 0.5 * (bin_edges[:-1] + bin_edges[1:])
-                        plt.plot(bin_means, h_extreme)
-                        plt.plot(bin_means, h_nonextreme)
-                    else:
-                        X_nonextreme = np.hstack([ func[:2, :a], func[:2, b:] ])
-                        X_extreme = func[:2, a:b]
-                        plt.plot( X_nonextreme[0], X_nonextreme[0], 'bo' )
-                        plt.plot( X_extreme[0], X_extreme[0], 'r+' )
-                if args.demomode:
-                    plt.savefig('vis{:010}.png'.format(num))
-                    plt.draw()
-                    #time.sleep(0.25)
-                    plt.clf()
-                else:
-                    plt.show()
-                num += 1
+        if not args.novis:
+            if args.demomode and (num == 0):
+                plt.figure()
+                plt.ion()
+                plt.show()
+            eval.plotDetections(func, regions[-1], gt_regions, export = '{}_{:010}.png'.format(ftype, i) if args.demomode else None, detailedvis = detailedvis)
+            if args.demomode:
+                plt.draw()
+                time.sleep(0.25)
+                plt.clf()
             
-        fpr, tpr, thresholds = sklearn.metrics.roc_curve(ygt, scores, pos_label=1)
-        auc = sklearn.metrics.auc(fpr, tpr)
+        auc = eval.auc(ygt, regions[-1])
         aucs[ftype].append(auc)
         print ("AUC: {}".format(auc))
+                
+        num += 1
+    
+    aps[ftype] = eval.average_precision(ygts, regions, plot = detailedvis and not args.novis)
+    print ("AP: {}".format(aps[ftype]))
 
-print('-- Aggregated Results --')
+print('-- Aggregated AUC --')
 for ftype in aucs:
     print ("{}: {} (+/- {})".format(ftype, np.mean(aucs[ftype]), np.std(aucs[ftype])))
+
+print('-- Average Precision --')
+for ftype in aps:
+    print ("{}: {}".format(ftype, aps[ftype]))

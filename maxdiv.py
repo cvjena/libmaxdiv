@@ -615,9 +615,9 @@ def show_interval(f, a, b, visborder=100, color='b', alpha=0.3, plot_function=Tr
             plt.plot(x, f[i,av:bv], color='blue')
 
     if border:
-        plt.plot([ a, a, b, b, a ], [minv, maxv, maxv, minv, minv], color, alpha=alpha, linewidth=3)
+        plt.plot([ a, a, b, b, a ], [minv, maxv, maxv, minv, minv], color=color, alpha=alpha, linewidth=3)
     else:
-        plt.fill([ a, a, b, b ], [minv, maxv, maxv, minv], color, alpha=alpha)
+        plt.fill([ a, a, b, b ], [minv, maxv, maxv, minv], color=color, alpha=alpha)
 
 
     yborder = abs(maxv-minv)*0.05
