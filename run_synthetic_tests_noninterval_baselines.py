@@ -1,4 +1,3 @@
-import cPickle as pickle
 import numpy as np
 import matplotlib.pylab as plt
 import maxdiv
@@ -11,6 +10,12 @@ import time
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
 from baselines_noninterval import *
+try:
+    import cPickle as pickle
+except ImportError:
+    # cPickle has been "hidden" in Python 3 and will be imported automatically by
+    # pickle if available.
+    import pickle
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--novis', action='store_true', help='skip the visualization')
@@ -28,7 +33,7 @@ extremetypes = set(args.extremetypes)
 aucs = {}
 num = 0
 for ftype in f:
-    print ftype, extremetypes
+    print ('-- {} --'.format(ftype))
     if len(extremetypes)>0 and not ftype in extremetypes:
         continue
 
@@ -46,5 +51,6 @@ for ftype in f:
         aucs[ftype].append(auc)
         print ("AUC: {}".format(auc))
 
+print('-- Aggregated Results --')
 for ftype in aucs:
     print ("{}: {} (+/- {})".format(ftype, np.mean(aucs[ftype]), np.std(aucs[ftype])))
