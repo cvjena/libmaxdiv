@@ -56,9 +56,7 @@ def average_precision(ygt, regions, overlap = 0.5, plot = False):
         raise ValueError('Different number of time series for ground-truth and detections.')
     
     # Convert ground-truth to intervals if given as pointwise labels
-    for i in range(len(ygt)):
-        if not (isinstance(ygt[i][0], tuple) or isinstance(ygt[i][0], list)):
-            ygt[i] = pointwiseLabelsToIntervals(ygt[i])
+    ygt = [gt if (isinstance(gt[0], tuple) or isinstance(gt[0], list)) else pointwiseLabelsToIntervals(gt) for gt in ygt]
     
     # Determine recall and precision for all thresholds and compute interpolated AP
     recall, precision = recall_precision(ygt, regions, overlap, 'all')
@@ -189,7 +187,7 @@ def plotDetections(func, regions, gt = [], export = None, detailedvis = False):
     for i in range(len(regions)):
         a, b, score = regions[i]
         print ("Region {}/{}: {} - {} (Score: {})".format(i, len(regions), a, b, score))
-        intensity = float(score - minScore) / (maxScore - minScore)
+        intensity = float(score - minScore) / (maxScore - minScore) if minScore < maxScore else 1.0
         maxdiv.show_interval(func, a, b, 10000, plot_function = not plotted_function,
                              color = (0.8 - intensity * 0.8, 0.8 - intensity * 0.8, 1.0))
         plotted_function = True
