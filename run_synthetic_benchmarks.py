@@ -97,8 +97,8 @@ with open('benchmark_results.pickle', 'wb') as fout:
 
 # Print results as tables
 maxLabelLen = max(len(lbl) for lbl in labels.values())
-hdiv_len = maxLabelLen + 1 + sum(len(ftype) + 3 for ftype in extremetypes) # length of horizontal divider
-fmtHeader = '{:^' + str(maxLabelLen+1) + 's} |' + '|'.join(' {} '.format(ftype) for ftype in extremetypes)
+hdiv_len = maxLabelLen + 1 + sum(max(len(ftype), 18) + 3 for ftype in extremetypes) # length of horizontal divider
+fmtHeader = '{:^' + str(maxLabelLen+1) + 's}|' + '|'.join(' {:^18s} '.format(ftype) for ftype in extremetypes)
 
 print('\n')
 
@@ -113,7 +113,7 @@ for preproc in PREPROC:
             id = (preproc, method, mode)
             row = '{:{}s} '.format(labels[id], maxLabelLen)
             for ftype in extremetypes:
-                row += '|{:>{}s} '.format('{:.3f} (+/- {:.3f})'.format(auc[id][ftype], auc_sd[id][ftype]), len(ftype) + 1)
+                row += '|{:>{}s} '.format('{:.3f} (+/- {:.3f})'.format(auc[id][ftype], auc_sd[id][ftype]), max(len(ftype), 18) + 1)
             print(row)
         num += 1
 
@@ -130,12 +130,13 @@ for preproc in PREPROC:
             id = (preproc, method, mode)
             row = '{:{}s} '.format(labels[id], maxLabelLen)
             for ftype in extremetypes:
-                row += '| {:{}.4f} '.format(aps[id][ftype], len(ftype))
+                row += '| {:{}.4f} '.format(aps[id][ftype], max(len(ftype), 18))
             print(row)
         num += 1
 
 print('\n')
 
+maxMethodLen = max(len(m) for m in METHODS)
 print('Mean runtime for series of length 250')
 print('-------------------------------------')
 for method in METHODS:

@@ -1,5 +1,5 @@
 import numpy as np
-import maxdiv, preproc, eval
+import maxdiv
 import matplotlib.pylab as plt
 import time
 
@@ -36,7 +36,9 @@ m = 10 # number of time series per length
 # Measure runtime of various methods for different lengths of time series
 times = { method : [] for method in METHODS }
 lengths = []
-for n in range(25, 2001, 25):
+for n in range(25, 1001, 25):
+    
+    print('-- n = {} --'.format(n))
     
     for method in METHODS:
         times[method].append(0.0)
