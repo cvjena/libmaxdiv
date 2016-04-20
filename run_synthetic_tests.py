@@ -58,7 +58,10 @@ for ftype in f:
                 plt.figure()
                 plt.ion()
                 plt.show()
-            eval.plotDetections(func, regions[-1], gt_regions, export = '{}_{:010}.png'.format(ftype, i) if args.demomode else None, detailedvis = detailedvis)
+            eval.plotDetections(func, regions[-1], gt_regions,
+                                silent = False,
+                                export = '{}_{:010}.png'.format(ftype, i) if args.demomode else None,
+                                detailedvis = detailedvis)
             if args.demomode:
                 plt.draw()
                 time.sleep(0.25)
