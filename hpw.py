@@ -27,18 +27,18 @@ def read_hpw_csv(csvFile):
         for i, line in enumerate(reader):
             if i == 0:
                 continue
-            date = line[0][:line[0].rfind('-')]
+            date = tuple(int(x) if i < 3 else int(int(x) / 4) * 4 for i, x in enumerate(line[0].split('-')))
             fields = [float(x) for x in line[1:]]
             if not np.any(np.isnan(fields)):
                 if date not in data:
                     data[date] = []
                 data[date].append(fields)
     
-    # Take day-wise means and store them in a numpy array
+    # Take 4-hourly means and store them in a numpy array
     ts = np.ndarray((3, len(data)))
     for i, (date, values) in enumerate(data.items()):
         ts[:,i] = np.array(values).mean(axis = 0).T
-    dates = [datetime.date(*(int(x) for x in date.split('-'))) for date in data.keys()]
+    dates = [datetime.datetime(*date) for date in data.keys()]
     
     return ts, dates
 
@@ -51,24 +51,38 @@ def normalize_time_series(ts):
     return ts
 
 
+def datetime_diff(a, b):
+    """ Calculates the difference a - b between to dates in hours. """
+    
+    if isinstance(a, datetime.date):
+        a = datetime.datetime.combine(a, datetime.datetime.min.time())
+    if isinstance(b, datetime.date):
+        b = datetime.datetime.combine(b, datetime.datetime.min.time())
+    
+    return int((a-b).total_seconds()) / 3600
+
+
 if __name__ == '__main__':
+
+    import sys
+    method = sys.argv[1] if len(sys.argv) > 1 else 'gaussian_cov'
 
     # Load data
     data, dates = read_hpw_csv('HPW_2012_41046.csv')
     data = normalize_time_series(data)
     
     # Detect
-    regions = maxdiv.maxdiv(data, 'parzen_proper', preproc = 'td', extint_min_len = 3, extint_max_len = 30, num_intervals = 5)
+    regions = maxdiv.maxdiv(data, method, mode = 'I_OMEGA', preproc = 'td', extint_min_len = 10, extint_max_len = 30, num_intervals = 5)
     
     # Console output
     print('-- Ground Truth --')
     for name, (a, b) in HURRICANE_GT.items():
         print('{:{}s}: {!s} - {!s}'.format(name, max(len(n) for n in HURRICANE_GT.keys()), a, b - datetime.timedelta(days = 1)))
-    print('\n-- Detected Intervals --')
+    print('\n-- Detected Intervals ({}) --'.format(method))
     for a, b, score in regions:
         print('{!s} - {!s} (Score: {})'.format(dates[a], dates[b-1], score))
     
     # Plot
-    ygt = [((a - dates[0]).days, (b - dates[0]).days) for a, b in HURRICANE_GT.values()]
+    ygt = [(datetime_diff(a, dates[0]) / 4, datetime_diff(b, dates[0]) / 4) for a, b in HURRICANE_GT.values()]
     eval.plotDetections(data, regions, ygt,
-                        ticks = { (d-dates[0]).days : d.strftime('%b %Y') for d in (datetime.date(2012,mon,1) for mon in range(6, 12)) })
+                        ticks = { datetime_diff(d, dates[0]) / 4 : d.strftime('%b %Y') for d in (datetime.date(2012,mon,1) for mon in range(6, 12)) })
