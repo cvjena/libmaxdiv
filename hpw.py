@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pylab as plt
-import maxdiv, eval
+import maxdiv, preproc, baselines_noninterval, eval
 import csv, datetime
 from collections import OrderedDict
 
@@ -72,7 +72,14 @@ if __name__ == '__main__':
     data = normalize_time_series(data)
     
     # Detect
-    regions = maxdiv.maxdiv(data, method, mode = 'I_OMEGA', preproc = 'td', extint_min_len = 10, extint_max_len = 30, num_intervals = 5)
+    if method in ['hotellings_t', 'kde']:
+        if method == 'kde':
+            scores = baselines_noninterval.pointwiseKDE(preproc.td(data))
+        else:
+            scores = baselines_noninterval.hotellings_t(preproc.td(data))
+        regions = baselines_noninterval.pointwiseScoresToIntervals(scores, 10)
+    else:
+        regions = maxdiv.maxdiv(data, method, mode = 'I_OMEGA', preproc = 'td', extint_min_len = 10, extint_max_len = 30, num_intervals = 5)
     
     # Console output
     print('-- Ground Truth --')
