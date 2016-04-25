@@ -7,9 +7,11 @@ def get_available_methods():
     return ['local_linear', 'td']
 
 def local_linear_regression(X, window_size=5):
+    """ Local linear regression also known as linear predictive coding (LPC) """
     dimension = X.shape[0]
     n = X.shape[1]
     
+    # TODO: should we integrate also the model error
     params = np.zeros([dimension*2, n])
     for i in range(n):
         C = np.zeros(dimension*dimension)
