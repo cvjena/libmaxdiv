@@ -48,7 +48,7 @@ def calc_gaussian_kernel(X, kernel_sigma_sq = 1.0, normalized=True):
     # compute proper normalized Gaussian kernel values
     K = np.exp(-D/(2.0*kernel_sigma_sq))
     if normalized:
-        K = K / ((2*np.pi*kernel_sigma_sq)**(dimension/2))
+        K = K / ((2*np.pi*kernel_sigma_sq)**(dimension/2.0))
     return K
 
 def calc_nonstationary_gaussian_kernel(X, kernel_sigma_sq_vec):
