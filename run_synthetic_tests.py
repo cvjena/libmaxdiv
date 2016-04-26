@@ -23,6 +23,10 @@ args_dict = vars(args)
 parameters = {parameter_name: args_dict[parameter_name] for parameter_name in maxdiv_tools.get_algorithm_parameters()}
 if ('num_intervals' in parameters) and (parameters['num_intervals'] <= 0):
     parameters['num_intervals'] = None
+parameters['kernelparameters'] = { 'kernel_sigma_sq' : args.kernel_sigma_sq }
+parameters['proposalparameters'] = { 'useMedian' : not args.prop_mean, 'sd_th' : args.prop_th }
+if args.prop_unfiltered:
+    parameters['proposalparameters']['filter'] = None
 
 
 with open('testcube.pickle', 'rb') as fin:
@@ -51,7 +55,7 @@ for ftype in f:
         func = funcs[i]
         ygt = ygts[i]
         gt_regions = eval.pointwiseLabelsToIntervals(ygt)
-        regions.append(maxdiv.maxdiv(func, kernelparameters={'kernel_sigma_sq': args.kernel_sigma_sq}, **parameters))
+        regions.append(maxdiv.maxdiv(func, **parameters))
 
         if not args.novis:
             if args.demomode and (num == 0):

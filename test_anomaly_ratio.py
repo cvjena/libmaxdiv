@@ -1,5 +1,5 @@
 import numpy as np
-import maxdiv, preproc, eval
+import maxdiv, maxdiv_util, preproc, eval
 import matplotlib.pylab as plt
 import argparse, time
 
@@ -10,7 +10,7 @@ def sample_gp(length, sigma, n=1, noise=0.001):
     """ sample a function from a Gaussian process with Gaussian kernel """
     X = np.linspace(0, 1, length, False).reshape([1, length])
     zeroY = np.zeros(length)
-    K = maxdiv.calc_gaussian_kernel(X, sigma / length) + noise * np.eye(X.shape[1])
+    K = maxdiv_util.calc_gaussian_kernel(X, sigma / length) + noise * np.eye(X.shape[1])
     return np.random.multivariate_normal(zeroY, K, n)
 
 def sample_gp_with_meanshift(length, anomaly_length, sigma = 5.0, n=1, noise=0.001):

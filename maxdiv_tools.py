@@ -40,7 +40,7 @@ def read_csv_timeseries(input, selected_variables, timecol, timeformat, maxdatap
     return X, times
 
 def get_algorithm_parameters():
-    method_parameter_names = ['extint_min_len', 'extint_max_len', 'alpha', 'mode', 'method', 'num_intervals', 'preproc']
+    method_parameter_names = ['extint_min_len', 'extint_max_len', 'alpha', 'mode', 'method', 'num_intervals', 'preproc', 'proposals']
     return method_parameter_names 
 
 def add_algorithm_parameters(parser):
@@ -49,7 +49,11 @@ def add_algorithm_parameters(parser):
     parser.add_argument('--extint_min_len', help='minimum length of the extreme interval', default=10, type=int)
     parser.add_argument('--extint_max_len', help='maximum length of the extreme interval', default=50, type=int)
     parser.add_argument('--alpha', help='Hyperparameter for the KL divergence', type=float, default=1.0)
-    parser.add_argument('--mode', help='Mode for KL divergence computation', choices=['OMEGA_I', 'SYM', 'I_OMEGA', 'LAMBDA', 'IS_I_OMEGA'], default='I_OMEGA')
+    parser.add_argument('--mode', help='Mode for KL divergence computation', choices=['OMEGA_I', 'SYM', 'I_OMEGA', 'LAMBDA', 'IS_I_OMEGA', 'JSD'], default='I_OMEGA')
     parser.add_argument('--num_intervals', help='number of intervals to be displayed', default=5, type=int)
     parser.add_argument('--preproc', help='use a pre-processing method', default=None, choices=preproc.get_available_methods())
+    parser.add_argument('--proposals', help='method for interval proposing', default='dense', choices=['dense','hotellings_t','kde'])
+    parser.add_argument('--prop_th', help='threshold for pointwise interval proposing', type=float, default=1.5)
+    parser.add_argument('--prop_mean', help='use mean instead of median for interval proposing', action='store_true')
+    parser.add_argument('--prop_unfiltered', help='use pointwise scores directly for proposals instead of their gradient', action='store_true')
  

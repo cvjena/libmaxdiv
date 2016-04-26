@@ -1,9 +1,9 @@
-import maxdiv
 import numpy as np
 import sklearn.metrics
 import matplotlib.pylab as plt
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
+from maxdiv_util import IoU
 
 
 def auc(ygt, regions, n = 0):
@@ -123,7 +123,7 @@ def recall_precision(ygt, regions, overlap = 0.5, th = None):
             
             isTP = False
             for i_gt, (a_gt, b_gt) in enumerate(ygt[ts]):
-                if (not region_detected[ts][i_gt]) and (maxdiv.IoU(a, b - a, a_gt, b_gt - a_gt) >= overlap):
+                if (not region_detected[ts][i_gt]) and (IoU(a, b - a, a_gt, b_gt - a_gt) >= overlap):
                     isTP = True
                     region_detected[ts][i_gt] = True
                     break
@@ -149,7 +149,7 @@ def recall_precision(ygt, regions, overlap = 0.5, th = None):
                 
                     isTP = False
                     for i_gt, (a_gt, b_gt) in enumerate(ygt[i]):
-                        if (not region_detected[i][i_gt]) and (maxdiv.IoU(a, b - a, a_gt, b_gt - a_gt) >= overlap):
+                        if (not region_detected[i][i_gt]) and (IoU(a, b - a, a_gt, b_gt - a_gt) >= overlap):
                             isTP = True
                             region_detected[i][i_gt] = True
                             break
@@ -185,7 +185,7 @@ def plotDetections(func, regions, gt = [], ticks = None, export = None, silent =
     # Plot time series and ground-truth intervals
     plotted_function = False
     for a, b in gt:
-        maxdiv.show_interval(func, a, b, 10000, 'r', 1.0, plot_function = not plotted_function, border = True)
+        show_interval(func, a, b, 10000, 'r', 1.0, plot_function = not plotted_function, border = True)
         plotted_function = True
     
     # Plot detected intervals with color intensities corresponding to their score
@@ -196,8 +196,8 @@ def plotDetections(func, regions, gt = [], ticks = None, export = None, silent =
         if not silent:
             print ("Region {}/{}: {} - {} (Score: {})".format(i, len(regions), a, b, score))
         intensity = float(score - minScore) / (maxScore - minScore) if minScore < maxScore else 1.0
-        maxdiv.show_interval(func, a, b, 10000, plot_function = not plotted_function,
-                             color = (0.8 - intensity * 0.8, 0.8 - intensity * 0.8, 1.0))
+        show_interval(func, a, b, 10000, plot_function = not plotted_function,
+                      color = (0.8 - intensity * 0.8, 0.8 - intensity * 0.8, 1.0))
         plotted_function = True
     
         # Show supplementary visualization
@@ -235,6 +235,30 @@ def plotDetections(func, regions, gt = [], ticks = None, export = None, silent =
         plt.savefig(export)
     else:
         plt.show()
+
+
+def show_interval(f, a, b, visborder=100, color='b', alpha=0.3, plot_function=True, border=False):
+    """ Plot a timeseries together with a marked interval """
+    
+    av = max(a - visborder, 0)
+    bv = min(b + visborder, f.shape[1])
+    x = range(av, bv)
+    minv = np.min(f[:, av:bv])
+    maxv = np.max(f[:, av:bv])
+    if plot_function:
+        for i in range(f.shape[0]):
+            plt.plot(x, f[i,av:bv], color='blue')
+
+    if border:
+        plt.plot([ a, a, b, b, a ], [minv, maxv, maxv, minv, minv], color=color, alpha=alpha, linewidth=3)
+    else:
+        plt.fill([ a, a, b, b ], [minv, maxv, maxv, minv], color=color, alpha=alpha)
+
+
+    yborder = abs(maxv-minv)*0.05
+    plt.ylim([minv-yborder, maxv+yborder])
+
+    return x, av, bv
 
 
 def pointwiseLabelsToIntervals(labels):

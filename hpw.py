@@ -43,14 +43,6 @@ def read_hpw_csv(csvFile):
     return ts, dates
 
 
-def normalize_time_series(ts):
-    """ Normalizes each dimension of a time series by subtracting the mean and dividing by the maximum. """
-    
-    ts = (ts.T - ts.mean(axis = 1)).T
-    ts = (ts.T / ts.max(axis = 1)).T
-    return ts
-
-
 def datetime_diff(a, b):
     """ Calculates the difference a - b between to dates in hours. """
     
@@ -69,7 +61,7 @@ if __name__ == '__main__':
 
     # Load data
     data, dates = read_hpw_csv('HPW_2012_41046.csv')
-    data = normalize_time_series(data)
+    data = preproc.normalize_time_series(data)
     
     # Detect
     if method in ['hotellings_t', 'kde']:

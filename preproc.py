@@ -3,8 +3,10 @@
 import numpy as np
 from scipy.linalg import solve, lstsq
 
+
 def get_available_methods():
     return ['local_linear', 'td']
+
 
 def local_linear_regression(X, window_size=5):
     """ Local linear regression also known as linear predictive coding (LPC) """
@@ -27,6 +29,7 @@ def local_linear_regression(X, window_size=5):
         params[:, i] = param.ravel()
     return params
 
+
 def td(X, m=3):
     """ time-delay transformation """
     newX = np.copy(X)
@@ -35,3 +38,11 @@ def td(X, m=3):
         shift[shift<0] = 0
         newX = np.vstack([newX, X[:, shift]])
     return newX
+
+
+def normalize_time_series(ts):
+    """ Normalizes each dimension of a time series by subtracting the mean and dividing by the maximum. """
+    
+    ts = (ts.T - ts.mean(axis = 1)).T
+    ts = (ts.T / ts.max(axis = 1)).T
+    return ts

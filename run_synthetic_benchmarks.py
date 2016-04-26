@@ -10,8 +10,7 @@ except ImportError:
 
 # Constants
 METHODS = maxdiv.get_available_methods() # available probability density estimators
-METHODS.remove('parzen') # 'parzen' was buggy and has been fixed in 'parzen_proper'
-MODES = ['OMEGA_I', 'SYM', 'I_OMEGA', 'LAMBDA', 'IS_I_OMEGA'] # KL divergence modes
+MODES = ['I_OMEGA', 'OMEGA_I', 'SYM', 'JSD'] # KL divergence modes
 PREPROC = [None, 'td'] # preprocessing methods
 
 # Set up CLI argument parser

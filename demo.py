@@ -2,7 +2,7 @@
 # -*- coding: utf8 -*-
 """ Demo program for finding extreme intervals using maximally divergent regions """
 
-import maxdiv
+import maxdiv, maxdiv_util
 import numpy as np
 import matplotlib.pylab as plt
 
@@ -41,4 +41,4 @@ print ("Parzen: Extreme interval detected at {} to {} with scores {}".format(a, 
 #plt.plot(t, X[0,:])
 #plt.plot(t, X[1,:])
 #plt.show()
-#maxdiv.plot_matrix_with_interval(K, a, b)
+#maxdiv_util.plot_matrix_with_interval(K, a, b)

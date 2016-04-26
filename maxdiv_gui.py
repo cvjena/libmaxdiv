@@ -16,6 +16,7 @@ import os
 import sys
 import cProfile as profile
 from scipy.io import savemat
+from eval import show_interval
 #try:
 #    raise Exception("Skip Gooey support")
 #    from gooey import Gooey, GooeyParser
@@ -90,7 +91,7 @@ def main():
         # visualization
         if not args.novis:
             plt.figure()
-            x, av, bv = maxdiv.show_interval(X, a, b, args.visborder)
+            x, av, bv = show_interval(X, a, b, args.visborder)
 
             steps = (bv-av)//10
             plt.xticks(x[::steps], times[av:bv:steps], rotation=30)

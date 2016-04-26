@@ -1,6 +1,6 @@
 """ Synthetic Test Bench for MaxDiv """
 
-import maxdiv
+import maxdiv_util
 import numpy as np
 import matplotlib.pylab as plt
 try:
@@ -15,13 +15,13 @@ np.random.seed(0)
 
 def sample_gp(X, meany, sigma, n=1, noise=0.001):
     """ sample a function from a Gaussian process with Gaussian kernel """
-    K = maxdiv.calc_gaussian_kernel(X, sigma) + noise * np.eye(X.shape[1])
+    K = maxdiv_util.calc_gaussian_kernel(X, sigma) + noise * np.eye(X.shape[1])
     return np.random.multivariate_normal(meany, K, n)
 
 def sample_gp_nonstat(X, meany, sigmas, n=1, noise=0.001):
     """ sample a function from a non-stationary Gaussian process """
     # http://papers.nips.cc/paper/2350-nonstationary-covariance-functions-for-gaussian-process-regression.pdf
-    K = maxdiv.calc_nonstationary_gaussian_kernel(X, sigmas) + noise * np.eye(X.shape[1])
+    K = maxdiv_util.calc_nonstationary_gaussian_kernel(X, sigmas) + noise * np.eye(X.shape[1])
     return np.random.multivariate_normal(meany, K, n)
 
 
