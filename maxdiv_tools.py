@@ -46,7 +46,7 @@ def get_algorithm_parameters():
 def add_algorithm_parameters(parser):
     parser.add_argument('--method', help='maxdiv method', choices=maxdiv.get_available_methods(), required=True)
     parser.add_argument('--kernel_sigma_sq', help='kernel sigma square hyperparameter for Parzen estimation', type=float, default=1.0)
-    parser.add_argument('--extint_min_len', help='minimum length of the extreme interval', default=12, type=int)
+    parser.add_argument('--extint_min_len', help='minimum length of the extreme interval', default=10, type=int)
     parser.add_argument('--extint_max_len', help='maximum length of the extreme interval', default=50, type=int)
     parser.add_argument('--alpha', help='Hyperparameter for the KL divergence', type=float, default=1.0)
     parser.add_argument('--mode', help='Mode for KL divergence computation', choices=['OMEGA_I', 'SYM', 'I_OMEGA', 'LAMBDA', 'IS_I_OMEGA'], default='I_OMEGA')

@@ -34,6 +34,22 @@ def sample_interval(n, minlen, maxlen):
     return defect, defect_start, defect_end
 
 
+def sample_multiple_intervals(n, minlen, maxlen, max_intervals):
+    """ sample the bounds of multiple non-overlapping intervals """
+    defect = np.zeros(n, dtype=bool)
+    regions = []
+    first_pos = 0
+    for i in range(max_intervals):
+        defect_start = int(np.random.randint(first_pos, n - minlen))
+        defect_end = int(np.random.randint(defect_start+minlen,min(defect_start+maxlen,n)))
+        defect[defect_start:defect_end] = True
+        regions.append((defect_start, defect_end))
+        first_pos = defect_end + 20
+        if first_pos + minlen >= n:
+            break
+    return defect, regions
+
+
 X = np.arange(0,1,0.004)
 X = np.reshape(X, [1, len(X)])
 n = X.shape[1]
@@ -61,6 +77,15 @@ for i in range(numf):
     #f['meanshift'][i,0,defect] -= np.random.rand()*0.5 + 0.5 # hard
 #    plt.plot(X.T, f['meanshift'][i])
 #plt.show()
+
+sigma = 0.02
+y['meanshift_hard'] = []
+gps = sample_gp(X, zeroy, sigma, numf)
+f['meanshift_hard'] = np.reshape(gps, [gps.shape[0], 1, gps.shape[1]])
+for i in range(numf):
+    defect, _, _ = sample_interval(n, defect_minlen, defect_maxlen)
+    y['meanshift_hard'].append(defect)
+    f['meanshift_hard'][i,0,defect] -= np.random.rand()*0.5 + 0.5
 
 sigma = 0.02
 y['meanshift_multvar'] = []
@@ -122,6 +147,39 @@ for i in range(numf):
     func_defect = sample_gp_nonstat(X, zeroy, (1-defect)*0.01+0.0001, 1)
     func_ok = sample_gp(X, zeroy, sigma, 4)
     f['frequency_change_multvar'][i] = np.vstack([func_defect, func_ok])
+
+
+# Multiple extremes
+X = np.arange(0,1,0.001)
+X = np.reshape(X, [1, len(X)])
+n = X.shape[1]
+zeroy = np.zeros(X.shape[1])
+maxint = 5
+
+print ("Generating time series of length {} with multiple extremes".format(n))
+defect_maxlen = int(0.05*n)
+defect_minlen = int(0.02*n)
+print ("Minimal and maximal length of one extreme {} - {}".format(defect_minlen, defect_maxlen))
+
+sigma = 0.01
+y['meanshift5'] = []
+gps = sample_gp(X, zeroy, sigma, numf)
+f['meanshift5'] = np.reshape(gps, [gps.shape[0], 1, gps.shape[1]])
+for i in range(numf):
+    defect, regions = sample_multiple_intervals(n, defect_minlen, defect_maxlen, maxint)
+    y['meanshift5'].append(defect)
+    for a, b in regions:
+        f['meanshift5'][i,0,a:b] -= np.random.rand()*1.0 + 3.0
+
+sigma = 0.01
+y['meanshift5_hard'] = []
+gps = sample_gp(X, zeroy, sigma, numf)
+f['meanshift5_hard'] = np.reshape(gps, [gps.shape[0], 1, gps.shape[1]])
+for i in range(numf):
+    defect, regions = sample_multiple_intervals(n, defect_minlen, defect_maxlen, maxint)
+    y['meanshift5_hard'].append(defect)
+    for a, b in regions:
+        f['meanshift5_hard'][i,0,a:b] -= np.random.rand()*0.5 + 0.5
 
  
 with open('testcube.pickle', 'wb') as fout:

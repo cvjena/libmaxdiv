@@ -49,7 +49,7 @@ def calc_gaussian_kernel(X, kernel_sigma_sq = 1.0, normalized=True):
     # compute proper normalized Gaussian kernel values
     K = np.exp(-D/(2.0*kernel_sigma_sq))
     if normalized:
-        K = K / ((2*np.pi*kernel_sigma_sq)**(dimension/2))
+        K = K / ((2*np.pi*kernel_sigma_sq)**(dimension/2.0))
     return K
 
 def calc_nonstationary_gaussian_kernel(X, kernel_sigma_sq_vec):
@@ -264,9 +264,9 @@ def maxdiv_parzen_proper_sampling(K, mode="OMEGA_I", alpha=1.0, extint_min_len =
 
             # store the score in the matrix interval_scores
             interval_scores[i,j-i] = score
-            if j<n-1:
-                extreme[j+1] = True
-                non_extreme[j+1] = False
+            if j<n:
+                extreme[j] = True
+                non_extreme[j] = False
 
     return interval_scores
 

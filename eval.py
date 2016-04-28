@@ -56,9 +56,7 @@ def average_precision(ygt, regions, overlap = 0.5, plot = False):
         raise ValueError('Different number of time series for ground-truth and detections.')
     
     # Convert ground-truth to intervals if given as pointwise labels
-    for i in range(len(ygt)):
-        if not (isinstance(ygt[i][0], tuple) or isinstance(ygt[i][0], list)):
-            ygt[i] = pointwiseLabelsToIntervals(ygt[i])
+    ygt = [gt if (isinstance(gt[0], tuple) or isinstance(gt[0], list)) else pointwiseLabelsToIntervals(gt) for gt in ygt]
     
     # Determine recall and precision for all thresholds and compute interpolated AP
     recall, precision = recall_precision(ygt, regions, overlap, 'all')
@@ -165,12 +163,19 @@ def recall_precision(ygt, regions, overlap = 0.5, th = None):
         return (float(tp) / sum(len(gt) for gt in ygt), float(tp) / (tp + fp))
 
 
-def plotDetections(func, regions, gt = [], export = None, detailedvis = False):
+def plotDetections(func, regions, gt = [], ticks = None, export = None, silent = True, detailedvis = False):
     """ Plots a time series and highlights both detected regions and ground-truth regions.
     
     `regions` specifies the detected regions as (a, b, score) tuples.
+    
     `gt` specifies the ground-truth regions either as (a, b) tuples or as pointwise boolean labels.
+    
+    Custom labels for the ticks on the x axis may be specified via the `ticks` parameter, which expects
+    a dictionary with tick locations as keys and tick labels as values.
+    
     If `export` is set to a string, the plot will be saved to that filename instead of being shown.
+    
+    Setting `silent` to False will print the detected intervals to the console.
     """
     
     # Convert pointwise ground-truth to list of regions
@@ -188,8 +193,9 @@ def plotDetections(func, regions, gt = [], export = None, detailedvis = False):
     maxScore = max(r[2] for r in regions)
     for i in range(len(regions)):
         a, b, score = regions[i]
-        print ("Region {}/{}: {} - {} (Score: {})".format(i, len(regions), a, b, score))
-        intensity = float(score - minScore) / (maxScore - minScore)
+        if not silent:
+            print ("Region {}/{}: {} - {} (Score: {})".format(i, len(regions), a, b, score))
+        intensity = float(score - minScore) / (maxScore - minScore) if minScore < maxScore else 1.0
         maxdiv.show_interval(func, a, b, 10000, plot_function = not plotted_function,
                              color = (0.8 - intensity * 0.8, 0.8 - intensity * 0.8, 1.0))
         plotted_function = True
@@ -217,7 +223,13 @@ def plotDetections(func, regions, gt = [], export = None, detailedvis = False):
     patch_time_series = mlines.Line2D([], [], color='blue', label='time series')
 
     plt.legend(handles=[patch_time_series, patch_gt_extreme, patch_detected_extreme], loc='center', mode='expand', ncol=3, bbox_to_anchor=(0,1,1,0), shadow=True, fancybox=True)
-       
+    
+    # Set tick labels
+    if ticks is not None:
+        ax = plt.gca()
+        ax.set_xticks(ticks.keys())
+        ax.set_xticklabels(ticks.values())
+    
     # Display plot
     if export:
         plt.savefig(export)
