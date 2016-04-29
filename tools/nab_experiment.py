@@ -1,3 +1,6 @@
+import sys
+sys.path.append('..')
+
 import maxdiv
 import maxdiv_tools
 import glob

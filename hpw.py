@@ -58,6 +58,7 @@ if __name__ == '__main__':
 
     import sys
     method = sys.argv[1] if len(sys.argv) > 1 else 'gaussian_cov'
+    propmeth = sys.argv[2] if len(sys.argv) > 2 else 'kde'
 
     # Load data
     data, dates = read_hpw_csv('HPW_2012_41046.csv')
@@ -71,13 +72,14 @@ if __name__ == '__main__':
             scores = baselines_noninterval.hotellings_t(preproc.td(data))
         regions = baselines_noninterval.pointwiseScoresToIntervals(scores, 10)
     else:
-        regions = maxdiv.maxdiv(data, method, mode = 'I_OMEGA', preproc = 'td', extint_min_len = 10, extint_max_len = 30, num_intervals = 5)
+        regions = maxdiv.maxdiv(data, method, mode = 'I_OMEGA', preproc = 'td', proposals = propmeth,
+                                extint_min_len = 10, extint_max_len = 30, num_intervals = 5)
     
     # Console output
     print('-- Ground Truth --')
     for name, (a, b) in HURRICANE_GT.items():
         print('{:{}s}: {!s} - {!s}'.format(name, max(len(n) for n in HURRICANE_GT.keys()), a, b - datetime.timedelta(days = 1)))
-    print('\n-- Detected Intervals ({}) --'.format(method))
+    print('\n-- Detected Intervals ({} with {} proposals) --'.format(method, propmeth))
     for a, b, score in regions:
         print('{!s} - {!s} (Score: {})'.format(dates[a], dates[b-1], score))
     

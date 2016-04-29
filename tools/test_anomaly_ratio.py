@@ -1,3 +1,6 @@
+import sys
+sys.path.append('..')
+
 import numpy as np
 import maxdiv, maxdiv_util, preproc, eval
 import matplotlib.pylab as plt

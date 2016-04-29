@@ -40,6 +40,8 @@ detailedvis = False
 
 aucs = {}
 aps = {}
+all_gt = []
+all_regions = []
 num = 0
 for ftype in f:
     if len(extremetypes)>0 and not ftype in extremetypes:
@@ -79,6 +81,9 @@ for ftype in f:
     
     aps[ftype] = eval.average_precision(ygts, regions, plot = detailedvis and not args.novis)
     print ("AP: {}".format(aps[ftype]))
+    
+    all_regions += regions
+    all_gt += ygts
 
 print('-- Aggregated AUC --')
 for ftype in aucs:
@@ -87,3 +92,4 @@ for ftype in aucs:
 print('-- Average Precision --')
 for ftype in aps:
     print ("{}: {}".format(ftype, aps[ftype]))
+print ("OVERALL AP: {}".format(eval.average_precision(all_gt, all_regions)))
