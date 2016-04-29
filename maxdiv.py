@@ -41,7 +41,7 @@ def get_available_methods():
 #
 # Maximally divergent regions using Kernel Density Estimation
 #
-def maxdiv_parzen(K, intervals, mode = 'I_OMEGA', alpha = 1.0, score_merge_coeff = 0.3, **kwargs):
+def maxdiv_parzen(K, intervals, mode = 'I_OMEGA', alpha = 1.0, score_merge_coeff = None, **kwargs):
     """ Scores given intervals by using Kernel Density Estimation.
     
     `K` is a symmetric kernel matrix whose components are K(|i - j|) for a given kernel K.
@@ -187,7 +187,7 @@ def maxdiv_parzen(K, intervals, mode = 'I_OMEGA', alpha = 1.0, score_merge_coeff
 #
 # Maximally divergent regions using a Gaussian assumption
 #
-def maxdiv_gaussian_globalcov(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'GLOBAL_COV', score_merge_coeff = 0.4, **kwargs):
+def maxdiv_gaussian_globalcov(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'GLOBAL_COV', score_merge_coeff = None, **kwargs):
     """ Scores given intervals by assuming gaussian distributions with equal covariance.
     
     `X` is a d-by-n matrix with `n` data points, each with `d` attributes.
@@ -258,7 +258,7 @@ def maxdiv_gaussian_globalcov(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'G
 #
 # Maximally divergent regions using a Gaussian assumption
 #
-def maxdiv_gaussian(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'COV', score_merge_coeff = 0.5, **kwargs):
+def maxdiv_gaussian(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'COV', score_merge_coeff = None, **kwargs):
     """ Scores given intervals by assuming gaussian distributions.
     
     `X` is a d-by-n matrix with `n` data points, each with `d` attributes.

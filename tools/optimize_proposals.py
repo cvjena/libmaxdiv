@@ -25,7 +25,7 @@ THS = np.linspace(0, 2, 21, endpoint = True)
 propmeth = sys.argv[1] if (len(sys.argv) > 1) and (sys.argv[1] in PROPMETHODS) else PROPMETHODS[0]
 
 # Load synthetic test data
-with open('testcube.pickle', 'rb') as fin:
+with open('../testcube.pickle', 'rb') as fin:
     cube = pickle.load(fin)
     f = cube['f']
     y = cube['y']
