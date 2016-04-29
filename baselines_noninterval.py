@@ -55,7 +55,7 @@ def pointwiseScoresToIntervals(scores, min_length = 0):
 
 
 def pointwiseRegionProposals(func, extint_min_len = 20, extint_max_len = 150,
-                             method = 'hotellings_t', filter = [-1, 0, 1], useMedian = True, sd_th = 1.5):
+                             method = 'hotellings_t', filter = [-1, 0, 1], useMedian = True, sd_th = 1.5, **kwargs):
     """ A generator yielding proposals for possibly anomalous regions.
     
     `func` is the time series to propose possibly anomalous regions for as d-by-n matrix, where
@@ -100,11 +100,31 @@ def pointwiseRegionProposals(func, extint_min_len = 20, extint_max_len = 150,
     score_sd = np.std(scores)
     score_max = np.max(scores)
     th = score_mean + sd_th * score_sd
+    while not np.any(scores >= th):
+        sd_th *= 0.8
+        th = score_mean + sd_th * score_sd
     
-    # Generate proposals
+    # Generate inter-peak proposals
     n = func.shape[1]
+    visited = np.zeros(n, dtype = int)
     for i in range(n - extint_min_len + 1):
         if scores[i] >= th:
             for j in range(i + extint_min_len, min(i + extint_max_len, n) + 1):
                 if scores[j-1] >= th:
                     yield (i, j, (scores[i] + scores[j-1]) / (2 * score_max))
+                    visited[i] += 1
+                    visited[j-1] += 1
+    
+    # Search for isolated peaks and generate proposals with lower threshold
+    isolated = np.where((scores >= th) & (visited < 1))[0]
+    for i in isolated:
+    
+        # Search after
+        for j in range(i + extint_min_len, min(i + extint_max_len, n) + 1):
+            if scores[j-1] >= score_mean:
+                yield (i, j, (scores[i] + scores[j-1]) / (2 * score_max))
+        
+        # Search before
+        for j in range(max(i+1 - extint_max_len, 0), i+1 - extint_min_len + 1):
+            if scores[j] >= score_mean:
+                yield (j, i+1, (scores[i] + scores[j]) / (2 * score_max))
