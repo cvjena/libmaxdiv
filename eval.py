@@ -80,7 +80,7 @@ def average_precision(ygt, regions, overlap = 0.5, plot = False):
     return ap
 
 
-def recall_precision(ygt, regions, overlap = 0.5, th = None):
+def recall_precision(ygt, regions, overlap = 0.5, th = None, multiAsFP = True):
     """ Computes recall and precision for a list of detected region triples (a, b, score). 
         
     The ground-truth annotations are given by `ygt` as a list of lists of regions (a, b). Each list
@@ -95,6 +95,9 @@ def recall_precision(ygt, regions, overlap = 0.5, th = None):
     Set this to None to compute recall and precision over all detections.
     The special value 'all' can be used to compute lists of corresponding recall and precision values for every
     possible threshold (which is more efficient than calling this function once for every threshold).
+    
+    `multiAsFP` controls whether subsequent detections of the same region will be ignored (`False`) or counted
+    as false positives (`True`).
     
     Returns: a `(recall, precision)` tuple or, where `recall` and `precision` are floats or arrays of floats
              `th` is set to `'all'`. In the latter case, the lists will be sorted in ascending order by recall.
@@ -121,17 +124,20 @@ def recall_precision(ygt, regions, overlap = 0.5, th = None):
         region_detected = [[False] * len(gt) for gt in ygt] # prevent multiple detections of the same interval
         for i, (a, b, score, ts) in enumerate(sorted_regions):
             
-            isTP = False
+            isTP, isSubsequentDetection = False, False
             for i_gt, (a_gt, b_gt) in enumerate(ygt[ts]):
-                if (not region_detected[ts][i_gt]) and (IoU(a, b - a, a_gt, b_gt - a_gt) >= overlap):
+                if (not (region_detected[ts][i_gt] and multiAsFP)) and (IoU(a, b - a, a_gt, b_gt - a_gt) >= overlap):
+                    if region_detected[ts][i_gt]:
+                        isSubsequentDetection = True
                     isTP = True
                     region_detected[ts][i_gt] = True
                     break
             
-            if isTP:
-                tp[i] = 1
-            else:
-                fp[i] = 1
+            if not isSubsequentDetection:
+                if isTP:
+                    tp[i] = 1
+                else:
+                    fp[i] = 1
         
         # Compute recall and precision
         tp = tp.cumsum()

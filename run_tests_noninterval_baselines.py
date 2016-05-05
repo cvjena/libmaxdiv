@@ -1,19 +1,11 @@
 import numpy as np
 import matplotlib.pylab as plt
-import maxdiv, maxdiv_tools, preproc, eval
-import argparse
-import sklearn
-import sklearn.metrics
-import time
+import maxdiv, maxdiv_tools, preproc, eval, datasets
+import argparse, time
+import sklearn, sklearn.metrics
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
 from baselines_noninterval import *
-try:
-    import cPickle as pickle
-except ImportError:
-    # cPickle has been "hidden" in Python 3 and will be imported automatically by
-    # pickle if available.
-    import pickle
 
 
 METHODS = { 'hotellings_t' : hotellings_t, 'kde' : pointwiseKDE }
@@ -22,48 +14,50 @@ METHODS = { 'hotellings_t' : hotellings_t, 'kde' : pointwiseKDE }
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--method', help='scoring method', choices=METHODS, required=True)
 parser.add_argument('--novis', action='store_true', help='skip the visualization')
-parser.add_argument('--extremetypes', help='types of extremes to be tested', nargs='+',default=[])
+parser.add_argument('--datasets', help='datasets to be loaded', nargs='+', default=datasets.DATASETS)
+parser.add_argument('--subsets', help='subsets of the datasets to be tested', nargs='+',default=[])
+parser.add_argument('--extremetypes', help='types of extremes to be tested', nargs='+',default=datasets.TYPES)
 parser.add_argument('--preproc', help='preprocessing method', choices=[None,'td'],default=None)
 parser.add_argument('--extint_min_len', help='minimum length of the extreme interval', default=10, type=int)
 
 args = parser.parse_args()
 
-with open('testcube.pickle', 'rb') as fin:
-    cube = pickle.load(fin)
-    f = cube['f']
-    y = cube['y']
-
-extremetypes = set(args.extremetypes)
+data = datasets.loadDatasets(args.datasets, args.extremetypes)
+subsets = set(args.subsets)
 
 aucs = {}
 aps = {}
-for ftype in f:
+all_gt = []
+all_regions = []
+for ftype in data:
     print ('-- {} --'.format(ftype))
-    if len(extremetypes)>0 and not ftype in extremetypes:
+    if len(subsets)>0 and not ftype in subsets:
         continue
 
-    funcs = f[ftype]
-    ygts = y[ftype]
+    ygts = []
     regions = []
     aucs[ftype] = []
-    for i in range(len(funcs)):
+    for func in data[ftype]:
         if args.preproc == 'td':
-            func = preproc.td(funcs[i])
+            pfunc = preproc.td(func['ts'])
         else:
-            func = funcs[i]
-        ygt = ygts[i]
+            pfunc = func['ts']
         
-        scores = METHODS[args.method](func)
+        scores = METHODS[args.method](pfunc)
+        ygts.append(func['gt'])
         regions.append(pointwiseScoresToIntervals(scores, args.extint_min_len))
         if not args.novis:
-            eval.plotDetections(funcs[i], regions[-1], ygt, silent = False)
+            eval.plotDetections(func['ts'], regions[-1], func['gt'], silent = False)
         
-        fpr, tpr, thresholds = sklearn.metrics.roc_curve(ygt, scores, pos_label=1)
+        fpr, tpr, thresholds = sklearn.metrics.roc_curve(func['gt'], scores, pos_label=1)
         auc = sklearn.metrics.auc(fpr, tpr)
         aucs[ftype].append(auc)
         print ("AUC: {}".format(auc))
     
     aps[ftype] = eval.average_precision(ygts, regions)
+    
+    all_regions += regions
+    all_gt += ygts
 
 print('-- Aggregated AUC --')
 for ftype in aucs:
@@ -72,3 +66,4 @@ for ftype in aucs:
 print('-- Average Precision --')
 for ftype in aps:
     print ("{}: {}".format(ftype, aps[ftype]))
+print ("OVERALL AP: {}".format(eval.average_precision(all_gt, all_regions)))

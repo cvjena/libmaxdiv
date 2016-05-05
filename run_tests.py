@@ -1,17 +1,13 @@
 import numpy as np
 import matplotlib.pylab as plt
-import maxdiv, maxdiv_tools, preproc, eval
+import maxdiv, maxdiv_tools, preproc, eval, datasets
 import argparse, time
-try:
-    import cPickle as pickle
-except ImportError:
-    # cPickle has been "hidden" in Python 3 and will be imported automatically by
-    # pickle if available.
-    import pickle
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--novis', action='store_true', help='skip the visualization')
-parser.add_argument('--extremetypes', help='types of extremes to be tested', nargs='+',default=[])
+parser.add_argument('--datasets', help='datasets to be loaded', nargs='+', default=datasets.DATASETS)
+parser.add_argument('--subsets', help='subsets of the datasets to be tested', nargs='+',default=[])
+parser.add_argument('--extremetypes', help='types of extremes to be tested', nargs='+',default=datasets.TYPES)
 parser.add_argument('--demomode', help='show results with a given delay and store images to disk', action='store_true')
 
 maxdiv_tools.add_algorithm_parameters(parser)
@@ -24,17 +20,13 @@ parameters = {parameter_name: args_dict[parameter_name] for parameter_name in ma
 if ('num_intervals' in parameters) and (parameters['num_intervals'] <= 0):
     parameters['num_intervals'] = None
 parameters['kernelparameters'] = { 'kernel_sigma_sq' : args.kernel_sigma_sq }
-parameters['proposalparameters'] = { 'useMedian' : not args.prop_mean, 'sd_th' : args.prop_th }
+parameters['proposalparameters'] = { 'useMAD' : args.prop_mad, 'sd_th' : args.prop_th }
 if args.prop_unfiltered:
     parameters['proposalparameters']['filter'] = None
 
-
-with open('testcube.pickle', 'rb') as fin:
-    cube = pickle.load(fin)
-    f = cube['f']
-    y = cube['y']
-
-extremetypes = set(args.extremetypes)
+# Load datasets
+data = datasets.loadDatasets(args.datasets, args.extremetypes)
+subsets = set(args.subsets)
 
 detailedvis = False
 
@@ -43,28 +35,25 @@ aps = {}
 all_gt = []
 all_regions = []
 num = 0
-for ftype in f:
-    if len(extremetypes)>0 and not ftype in extremetypes:
+for ftype in data:
+    if len(subsets)>0 and not ftype in subsets:
         continue
     
     print('-- {} --'.format(ftype))
 
-    funcs = f[ftype]
-    ygts = y[ftype]
-    aucs[ftype] = []
+    ygts = []
     regions = []
-    for i in range(len(funcs)):
-        func = funcs[i]
-        ygt = ygts[i]
-        gt_regions = eval.pointwiseLabelsToIntervals(ygt)
-        regions.append(maxdiv.maxdiv(func, **parameters))
+    aucs[ftype] = []
+    for i, func in enumerate(data[ftype]):
+        ygts.append(func['gt'])
+        regions.append(maxdiv.maxdiv(func['ts'], **parameters))
 
         if not args.novis:
             if args.demomode and (num == 0):
                 plt.figure()
                 plt.ion()
                 plt.show()
-            eval.plotDetections(func, regions[-1], gt_regions,
+            eval.plotDetections(func['ts'], regions[-1], func['gt'],
                                 silent = False,
                                 export = '{}_{:010}.png'.format(ftype, i) if args.demomode else None,
                                 detailedvis = detailedvis)
@@ -73,13 +62,13 @@ for ftype in f:
                 time.sleep(0.25)
                 plt.clf()
             
-        auc = eval.auc(ygt, regions[-1])
+        auc = eval.auc(func['gt'], regions[-1], func['ts'].shape[1])
         aucs[ftype].append(auc)
         print ("AUC: {}".format(auc))
                 
         num += 1
     
-    aps[ftype] = eval.average_precision(ygts, regions, plot = detailedvis and not args.novis)
+    aps[ftype] = eval.average_precision(ygts, regions, detailedvis and not args.novis)
     print ("AP: {}".format(aps[ftype]))
     
     all_regions += regions

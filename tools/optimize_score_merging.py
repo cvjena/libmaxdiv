@@ -4,7 +4,7 @@ import sys
 sys.path.append('..')
 
 import numpy as np
-import maxdiv, eval
+import maxdiv, datasets, eval
 try:
     import cPickle as pickle
 except ImportError:
@@ -19,12 +19,10 @@ MODES = ['I_OMEGA', 'JSD'] # KL divergence modes
 COEFFS = np.linspace(0, 1, 21, endpoint = True)
 
 propmeth = sys.argv[1] if (len(sys.argv) > 1) and (sys.argv[1] in PROPMETHODS) else PROPMETHODS[0]
+dataset = sys.argv[2] if len(sys.argv) > 2 else 'synthetic'
 
-# Load synthetic test data
-with open('../testcube.pickle', 'rb') as fin:
-    cube = pickle.load(fin)
-    f = cube['f']
-    y = cube['y']
+# Load test data
+data = datasets.loadDatasets(dataset)
 
 
 # Try all combinations of methods and divergence modes with different combination coefficients
@@ -44,14 +42,16 @@ for method in METHODS:
             regions = []
             aps = []
             
-            for ftype in f:
-                ygts += y[ftype]
+            for ftype in data:
+                gts = []
                 cur_regions = []
-                for func in f[ftype]:
-                    cur_regions.append(maxdiv.maxdiv(func, method = method, mode = mode, preproc = 'td',
+                for func in data[ftype]:
+                    gts.append(func['gt'])
+                    cur_regions.append(maxdiv.maxdiv(func['ts'], method = method, mode = mode, preproc = 'td',
                                                      num_intervals = None, extint_min_len = 10, extint_max_len = 50,
                                                      proposals = propmeth, score_merge_coeff = coeff))
-                aps.append(eval.average_precision(y[ftype], cur_regions))
+                aps.append(eval.average_precision(gts, cur_regions))
+                ygts += gts
                 regions += cur_regions
                 
             ap[id][coeff] = eval.average_precision(ygts, regions)
