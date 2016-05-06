@@ -1,8 +1,7 @@
 import numpy as np
 import datetime
 import csv
-import maxdiv
-import preproc
+from maxdiv import maxdiv, preproc
 
 def read_csv_timeseries(input, selected_variables, timecol, timeformat, maxdatapoints):
     print ("Reading the time series")

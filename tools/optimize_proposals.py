@@ -4,8 +4,10 @@ import sys
 sys.path.append('..')
 
 import numpy as np
-import maxdiv, datasets, eval
 from collections import OrderedDict
+
+from maxdiv import maxdiv, eval
+import datasets
 
 # Constants
 PROPMETHODS = ['hotellings_t', 'kde']

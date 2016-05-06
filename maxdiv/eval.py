@@ -185,7 +185,7 @@ def plotDetections(func, regions, gt = [], ticks = None, export = None, silent =
     """
     
     # Convert pointwise ground-truth to list of regions
-    if not (isinstance(gt[0], tuple) or isinstance(gt[0], list)):
+    if (len(gt) > 0) and (not (isinstance(gt[0], tuple) or isinstance(gt[0], list))):
         gt = pointwiseLabelsToIntervals(gt)
     
     # Plot time series and ground-truth intervals

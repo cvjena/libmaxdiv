@@ -2,9 +2,9 @@
 # -*- coding: utf8 -*-
 """ Demo program for finding extreme intervals using maximally divergent regions """
 
-import maxdiv, maxdiv_util
 import numpy as np
 import matplotlib.pylab as plt
+from maxdiv import maxdiv, maxdiv_util
 
 __author__ = "Erik Rodner"
 

@@ -2,21 +2,16 @@
 # -*- coding: utf8 -*-
 """ GUI/Analysis program for finding extreme intervals using maximally divergent regions """
 
-import maxdiv
-import maxdiv_tools
-import preproc
 import numpy as np
 import matplotlib.pylab as plt
-import argparse
-import csv
-import datetime
-import time
-import psutil
-import os
-import sys
+import argparse, csv, datetime, time, psutil, os, sys
 import cProfile as profile
 from scipy.io import savemat
-from eval import show_interval
+
+from maxdiv import maxdiv, preproc
+from maxdiv.eval import show_interval
+import maxdiv_tools
+
 #try:
 #    raise Exception("Skip Gooey support")
 #    from gooey import Gooey, GooeyParser

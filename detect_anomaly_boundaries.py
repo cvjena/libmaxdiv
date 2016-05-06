@@ -1,8 +1,10 @@
 import numpy as np
 import matplotlib.pylab as plt
-import datasets, preproc
-from baselines_noninterval import *
+import datasets
 import sys
+
+from maxdiv import preproc
+from maxdiv.baselines_noninterval import *
     
 
 METHODS = { 'hotellings_t' : hotellings_t, 'kde' : pointwiseKDE }
@@ -56,6 +58,7 @@ else:
         
         # Plot
         fig = plt.figure()
+        fig.canvas.set_window_title('{} / {}'.format(ftype, func['id']))
         ax = fig.add_subplot(311, ylabel = 'Function')
         ax.plot(func['ts'].T, color = 'b')
         ax = fig.add_subplot(312, ylabel = 'Scores')

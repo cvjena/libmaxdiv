@@ -1,7 +1,9 @@
 import numpy as np
 import matplotlib.pylab as plt
-import maxdiv, maxdiv_tools, preproc, eval, datasets
 import argparse, time
+
+from maxdiv import maxdiv, preproc, eval
+import maxdiv_tools, datasets
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--novis', action='store_true', help='skip the visualization')

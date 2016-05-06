@@ -1,6 +1,6 @@
 import csv, json, datetime, os.path
 import numpy as np
-import eval
+from maxdiv.eval import pointwiseLabelsToIntervals
 try:
     import cPickle as pickle
 except ImportError:
@@ -75,7 +75,7 @@ def loadSyntheticTestbench(filename = BASEPATH + '/testcube.pickle'):
     return { ftype : [{
         'ts'    : func,
         'ticks' : list(range(func.shape[1])),
-        'gt'    : eval.pointwiseLabelsToIntervals(ygt),
+        'gt'    : pointwiseLabelsToIntervals(ygt),
         'type'  : 'interval',
         'id'    : i
     } for i, (func, ygt) in enumerate(zip(f[ftype], y[ftype]))] for ftype in f }

@@ -1,11 +1,13 @@
 import numpy as np
 import matplotlib.pylab as plt
-import maxdiv, maxdiv_tools, preproc, eval, datasets
 import argparse, time
 import sklearn, sklearn.metrics
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
-from baselines_noninterval import *
+
+from maxdiv import maxdiv, preproc, eval
+from maxdiv.baselines_noninterval import *
+import maxdiv_tools, datasets
 
 
 METHODS = { 'hotellings_t' : hotellings_t, 'kde' : pointwiseKDE }

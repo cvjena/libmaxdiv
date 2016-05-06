@@ -4,13 +4,9 @@ import sys
 sys.path.append('..')
 
 import numpy as np
-import maxdiv, datasets, eval
-try:
-    import cPickle as pickle
-except ImportError:
-    # cPickle has been "hidden" in Python 3 and will be imported automatically by
-    # pickle if available.
-    import pickle
+
+from maxdiv import maxdiv, eval
+import datasets
 
 # Constants
 PROPMETHODS = ['hotellings_t', 'kde']

@@ -1,5 +1,6 @@
 import numpy as np
-import maxdiv, maxdiv_tools, preproc, eval
+from maxdiv import maxdiv, preproc, eval
+import maxdiv_tools
 import argparse, time
 try:
     import cPickle as pickle

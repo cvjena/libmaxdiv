@@ -4,9 +4,11 @@ import sys
 sys.path.append('..')
 
 import numpy as np
-import datasets, preproc, eval
-from baselines_noninterval import pointwiseRegionProposals
 from collections import OrderedDict
+
+from maxdiv import preproc, eval
+from maxdiv.baselines_noninterval import pointwiseRegionProposals
+import datasets
 
 # Constants
 PROPMETHODS = ['hotellings_t', 'kde']
@@ -14,6 +16,7 @@ THS = np.concatenate((np.linspace(0, 2, 20, endpoint = False), np.linspace(2, 4,
 
 # Parse parameters
 dataset = sys.argv[1] if len(sys.argv) > 1 else 'synthetic'
+extint_max_len = max(10, int(sys.argv[2])) if len(sys.argv) > 2 else 50
 
 # Load test data
 data = datasets.loadDatasets(dataset)
@@ -30,7 +33,7 @@ for propmeth in PROPMETHODS:
             for func in data[ftype]:
                 ygts.append(func['gt'])
                 regions.append(list(pointwiseRegionProposals(preproc.td(func['ts']), method = propmeth, sd_th = sd_th,
-                                                                        extint_min_len = 10, extint_max_len = 50)))
+                                                                        extint_min_len = 10, extint_max_len = extint_max_len)))
             
         results[propmeth][sd_th] = eval.recall_precision(ygts, regions, multiAsFP = False)
 

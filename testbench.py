@@ -1,6 +1,6 @@
 """ Synthetic Test Bench for MaxDiv """
 
-import maxdiv_util
+from maxdiv import maxdiv_util
 import numpy as np
 import matplotlib.pylab as plt
 try:

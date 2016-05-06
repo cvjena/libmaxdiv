@@ -2,9 +2,10 @@ import sys
 sys.path.append('..')
 
 import numpy as np
-import maxdiv, maxdiv_util
 import matplotlib.pylab as plt
 import time
+
+from maxdiv import maxdiv, maxdiv_util
 
 # ensure reproducable results
 np.random.seed(0)

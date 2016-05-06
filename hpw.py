@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pylab as plt
-import maxdiv, preproc, baselines_noninterval, eval
 import csv, datetime
 from collections import OrderedDict
+
+from maxdiv import maxdiv, preproc, baselines_noninterval, eval
 
 
 HURRICANE_GT = { \
