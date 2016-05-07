@@ -58,7 +58,7 @@ y = {}
 f = {}
 
 # simple mean shift
-numf = 10
+numf = 20
 zeroy = np.zeros(X.shape[1])
 
 print ("Generating time series of length {}".format(n))
@@ -181,6 +181,18 @@ for i in range(numf):
     for a, b in regions:
         f['meanshift5_hard'][i,0,a:b] -= np.random.rand()*0.5 + 0.5
 
+
+# Some completely normal time series with more noise
+sigma = 0.1
+normal_funcs = {}
+gps = sample_gp(X, zeroy, sigma, numf)
+normal_funcs['normal_gp'] = np.reshape(gps, [gps.shape[0], 1, gps.shape[1]])
+gps = sample_gp(X, zeroy, sigma, 4 * numf)
+normal_funcs['normal_gp_multvar'] = np.reshape(gps, [numf, 4, gps.shape[1]])
+
  
 with open('testcube.pickle', 'wb') as fout:
     pickle.dump({'f': f, 'y': y}, fout)
+
+with open('testcube_normal.pickle', 'wb') as fout:
+    pickle.dump(normal_funcs, fout)

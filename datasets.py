@@ -51,10 +51,14 @@ def loadDatasets(datasets = None, types = None):
     for ds in datasets:
         if (ds == 'synthetic') and ('interval' in types):
             data.update(loadSyntheticTestbench())
+        elif ds == 'synthetic_normal':
+            data.update(loadSyntheticNormalTestbench())
         elif ds.startswith('nab_'):
             data.update(loadNabDataset(subset = ds[4:], types = types))
         elif ds.startswith('yahoo_'):
             data.update(loadYahooDataset(subset = ds[6:], types = types, minAnomalyLength = 10))
+        else:
+            raise ValueError('Unknown datasat: {}'.format(ds))
     
     return data
 
@@ -76,9 +80,29 @@ def loadSyntheticTestbench(filename = BASEPATH + '/testcube.pickle'):
         'ts'    : func,
         'ticks' : list(range(func.shape[1])),
         'gt'    : pointwiseLabelsToIntervals(ygt),
-        'type'  : 'interval',
+        'type'  : ['interval'] * len(ygt),
         'id'    : i
     } for i, (func, ygt) in enumerate(zip(f[ftype], y[ftype]))] for ftype in f }
+
+
+def loadSyntheticNormalTestbench(filename = BASEPATH + '/testcube_normal.pickle'):
+    """ Loads a synthetic test bench with time-series without anomalies.
+    
+    The testbench can be generated using `testbench.py`.
+    This function will load it from the Pickle file created by that script and returns
+    a dictionary in the format described in `loadDatasets()`.
+    """
+    
+    with open(filename, 'rb') as fin:
+        f = pickle.load(fin)
+    
+    return { ftype : [{
+        'ts'    : func,
+        'ticks' : list(range(func.shape[1])),
+        'gt'    : [],
+        'type'  : [],
+        'id'    : i
+    } for i, func in enumerate(f[ftype])] for ftype in f }
 
 
 def loadNabDataset(annotations = BASEPATH + '/../../datasets/NAB-1.0/labels/combined_windows.json',

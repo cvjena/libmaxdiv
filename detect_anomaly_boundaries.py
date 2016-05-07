@@ -27,10 +27,11 @@ else:
         dataset, ftype = ftype.split('/', 1)
     else:
         dataset = 'synthetic'
-    if dataset not in datasets.DATASETS:
+    try:
+        data = datasets.loadDatasets(dataset)
+    except:
         print('Unknown dataset: {}'.format(dataset))
         exit()
-    data = datasets.loadDatasets(dataset)
     if ftype not in data:
         print('Unknown extreme type: {}'.format(ftype))
         exit()
