@@ -1,7 +1,9 @@
+import sys
+sys.path.append('..')
+
 import numpy as np
 import matplotlib.pylab as plt
 import datasets
-import sys
 
 from maxdiv import preproc
 from maxdiv.baselines_noninterval import *
