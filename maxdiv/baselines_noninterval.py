@@ -1,6 +1,6 @@
 import numpy as np
-from eval import pointwiseLabelsToIntervals
-from maxdiv_util import calc_gaussian_kernel, IoU
+from .eval import pointwiseLabelsToIntervals
+from .maxdiv_util import calc_gaussian_kernel, IoU
 
 
 def hotellings_t(X):
@@ -21,7 +21,10 @@ def hotellings_t(X):
 
 
 def pointwiseKDE(X, kernel_sigma_sq = 1.0):
-    """ Scores every point in the time series by Kernel Density Estimation. """
+    """ Scores every point in the time series by Kernel Density Estimation.
+    
+    Note: The values of X should be in range [-1,1] to avoid numeric problems.
+    """
     
     # Compute kernel matrix
     K = calc_gaussian_kernel(X, kernel_sigma_sq, False)
@@ -105,6 +108,8 @@ def pointwiseRegionProposals(func, extint_min_len = 20, extint_max_len = 150,
         score_mean = np.mean(scores)
         score_sd = np.std(scores)
     score_max = np.max(scores)
+    if score_max <= 1e-16:
+        return
     th = score_mean + sd_th * score_sd
     while not np.any(scores >= th):
         sd_th *= 0.8

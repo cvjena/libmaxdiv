@@ -3,7 +3,14 @@ sys.path.append('..')
 
 import numpy as np
 import matplotlib.pyplot as plt
+from maxdiv import maxdiv_util
 import datasets
+
+
+def sample_gp(X, meany, sigma, n=1, noise=0.001):
+    """ sample a function from a Gaussian process with Gaussian kernel """
+    K = maxdiv_util.calc_gaussian_kernel(X, sigma) + noise * np.eye(X.shape[1])
+    return np.random.multivariate_normal(meany, K, n)
 
 
 # Load some time series with seasonal patterns
@@ -46,7 +53,11 @@ for i in range(6):
     print('Period of {}. right singular vector: {} -> {}'.format(i+1, period, float(minSVDLen) / period))
 plt.show()
 # Remove some leading singular values
-rsRem = int(raw_input('Enter number of right-singular vectors to remove: '))
+try:
+    rsRem = raw_input('Enter number of right-singular vectors to remove: ')
+except:
+    rsRem = input('Enter number of right-singular vectors to remove: ')
+rsRem = int(rsRem)
 mm_s[:rsRem] = 0.0
 mm_norm = mm_u.dot(np.diag(mm_s).dot(mm_vt))
 
@@ -91,3 +102,30 @@ for id in ids:
             ax.plot([0, len(func)-1], [th, th], '--r')
             ax.plot(period_ind, ps[period], 'r.')
     plt.show()
+
+
+# Synthetic multivariate example: Seasonal correlations
+print('-- Multivariate --')
+mv_period = 20
+np.random.seed(0)
+X = np.linspace(0.0, 1.0, 250)
+X = np.reshape(X, [1, len(X)])
+gp = sample_gp(X, np.zeros(X.shape[1]), 0.01)
+func = np.vstack((gp, gp * np.sin(X * mv_period)))
+func += np.random.randn(*func.shape) * 0.1
+
+# Normalize by multivariate Z Score
+norm_func = func.copy()
+for h in range(mv_period):
+    hourly_values = func[:,h::mv_period]
+    mu = np.mean(hourly_values, axis = 1)
+    cov = np.cov(hourly_values)
+    zeromean_X = (hourly_values.T - mu).T
+    norm_func[:,h::mv_period] = np.dot(np.linalg.inv(cov), zeromean_X)
+
+fig = plt.figure()
+ax = fig.add_subplot(211, title = 'Multivariate TS with seasonal correlations')
+ax.plot(func.T)
+ax = fig.add_subplot(212, title = 'De-seasonalized by Z Score')
+ax.plot(norm_func.T)
+plt.show()

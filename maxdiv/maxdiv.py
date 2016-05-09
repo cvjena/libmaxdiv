@@ -18,8 +18,8 @@ from numpy.linalg import slogdet, inv, solve
 from scipy.linalg import cholesky, solve_triangular
 from scipy.stats import multivariate_normal
 import math, time, types
-import maxdiv_util, preproc
-from baselines_noninterval import pointwiseRegionProposals
+from . import maxdiv_util, preproc
+from .baselines_noninterval import pointwiseRegionProposals
 
 def get_available_methods():
     return ['parzen', 'gaussian_cov', 'gaussian_id_cov', 'gaussian_global_cov']
@@ -430,12 +430,16 @@ def find_max_regions(intervals, num_intervals = None, overlap_th = 0.0):
 def maxdiv(X, method = 'parzen', num_intervals = 1, proposals = 'dense', **kwargs):
     """ Wrapper function for calling maximum divergent regions """
     if 'preproc' in kwargs:
-        if kwargs['preproc']=='local_linear':
-            X = preproc.local_linear_regression(X)
-        elif kwargs['preproc']=='td':
-            X = preproc.td(X)
-        elif not kwargs['preproc'] is None:
-            raise Exception("Unknown preprocessing method {}".format(kwargs['preproc']))
+        preprocs = kwargs['preproc'] if isinstance(kwargs['preproc'], list) or isinstance(kwargs['preproc'], tuple) else [kwargs['preproc']]
+        for prep in preprocs:
+            if prep == 'normalize':
+                X = preproc.normalize_time_series(X)
+            elif prep == 'local_linear':
+                X = preproc.local_linear_regression(X)
+            elif prep == 'td':
+                X = preproc.td(X)
+            elif not prep is None:
+                raise Exception("Unknown preprocessing method {}".format(prep))
         del kwargs['preproc']
     
     if 'proposalparameters' in kwargs:

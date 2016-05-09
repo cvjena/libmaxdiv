@@ -44,5 +44,5 @@ def normalize_time_series(ts):
     """ Normalizes each dimension of a time series by subtracting the mean and dividing by the maximum. """
     
     ts = (ts.T - ts.mean(axis = 1)).T
-    ts = (ts.T / ts.max(axis = 1)).T
+    ts = (ts.T / np.abs(ts).max(axis = 1)).T
     return ts

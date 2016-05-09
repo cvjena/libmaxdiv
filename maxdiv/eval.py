@@ -3,7 +3,7 @@ import sklearn.metrics
 import matplotlib.pylab as plt
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
-from maxdiv_util import IoU
+from .maxdiv_util import IoU
 
 
 def auc(ygt, regions, n = 0):
@@ -142,7 +142,7 @@ def recall_precision(ygt, regions, overlap = 0.5, th = None, multiAsFP = True):
         # Compute recall and precision
         tp = tp.cumsum()
         fp = fp.cumsum()
-        return (tp / sum(len(gt) for gt in ygt), tp / (tp + fp))
+        return (tp / sum(len(gt) for gt in ygt), tp / (tp + fp) if len(regions) > 0 else tp)
     
     else:
     
@@ -166,7 +166,7 @@ def recall_precision(ygt, regions, overlap = 0.5, th = None, multiAsFP = True):
                         fp += 1
         
         # Calculate recall and precision
-        return (float(tp) / sum(len(gt) for gt in ygt), float(tp) / (tp + fp))
+        return (float(tp) / sum(len(gt) for gt in ygt), float(tp) / (tp + fp) if tp + fp > 0 else 1.0)
 
 
 def plotDetections(func, regions, gt = [], ticks = None, export = None, silent = True, detailedvis = False):

@@ -19,7 +19,7 @@ dataset = sys.argv[1] if len(sys.argv) > 1 else 'synthetic'
 extint_max_len = max(10, int(sys.argv[2])) if len(sys.argv) > 2 else 50
 
 # Load test data
-data = datasets.loadDatasets(dataset)
+data = datasets.loadDatasets(dataset, 'interval')
 
 # Try different thresholds for interval proposing
 results = OrderedDict()
@@ -32,8 +32,9 @@ for propmeth in PROPMETHODS:
         for ftype in data:
             for func in data[ftype]:
                 ygts.append(func['gt'])
-                regions.append(list(pointwiseRegionProposals(preproc.td(func['ts']), method = propmeth, sd_th = sd_th,
-                                                                        extint_min_len = 10, extint_max_len = extint_max_len)))
+                regions.append(list(pointwiseRegionProposals(preproc.td(preproc.normalize_time_series(func['ts'])),
+                                                             method = propmeth, sd_th = sd_th,
+                                                             extint_min_len = 10, extint_max_len = extint_max_len)))
             
         results[propmeth][sd_th] = eval.recall_precision(ygts, regions, multiAsFP = False)
 
