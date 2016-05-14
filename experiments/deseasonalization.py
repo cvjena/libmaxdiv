@@ -3,7 +3,7 @@ sys.path.append('..')
 
 import numpy as np
 import matplotlib.pyplot as plt
-from maxdiv import maxdiv_util
+from maxdiv import maxdiv_util, preproc
 import datasets
 
 
@@ -11,6 +11,11 @@ def sample_gp(X, meany, sigma, n=1, noise=0.001):
     """ sample a function from a Gaussian process with Gaussian kernel """
     K = maxdiv_util.calc_gaussian_kernel(X, sigma) + noise * np.eye(X.shape[1])
     return np.random.multivariate_normal(meany, K, n)
+
+
+def periods2time(periods, n):
+    times = float(n) / periods
+    return ['{:.0f}h'.format(t) if t <= 48 else '{:.1f}d'.format(t / 24.0) for t in times]
 
 
 # Load some time series with seasonal patterns
@@ -22,12 +27,8 @@ gt_period = 24 # our data has a true period of 24 hours
 data = { func['id']: func for func in datasets.loadYahooDataset(subset = 'real')['A1Benchmark'] if func['id'] in ids }
 
 
-def periods2time(periods, n):
-    times = float(n) / periods
-    return ['{:.0f}h'.format(t) if t <= 48 else '{:.1f}d'.format(t / 24.0) for t in times]
-
-
-# De-seasonalization by SVD
+# Joint de-seasonalization by SVD
+"""
 print('-- SVD --')
 minSVDLen = 1420
 numLongFuncs = sum(1 for func in data.values() if func['ts'].shape[1] >= minSVDLen)
@@ -60,14 +61,15 @@ except:
 rsRem = int(rsRem)
 mm_s[:rsRem] = 0.0
 mm_norm = mm_u.dot(np.diag(mm_s).dot(mm_vt))
+"""
 
 
-# De-seasonalization by DFT and Hourly Z Score
-print('-- DFT & Hourly Z Score --')
+# Individual De-seasonalization by DFT, Hourly Z Score and OLS
+print('-- DFT, Hourly Z Score, OLS --')
 for id in ids:
+    func = preproc.normalize_time_series(data[id]['ts']).ravel()
 
     # Search non-trivial peak in power-spectrum
-    func = data[id]['ts'].ravel()
     freq = np.fft.fft(func)
     ps = (freq * freq.conj()).real
     ps[0] = 0
@@ -89,21 +91,48 @@ for id in ids:
         norm_func_z[h::gt_period] -= np.mean(hourly_values)
         norm_func_z[h::gt_period] /= np.std(hourly_values)
     
+    # Model seasonal influence and linear trends by OLS and take residuals as deseasonalization:
+    # x_t = a_0 + b_0 * t + a_j + b_j * t/period + e_t
+    A = np.zeros((len(func), 2 * gt_period + 2))
+    A[:,0] = 1                          # intercept term a_0
+    A[:,1] = np.arange(0.0, len(func))  # linear term b*t
+    for t in range(len(func)):          # seasonal terms
+        A[t, 2 + (t % gt_period)] = 1
+        A[t, 2 + gt_period + (t % gt_period)] = float(t) / gt_period
+    ols_seasonality = np.linalg.lstsq(A, func)[0]
+    ols_seasonal_ts = A.dot(ols_seasonality)
+    norm_func_ols = func - ols_seasonal_ts
+    
     # Plot
-    funcs = [(func, 'Original Time Series'), (ps, 'Power Spectrum'), (norm_func_dft, 'De-seasonalized by DFT'), (norm_func_z, 'De-seasonalized by Hourly Z Score')]
-    if id in rowAssoc:
-        funcs.append((mm_norm[rowAssoc[id],:].T, 'De-seasonalized by SVD'))
+    funcs = [(func, 'Original Time Series with OLS Seasonal Model'),
+             (ps, 'Power Spectrum'),
+             (norm_func_z, 'Deseasonalized by Hourly Z Score'),
+             (norm_func_dft, 'Deseasonalized by DFT'),
+             (norm_func_ols, 'Deseasonalized and detrended by OLS')]
+    #if id in rowAssoc:
+    #    funcs.append((mm_norm[rowAssoc[id],:].T, 'De-seasonalized by SVD'))
     fig = plt.figure()
     fig.canvas.set_window_title('De-seasonalization of {}'.format(id))
     for row, (f, title) in enumerate(funcs):
         ax = fig.add_subplot(len(funcs), 1, row + 1, title = title)
-        ax.plot(f)
-        if row == 1:
+        ax.plot(f, 'g' if row == 1 else 'b')
+        if row == 0:
+            ax.plot(ols_seasonal_ts, '--r')
+        elif row == 1:
             ax.plot([0, len(func)-1], [th, th], '--r')
             ax.plot(period_ind, ps[period], 'r.')
+    fig.subplots_adjust(0.06, 0.04, 0.96, 0.96, hspace = 0.3)
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(121)
+    ax.hist(func, 100, normed = True)
+    ax = fig.add_subplot(122)
+    ax.hist(norm_func_ols, 100, normed = True)
+    
     plt.show()
 
 
+"""
 # Synthetic multivariate example: Seasonal correlations
 print('-- Multivariate --')
 mv_period = 20
@@ -129,3 +158,4 @@ ax.plot(func.T)
 ax = fig.add_subplot(212, title = 'De-seasonalized by Z Score')
 ax.plot(norm_func.T)
 plt.show()
+"""
