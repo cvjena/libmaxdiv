@@ -117,18 +117,11 @@ for id in ids:
         ax = fig.add_subplot(len(funcs), 1, row + 1, title = title)
         ax.plot(f, 'g' if row == 1 else 'b')
         if row == 0:
-            ax.plot(ols_seasonal_ts, '--r')
+            ax.plot(ols_seasonal_ts, 'r')
         elif row == 1:
             ax.plot([0, len(func)-1], [th, th], '--r')
             ax.plot(period_ind, ps[period], 'r.')
     fig.subplots_adjust(0.06, 0.04, 0.96, 0.96, hspace = 0.3)
-    
-    fig = plt.figure()
-    ax = fig.add_subplot(121)
-    ax.hist(func, 100, normed = True)
-    ax = fig.add_subplot(122)
-    ax.hist(norm_func_ols, 100, normed = True)
-    
     plt.show()
 
 

@@ -4,7 +4,8 @@ import scipy.spatial.distance
 
 def enforce_multivariate_timeseries(X):
     if X.ndim==1:
-        X = np.reshape(X, 1, len(X))
+        X = X.reshape((1, len(X)))
+    return X
 
 
 def calc_distance_matrix(X, metric='sqeuclidean'):
@@ -13,6 +14,7 @@ def calc_distance_matrix(X, metric='sqeuclidean'):
     # therefore, we use squareform to convert it
     D = scipy.spatial.distance.squareform(scipy.spatial.distance.pdist(X.T, 'sqeuclidean'))
     return D
+
 
 def calc_gaussian_kernel(X, kernel_sigma_sq = 1.0, normalized=True):
     """ Calculate a normalized Gaussian kernel using the columns of X """
@@ -24,6 +26,7 @@ def calc_gaussian_kernel(X, kernel_sigma_sq = 1.0, normalized=True):
     if normalized:
         K = K / ((2*np.pi*kernel_sigma_sq)**(dimension/2.0))
     return K
+
 
 def calc_nonstationary_gaussian_kernel(X, kernel_sigma_sq_vec):
     """ Calculate a normalized Gaussian kernel using the columns of X """
@@ -44,6 +47,35 @@ def IoU(start1, len1, start2, len2):
     """ Computes the intersection over union of two intervals starting at start1 and start2 with lengths len1 and len2. """
     intersection = max(0, min(start1 + len1, start2 + len2) - max(start1, start2))
     return float(intersection) / (len1 + len2 - intersection)
+
+
+def m_estimation(A, b, k = 1.345):
+    """ Robust M-Estimation with Huber's function.
+    
+    This function solves `A * x = b`, but is less sensitive to outliers than ordinary least squares.
+    """
+    
+    # Obtain initial estimate
+    x = np.linalg.lstsq(A, b)[0]
+    
+    # Iteratively Re-weighted Least Squares
+    for it in range(1000):
+    
+        # Determine weights according to Huber's function
+        w = np.abs(b - A.dot(x)).ravel()
+        el = (w <= k)
+        w[el] = 1
+        w[~el] = k / w[~el]
+        
+        # Weighted Least Squares
+        x_old = x.copy()
+        W = np.diag(np.sqrt(w))
+        x = np.linalg.lstsq(W.dot(A), W.dot(b))[0]
+        
+        if np.linalg.norm(x - x_old) < 1e-6:
+            break
+
+    return x
 
 
 def plot_matrix_with_interval(D, a, b):
