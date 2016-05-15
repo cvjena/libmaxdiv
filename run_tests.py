@@ -70,7 +70,7 @@ for ftype in data:
                 
         num += 1
     
-    aps[ftype] = eval.average_precision(ygts, regions, detailedvis and not args.novis)
+    aps[ftype] = eval.average_precision(ygts, regions, plot = detailedvis and not args.novis)
     print ("AP: {}".format(aps[ftype]))
     
     all_regions += regions
