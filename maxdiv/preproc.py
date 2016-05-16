@@ -53,27 +53,41 @@ def normalize_time_series(ts):
 def detect_periods(ts):
     """ Detects the length of periods after which some patterns in the given time series are repeating.
     
-    The given time series must be univariate and will be transformed into Fourier space, where a threshold
-    operation based on the standard deviation of the frequencies will be applied to find unusually high
-    frequencies.
+    The given time series will be transformed into 1D Fourier space, where a threshold operation based
+    on the standard deviation of the frequencies will be applied to find unusually high frequencies.
+    
     The return value of this function is a tuple containing two lists: the first one gives the length of
     the periods as floats and the second one the corresponding frequencies as integers. The lists will be
     sorted in descending order by the coefficient of the frequencies.
+    
+    If the given time series is multivariate, each dimension will "vote" for some frequencies by
+    accumulating the corresponding values from the power spectrum.
     """
     
-    if (ts.ndim > 2) or ((ts.ndim == 2) and (ts.shape[0] != 1) and (ts.shape[1] != 1)):
-        raise ValueError('Time Series must be univariate.')
-    if ts.ndim == 2:
-        ts = ts.ravel()
+    ts = maxdiv_util.enforce_multivariate_timeseries(ts)
     
-    freq = np.fft.fft(ts)               # Transform to Fourier domain
-    ps = (freq * freq.conj()).real      # Compute Power Spectrum (Autocorrelation)
-    ps[0] = 0                           # Ignore the zero-frequency component, which always is the highest peak
-    th = np.mean(ps) + 3 * np.std(ps)   # Determine Threshold
-    period = (ps[:(len(ps)//2)+1] > th)
-    period[0:7] = False                 # Ignore implausibly long periods
-    period_ind = np.array(sorted(np.where(period)[0], key = lambda f: ps[f], reverse = True))
-    return float(len(ts)) / period_ind, period_ind
+    freq = np.fft.fft(ts)           # Transform to Fourier domain
+    ps = (freq * freq.conj()).real  # Compute Power Spectrum (Autocorrelation)
+    ps[:,0] = 0                     # Ignore the zero-frequency component, which always is the highest peak
+    
+    periods = {}
+    for d in range(ts.shape[0]):
+        # Threshold
+        th = np.mean(ps[d,:]) + 3 * np.std(ps[d,:])
+        period = (ps[d, :(ps.shape[1]//2)+1].ravel() > th)
+        # Ignore implausibly long periods
+        period[0:7] = False
+        # Accumulate scores
+        period_ind = np.where(period)[0]
+        for p in period_ind:
+            if p not in periods:
+                periods[p] = ps[d, p]
+            else:
+                periods[p] += ps[d, p]
+    
+    # Sort by scores in descending order
+    periods = np.array(sorted(periods.keys(), key = lambda p: periods[p], reverse = True))
+    return float(ts.shape[1]) / periods, periods
 
 
 def deseasonalize_ft(ts):

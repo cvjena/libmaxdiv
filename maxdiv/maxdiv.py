@@ -431,14 +431,18 @@ def maxdiv(X, method = 'parzen', num_intervals = 1, proposals = 'dense', **kwarg
     """ Wrapper function for calling maximum divergent regions """
     if 'preproc' in kwargs:
         preprocs = kwargs['preproc'] if isinstance(kwargs['preproc'], list) or isinstance(kwargs['preproc'], tuple) else [kwargs['preproc']]
+        preprocMethods = {
+            'normalize'         : preproc.normalize_time_series,
+            'local_linear'      : preproc.local_linear_regression,
+            'td'                : preproc.td,
+            'deseasonalize'     : preproc.detrend_ols,
+            'deseasonalize_ft'  : preprod.deseasonalize_ft,
+            'detrend_linear'    : preproc.detrend_linear
+        }
         for prep in preprocs:
-            if prep == 'normalize':
-                X = preproc.normalize_time_series(X)
-            elif prep == 'local_linear':
-                X = preproc.local_linear_regression(X)
-            elif prep == 'td':
-                X = preproc.td(X)
-            elif not prep is None:
+            if (prep is not None) and (prep in preprocMethods):
+                X = preprocMethods[prep](X)
+            elif prep not in preprocMethods:
                 raise Exception("Unknown preprocessing method {}".format(prep))
         del kwargs['preproc']
     
