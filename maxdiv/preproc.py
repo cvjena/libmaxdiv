@@ -151,7 +151,7 @@ def detrend_linear(ts):
     return detrended_linear
 
 
-def detrend_ols(ts, periods = None, linear_trend = True, linear_season_trend = True, return_model_params = False):
+def detrend_ols(ts, periods = None, linear_trend = True, linear_season_trend = False, return_model_params = False):
     """ Deseasonalizes and detrends a given time series by ordinary least squares.
     
     Each sample `y_t` in the given time series `ts` will be modelled according to
@@ -189,21 +189,10 @@ def detrend_ols(ts, periods = None, linear_trend = True, linear_season_trend = T
         periods = [(periods, 1)]
     elif periods is None:
         # Detect seasonality automatically
-        p, _ = detect_periods(func[0,:])
-        periods = { int(round(period_len)) : 1 for period_len in p}
-        # Each dimension in the time series may vote for a period
-        for i in range(1, func.shape[0]):
-            p, _ = detect_periods(func[i,:])
-            for period_len in p:
-                period_len_int = int(round(period_len))
-                if period_len_int not in periods:
-                    periods[period_len_int] = 1
-                else:
-                    periods[period_len_int] += 1
+        periods, _ = detect_periods(func)
         # Select the period with the most votes
         if len(periods) == 0:
             return ts
-        periods = sorted(periods.keys(), key = lambda p: (periods[p], p), reverse = True)
         periods = [(periods[0], 1)]
     
     # Construct model matrix

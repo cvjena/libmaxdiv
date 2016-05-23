@@ -33,6 +33,31 @@ def m_estimation(A, b, k = 1.345):
     return x
 
 
+def lmeds(A, b, outlier_ratio = 0.8):
+    
+    # Determine number of trials
+    trials = int(np.ceil(np.log(0.005) / np.log(1 - (1 - outlier_ratio) ** A.shape[1])))
+    
+    # Initial solution based on all samples
+    best_sol = np.linalg.lstsq(A, b)[0]
+    best_val = np.median((b - A.dot(best_sol)) ** 2)
+    
+    # Try random subsets
+    for t in range(trials):
+        
+        selected = np.zeros(A.shape[0], dtype = bool)
+        while selected.sum() < A.shape[1]:
+            selected[np.random.randint(A.shape[0])] = True
+        
+        sol = np.linalg.lstsq(A[selected, :], b[selected])[0]
+        val = np.median((b - A.dot(sol)) ** 2)
+        if val < best_val:
+            best_sol = sol
+            best_val = val
+    
+    return best_sol
+
+
 def emd(func, S = range(4,14)):
     
     if isinstance(S, int):
@@ -79,7 +104,8 @@ if __name__ == '__main__':
         
         # Fit a robust linear regression line to the data and take the residuals as detrended time series
         A = np.hstack((np.arange(0.0, float(len(func))).reshape((len(func), 1)), np.ones((len(func), 1))))
-        line_params = m_estimation(A, func.reshape(len(func), 1))
+        #line_params = m_estimation(A, func.reshape(len(func), 1))
+        line_params = lmeds(A, func.reshape(len(func), 1))
         linear_trend = A.dot(line_params)
         detrended_linear = func - linear_trend.ravel()
         
