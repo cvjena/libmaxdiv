@@ -44,12 +44,11 @@ def calc_distance_matrix(X, metric='sqeuclidean'):
 def calc_gaussian_kernel(X, kernel_sigma_sq = 1.0, normalized=True):
     """ Calculate a normalized Gaussian kernel using the columns of X """
     # Let's first compute the kernel matrix from our squared Euclidean distances in $D$.
-    dimension = X.shape[0]
     D = calc_distance_matrix(X)
     # compute proper normalized Gaussian kernel values
     K = np.exp(-D/(2.0*kernel_sigma_sq))
     if normalized:
-        K = K / ((2*np.pi*kernel_sigma_sq)**(dimension/2.0))
+        K = K / np.sqrt(2*np.pi*kernel_sigma_sq)
     return K
 
 def calc_nonstationary_gaussian_kernel(X, kernel_sigma_sq_vec):
