@@ -23,7 +23,7 @@ def hotellings_t(X):
 def pointwiseKDE(X, kernel_sigma_sq = 1.0):
     """ Scores every point in the time series by Kernel Density Estimation.
     
-    Note: The values of X should be in range [-1,1] to avoid numeric problems.
+    Note: The values of X should be in range [-1,1] to avoid numerical problems.
     """
     
     # Compute kernel matrix
