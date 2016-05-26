@@ -396,7 +396,7 @@ def find_max_regions(intervals, num_intervals = None, overlap_th = 0.0):
     
     # Shortcut if only the maximum is of interest
     if num_intervals == 1:
-        return max(intervals, key = lambda x: x[2])
+        return [max(intervals, key = lambda x: x[2])]
     
     # Sort intervals by scores in descending order
     intervals.sort(key = lambda x: x[2], reverse = True)
