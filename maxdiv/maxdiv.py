@@ -436,7 +436,7 @@ def maxdiv(X, method = 'parzen', num_intervals = 1, proposals = 'dense', **kwarg
             'local_linear'      : preproc.local_linear_regression,
             'td'                : preproc.td,
             'deseasonalize'     : preproc.detrend_ols,
-            'deseasonalize_ft'  : preprod.deseasonalize_ft,
+            'deseasonalize_ft'  : preproc.deseasonalize_ft,
             'detrend_linear'    : preproc.detrend_linear
         }
         for prep in preprocs:
