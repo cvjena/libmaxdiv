@@ -51,8 +51,7 @@ for ftype in data:
         if not args.novis:
             eval.plotDetections(func['ts'], regions[-1], func['gt'], silent = False)
         
-        fpr, tpr, thresholds = sklearn.metrics.roc_curve(func['gt'], scores, pos_label=1)
-        auc = sklearn.metrics.auc(fpr, tpr)
+        auc = eval.auc(func['gt'], regions[-1], func['ts'].shape[1])
         aucs[ftype].append(auc)
         print ("AUC: {}".format(auc))
     
