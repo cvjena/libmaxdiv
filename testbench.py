@@ -148,6 +148,21 @@ for i in range(numf):
     func_ok = sample_gp(X, zeroy, sigma, 4)
     f['frequency_change_multvar'][i] = np.vstack([func_defect, func_ok])
 
+y['frequency_change_multvar_correlated'] = []
+f['frequency_change_multvar_correlated'] = np.zeros([numf, 5, n])
+for i in range(numf):
+    defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
+    y['frequency_change_multvar_correlated'].append(defect)
+    func_defect = sample_gp_nonstat(X, zeroy, (1-defect)*0.01+0.0001, 1)
+    func_ok = sample_gp(X, zeroy, sigma, 4)
+    # non-correlated time-series
+    A = np.vstack([func_defect, func_ok])
+    # sample weight mixing
+    weights = np.random.randn(A.shape[0], A.shape[0])
+    # correlation by mixing
+    Acorr = np.dot(weights, A)
+    f['frequency_change_multvar_correlated'][i] = Acorr
+
 
 # Multiple extremes
 X = np.arange(0,1,0.001)
