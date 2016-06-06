@@ -15,7 +15,7 @@
 
 import numpy as np
 from numpy.linalg import slogdet, inv, solve
-from scipy.linalg import cholesky, solve_triangular
+from scipy.linalg import cho_factor, cho_solve
 from scipy.stats import multivariate_normal
 import math, time, types
 from . import maxdiv_util, preproc
@@ -211,22 +211,11 @@ def maxdiv_gaussian_globalcov(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'G
 
     dimension, n = X.shape
 
-    # simply normalize the time series beforehand
-    if gaussian_mode=='GLOBAL_COV':
-        cov = np.cov(X)
-        if dimension==1:
-            X_norm = X/np.sqrt(cov)
-        else:
-            cov_chol = cholesky(cov)
-            cov_chol_inv = solve_triangular(cov_chol, np.eye(cov_chol.shape[0]))
-            X_norm = np.dot( cov_chol_inv, X )
-    elif gaussian_mode=='ID_COV':
-        X_norm = X
-    else:
-        raise Exception("Unknown Gaussian mode: {}".format(gaussian_mode))
-
-    X_integral = np.cumsum(X_norm, axis=1)
+    X_integral = np.cumsum(X, axis=1)
     sums_all = X_integral[:, -1]
+    if (gaussian_mode == 'GLOBAL_COV') and (dimension > 1):
+        cov = np.cov(X)
+        cov_chol = cho_factor(cov)
 
     scores = []
 
@@ -242,7 +231,10 @@ def maxdiv_gaussian_globalcov(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'G
         sums_non_extreme /= non_extreme_points
 
         diff = sums_extreme - sums_non_extreme
-        score = np.sum(diff * diff)
+        if (gaussian_mode == 'GLOBAL_COV') and (dimension > 1):
+            score = diff.T.dot(cho_solve(cov_chol, diff))
+        else:
+            score = np.sum(diff * diff)
         scores.append((a, b, score, base_score) if score_merge_coeff is not None else (a, b, score))
 
     if score_merge_coeff is None:
