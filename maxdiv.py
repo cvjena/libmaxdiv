@@ -291,7 +291,7 @@ def maxdiv_gaussian_globalcov(X, mode='OMEGA_I', gaussian_mode='GLOBAL_COV', ext
             cov_chol_inv = solve_triangular(cov_chol, np.eye(cov_chol.shape[0]))
             # DEBUG print np.dot(inv(cov_chol_inv.T), inv(cov_chol_inv)) - cov
             # DEBUG sys.exit(-1)
-            X_norm = np.dot( cov_chol_inv, X )
+            X_norm = np.dot( cov_chol_inv.T, X )
     elif gaussian_mode=='ID_COV':
         X_norm = X
     else:
