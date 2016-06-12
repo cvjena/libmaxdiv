@@ -128,13 +128,25 @@ static Sample sumFromCumsum(const DataTensor & cumsum, const IndexRange & range)
 // DensityEstimator //
 //------------------//
 
-DensityEstimator::DensityEstimator() : m_data(nullptr) {}
+DensityEstimator::DensityEstimator() : m_data(nullptr), m_singletonDim(-1) {}
 
-DensityEstimator::DensityEstimator(const DensityEstimator & other) : m_data(other.m_data) {}
+DensityEstimator::DensityEstimator(const DensityEstimator & other) : m_data(other.m_data), m_singletonDim(other.m_singletonDim) {}
 
 void DensityEstimator::init(const std::shared_ptr<const DataTensor> & data)
 {
     this->m_data = data;
+    this->m_singletonDim = -1;
+    for (int d = 0; d < MAXDIV_INDEX_DIMENSION - 1; ++d)
+        if (data->shape().ind[d] > 1)
+        {
+            if (this->m_singletonDim == -1)
+                this->m_singletonDim = d;
+            else
+            {
+                this->m_singletonDim = -1;
+                break;
+            }
+        }
 }
 
 void DensityEstimator::reset()
@@ -295,6 +307,7 @@ KernelDensityEstimator::KernelDensityEstimator(const KernelDensityEstimator & ot
 KernelDensityEstimator & KernelDensityEstimator::operator=(const KernelDensityEstimator & other)
 {
     this->m_data = other.m_data;
+    this->m_singletonDim = other.m_singletonDim;
     this->m_sigma_sq = other.m_sigma_sq;
     this->m_normed = other.m_normed;
     this->m_kernel = other.m_kernel;
@@ -335,6 +348,7 @@ void KernelDensityEstimator::init(const std::shared_ptr<const DataTensor> & data
 void KernelDensityEstimator::fit(const IndexRange & range)
 {
     assert(this->m_data != nullptr);
+    assert((range.b.vec() <= this->m_data->shape().vec()).all());
     this->m_extremeRange = range;
     this->m_extremeRange.a.d = 0;
     this->m_extremeRange.b.d = this->m_data->numAttrib();
@@ -365,7 +379,15 @@ std::pair<Scalar, Scalar> KernelDensityEstimator::pdf(const ReflessIndexVector &
         lastIndex.vec() -= 1;
         lastIndex.d = sampleIndex;
         
-        sum_extremes = sumFromCumsum(*(this->m_cumKernel), this->m_extremeRange, sampleIndex);
+        if (this->m_singletonDim >= 0)
+        {
+            // Shortcut for data with only one non-singleton dimension to avoid the rather expensive sumFromCumsum()
+            sum_extremes = this->m_cumKernel->data()(this->m_extremeRange.b.ind[this->m_singletonDim] - 1, sampleIndex);
+            if (this->m_extremeRange.a.ind[this->m_singletonDim] > 0)
+                sum_extremes -= this->m_cumKernel->data()(this->m_extremeRange.a.ind[this->m_singletonDim] - 1, sampleIndex);
+        }
+        else
+            sum_extremes = sumFromCumsum(*(this->m_cumKernel), this->m_extremeRange, sampleIndex);
         sum_non_extremes = (*(this->m_cumKernel))(lastIndex) - sum_extremes;
     }
     else
@@ -418,6 +440,7 @@ GaussianDensityEstimator::GaussianDensityEstimator(const GaussianDensityEstimato
 GaussianDensityEstimator & GaussianDensityEstimator::operator=(const GaussianDensityEstimator & other)
 {
     this->m_data = other.m_data;
+    this->m_singletonDim = other.m_singletonDim;
     this->m_covMode = other.m_covMode;
     this->m_cumsum = other.m_cumsum;
     this->m_cumOuter = other.m_cumOuter;
@@ -515,7 +538,15 @@ void GaussianDensityEstimator::fit(const IndexRange & range)
     // Compute the mean of the samples inside and outside of the given range
     DataTensor::Index numExtremes = range.shape().prod(0, MAXDIV_INDEX_DIMENSION - 2);
     DataTensor::Index numNonExtremes = this->m_data->numSamples() - numExtremes;
-    this->m_innerMean = sumFromCumsum(*(this->m_cumsum), range);
+    if (this->m_singletonDim >= 0)
+    {
+        // Shortcut for data with only one non-singleton dimension to avoid the rather expensive sumFromCumsum()
+        this->m_innerMean = this->m_cumsum->sample(range.b.ind[this->m_singletonDim] - 1);
+        if (range.a.ind[this->m_singletonDim] > 0)
+            this->m_innerMean -= this->m_cumsum->sample(range.a.ind[this->m_singletonDim] - 1);
+    }
+    else
+        this->m_innerMean = sumFromCumsum(*(this->m_cumsum), range);
     this->m_outerMean = this->m_cumsum->sample(this->m_cumsum->numSamples() - 1) - this->m_innerMean;
     this->m_innerMean /= static_cast<Scalar>(numExtremes);
     this->m_outerMean /= static_cast<Scalar>(numNonExtremes);
@@ -525,7 +556,15 @@ void GaussianDensityEstimator::fit(const IndexRange & range)
     {
         Eigen::Map<Sample> innerCovVec(this->m_innerCov.data(), this->m_cumOuter->numAttrib(), 1);
         Eigen::Map<Sample> outerCovVec(this->m_outerCov.data(), this->m_cumOuter->numAttrib(), 1);
-        innerCovVec = sumFromCumsum(*(this->m_cumOuter), range);
+        if (this->m_singletonDim >= 0)
+        {
+            // Shortcut for data with only one non-singleton dimension to avoid the rather expensive sumFromCumsum()
+            innerCovVec = this->m_cumOuter->sample(range.b.ind[this->m_singletonDim] - 1);
+            if (range.a.ind[this->m_singletonDim] > 0)
+                innerCovVec -= this->m_cumOuter->sample(range.a.ind[this->m_singletonDim] - 1);
+        }
+        else
+            innerCovVec = sumFromCumsum(*(this->m_cumOuter), range);
         outerCovVec = this->m_cumOuter->sample(this->m_cumOuter->numSamples() - 1) - innerCovVec;
         
         this->m_innerCov /= static_cast<Scalar>(numExtremes);
