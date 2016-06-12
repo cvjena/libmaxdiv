@@ -62,6 +62,14 @@ enum maxdiv_gaussian_cov_mode_t
     MAXDIV_GAUSSIAN_COV_ID      /**< Assume the identity matrix as covariance matrix. */
 };
 
+enum maxdiv_border_policy_t
+{
+    MAXDIV_BORDER_POLICY_CONSTANT,   /**< Constant padding with the value which is nearest to the border. */
+    MAXDIV_BORDER_POLICY_MIRROR,     /**< Mirror data at the borders. */
+    MAXDIV_BORDER_POLICY_VALID,      /**< Crop result to the valid region. */
+    MAXDIV_BORDER_POLICY_AUTO        /**< Choose `VALID` if the invalid border would not be larger than 5% of the data, otherwise `MIRROR`. */
+};
+
 enum maxdiv_normalization_t
 {
     MAXDIV_NORMALIZE_NONE,  /**< No normalization */
@@ -91,7 +99,7 @@ typedef struct {
     maxdiv_proposal_generator_t proposal_generator; /**< The proposal generator to be used. */
     struct
     {
-        bool gradientFilter; /**< Specifies whether to apply a gradient filter to the obtained scores. */
+        bool gradient_filter; /**< Specifies whether to apply a gradient filter to the obtained scores. */
         bool mad; /**< Specifies whether to use *Median Absolute Deviation (MAD)* for a robust computation of mean and standard deviation of the scores. */
         MaxDivScalar sd_th; /**< Thresholds for scores will be `mean + sd_th * standard_deviation`. */
         MaxDivScalar kernel_sigma_sq; /**< The variance of the Gauss kernel used by KDE. */
@@ -119,6 +127,8 @@ typedef struct {
             unsigned int dx; /**< Spacing between neighbours along the first spatial axis */
             unsigned int dy; /**< Spacing between neighbours along the second spatial axis */
             unsigned int dz; /**< Spacing between neighbours along the third spatial axis */
+            maxdiv_border_policy_t temporal_borders; /**< Policy to be applied at the beginning of the time series for embedding. */
+            maxdiv_border_policy_t spatial_borders; /**< Policy to be applied at the borders of the time series for embedding. */
         } embedding; /**< Parameters for time-delay and spatial-neighbour embedding. */
         
         struct

@@ -37,7 +37,7 @@ DetectionList apply_maxdiv(const std::shared_ptr<DataTensor> & data,
                            KLDivergence::KLMode kl_mode, GaussianDensityEstimator::CovMode gauss_cov_mode,
                            unsigned int min_len, unsigned int max_len, unsigned int num_intervals,
                            Scalar kernel_sigma_sq, Scalar prop_th, bool prop_mad, bool prop_filter,
-                           bool normalize, unsigned int td_embed, unsigned int td_lag,
+                           bool normalize, unsigned int td_embed, unsigned int td_lag, BorderPolicy borders,
                            unsigned int period_num, unsigned int period_len, bool linear_trend, bool linear_season_trend)
 {
     DetectionList detections;
@@ -120,7 +120,7 @@ DetectionList apply_maxdiv(const std::shared_ptr<DataTensor> & data,
         preproc->push_back(std::make_shared<LinearDetrending>());
     
     if (td_embed > 1 && td_lag > 0)
-        preproc->push_back(std::make_shared<TimeDelayEmbedding>(td_embed, td_lag));
+        preproc->push_back(std::make_shared<TimeDelayEmbedding>(td_embed, td_lag, borders));
     
     // Put everything together and construct the SearchStrategy
     ProposalSearch detector(div, proposal_gen, preproc);
@@ -137,6 +137,7 @@ int main(int argc, char * argv[])
     maxdiv_proposal_generator_t proposals = MAXDIV_DENSE_PROPOSALS;
     KLDivergence::KLMode kl_mode = KLDivergence::KLMode::I_OMEGA;
     GaussianDensityEstimator::CovMode gauss_cov_mode = GaussianDensityEstimator::CovMode::FULL;
+    BorderPolicy borders = BorderPolicy::AUTO;
     unsigned int min_len = 0, max_len = 0, num_intervals = 0,
                  td_embed = 1, td_lag = 1, period_num = 0, period_len = 1,
                  first_row = 0, first_col = 0, last_col = -1;
@@ -174,6 +175,7 @@ int main(int argc, char * argv[])
             {"normalize",           no_argument,        &normalize,   1},
             {"td",                  optional_argument,  NULL,       't'},
             {"td_lag",              required_argument,  NULL,       'l'},
+            {"borders",             required_argument,  NULL,       'o'},
             {"period_num",          required_argument,  NULL,       'i'},
             {"period_len",          required_argument,  NULL,       'j'},
             {"linear_trend",        no_argument,        &linear_trend, 1},
@@ -320,6 +322,22 @@ int main(int argc, char * argv[])
                     return 1;
                 }
                 break;
+            case 'o':
+                argstr = strtolower(optarg);
+                if (argstr == "constant")
+                    borders = BorderPolicy::CONSTANT;
+                else if (argstr == "mirror")
+                    borders = BorderPolicy::MIRROR;
+                else if (argstr == "valid")
+                    borders = BorderPolicy::VALID;
+                else if (argstr == "auto")
+                    borders = BorderPolicy::AUTO;
+                else
+                {
+                    cerr << "Unknown border policy: " << argstr << endl << "See --help for a list of possible values." << endl;
+                    return 1;
+                }
+                break;
             case 'i':
                 period_num = strtoul(optarg, &conv_end, 10);
                 if (conv_end == NULL || *conv_end != '\0')
@@ -393,6 +411,8 @@ int main(int argc, char * argv[])
     unsigned unused_current_word = 0;
     _controlfp_s(&unused_current_word, 0, _EM_OVERFLOW | _EM_UNDERFLOW | _EM_INVALID | _EM_ZERODIVIDE);*/
     
+    Eigen::initParallel();
+    
     // Read data
     shared_ptr<DataTensor> data = make_shared<DataTensor>(readDataFromCSV(argv[optind], delimiter, first_row, first_col, last_col));
     if (data->empty())
@@ -405,7 +425,7 @@ int main(int argc, char * argv[])
     auto start = high_resolution_clock::now();
     DetectionList detections = apply_maxdiv(data, divergence, estimator, proposals, kl_mode, gauss_cov_mode,
                                             min_len, max_len, num_intervals, kernel_sigma_sq, prop_th, prop_mad, prop_filter,
-                                            normalize, td_embed, td_lag, period_num, period_len, linear_trend, linear_season_trend);
+                                            normalize, td_embed, td_lag, borders, period_num, period_len, linear_trend, linear_season_trend);
     auto stop = high_resolution_clock::now();
     if (timing)
         cerr << duration_cast<milliseconds>(stop - start).count() << " ms" << endl;
@@ -478,6 +498,10 @@ void printHelp(const char * progName)
          << endl
          << "    --td_lag <int>, -l <int> (default: 1)" << endl
          << "        Distance between time steps for time-delay embedding." << endl
+         << endl
+         << "    --borders <str>, -o <str> (default: AUTO)" << endl
+         << "        Policy to be applied at the beginning of the time-series when performing time-delay" << endl
+         << "        embedding. One of: CONSTANT, MIRROR, VALID, AUTO" << endl
          << endl
          << "    --period_num <int>, -i <int>" << endl
          << "        Apply deseasonalization by Ordinary Least Squares estimation assuming the given" << endl

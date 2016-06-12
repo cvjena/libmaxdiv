@@ -55,8 +55,12 @@ DetectionList ProposalSearch::operator()(const std::shared_ptr<DataTensor> & dat
     if (data)
     {
         // Apply pre-processing
+        ReflessIndexVector borderSize;
         if (this->m_preproc && !this->m_preproc->empty())
+        {
+            borderSize = this->m_preproc->borderSize(*data);
             (*(this->m_preproc))(*data);
+        }
         
         // Initialize density estimator and proposal generator
         this->m_divergence->init(data);
@@ -87,6 +91,14 @@ DetectionList ProposalSearch::operator()(const std::shared_ptr<DataTensor> & dat
         
         // Non-maximum suppression
         nonMaximumSuppression(detections, numDetections);
+        
+        // Add offset to the detected ranges if a border has been cut off from the original data
+        if (borderSize != 0)
+            for (Detection & detection : detections)
+            {
+                detection.a += borderSize;
+                detection.b += borderSize;
+            }
     }
     return detections;
 }
@@ -97,9 +109,11 @@ DetectionList ProposalSearch::operator()(const std::shared_ptr<const DataTensor>
     if (data)
     {
         // Apply pre-processing
+        ReflessIndexVector borderSize;
         std::shared_ptr<const DataTensor> modData;
         if (this->m_preproc && !this->m_preproc->empty())
         {
+            borderSize = this->m_preproc->borderSize(*data);
             DataTensor * md = new DataTensor();
             (*(this->m_preproc))(*data, *md);
             modData = std::shared_ptr<const DataTensor>(md);
@@ -113,6 +127,7 @@ DetectionList ProposalSearch::operator()(const std::shared_ptr<const DataTensor>
         
         // Score every proposed range
         #ifdef _OPENMP
+        Eigen::setNbThreads(1);
         #pragma omp parallel
         {
             std::shared_ptr<Divergence> divergence = this->m_divergence->clone();
@@ -122,6 +137,7 @@ DetectionList ProposalSearch::operator()(const std::shared_ptr<const DataTensor>
             #pragma omp critical
             detections.insert(detections.end(), localDetections.begin(), localDetections.end());
         }
+        Eigen::setNbThreads(0);
         #else
         for (const IndexRange & range : *(this->m_proposals))
             detections.push_back(Detection(range, (*(this->m_divergence))(range)));
@@ -136,6 +152,14 @@ DetectionList ProposalSearch::operator()(const std::shared_ptr<const DataTensor>
         
         // Non-maximum suppression
         nonMaximumSuppression(detections, numDetections);
+        
+        // Add offset to the detected ranges if a border has been cut off from the original data
+        if (borderSize != 0)
+            for (Detection & detection : detections)
+            {
+                detection.a += borderSize;
+                detection.b += borderSize;
+            }
     }
     return detections;
 }

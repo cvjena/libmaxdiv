@@ -26,6 +26,14 @@ DataTensor & PreprocessingPipeline::operator()(DataTensor & data) const
     return data;
 }
 
+ReflessIndexVector PreprocessingPipeline::borderSize(const DataTensor & data) const
+{
+    ReflessIndexVector borderSize;
+    for (const_iterator prep = this->begin(); prep != this->end(); ++prep)
+        borderSize += (*prep)->borderSize(data);
+    return borderSize;
+}
+
 void PreprocessingPipeline::enableProfiling(bool enabled)
 {
     if (enabled)

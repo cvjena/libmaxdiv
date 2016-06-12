@@ -23,7 +23,7 @@ void maxdiv_init_params(maxdiv_params_t * params)
     
     // Proposal Search Parameters
     params->proposal_generator = MAXDIV_DENSE_PROPOSALS;
-    params->pointwise_proposals.gradientFilter = PointwiseProposalGenerator::defaultParams.gradientFilter;
+    params->pointwise_proposals.gradient_filter = PointwiseProposalGenerator::defaultParams.gradientFilter;
     params->pointwise_proposals.mad = PointwiseProposalGenerator::defaultParams.mad;
     params->pointwise_proposals.sd_th = PointwiseProposalGenerator::defaultParams.sd_th;
     params->pointwise_proposals.kernel_sigma_sq = 1.0;
@@ -45,6 +45,8 @@ void maxdiv_init_params(maxdiv_params_t * params)
     params->preproc.embedding.dx = 1;
     params->preproc.embedding.dy = 1;
     params->preproc.embedding.dz = 1;
+    params->preproc.embedding.temporal_borders = MAXDIV_BORDER_POLICY_AUTO;
+    params->preproc.embedding.spatial_borders = MAXDIV_BORDER_POLICY_AUTO;
     params->preproc.detrending.method = MAXDIV_DETREND_NONE;
     params->preproc.detrending.linear_degree = 1;
     params->preproc.detrending.ols_period_num = 0;
@@ -109,7 +111,7 @@ unsigned int maxdiv_compile_pipeline(const maxdiv_params_t * params)
     std::copy(params->max_size, params->max_size + MAXDIV_INDEX_DIMENSION - 1, lengthRange.b.ind);
     
     PointwiseProposalGenerator::Params ppParams;
-    ppParams.gradientFilter = params->pointwise_proposals.gradientFilter;
+    ppParams.gradientFilter = params->pointwise_proposals.gradient_filter;
     ppParams.mad = params->pointwise_proposals.mad;
     ppParams.sd_th = params->pointwise_proposals.sd_th;
     MaxDivScalar ppKernelSigmaSq = params->pointwise_proposals.kernel_sigma_sq;
@@ -176,7 +178,11 @@ unsigned int maxdiv_compile_pipeline(const maxdiv_params_t * params)
     }
     
     if (params->preproc.embedding.kt > 1 && params->preproc.embedding.dt > 0)
-        preproc->push_back(std::make_shared<TimeDelayEmbedding>(params->preproc.embedding.kt, params->preproc.embedding.dt));
+    {
+        preproc->push_back(std::make_shared<TimeDelayEmbedding>(
+            params->preproc.embedding.kt, params->preproc.embedding.dt, static_cast<BorderPolicy>(params->preproc.embedding.temporal_borders)
+        ));
+    }
     
     if (params->preproc.embedding.kx > 0 && params->preproc.embedding.ky > 0 && params->preproc.embedding.kz > 0
             && params->preproc.embedding.dx > 0 && params->preproc.embedding.dy > 0 && params->preproc.embedding.dz > 0
@@ -184,7 +190,8 @@ unsigned int maxdiv_compile_pipeline(const maxdiv_params_t * params)
     {
         preproc->push_back(std::make_shared<SpatialNeighbourEmbedding>(
             params->preproc.embedding.kx, params->preproc.embedding.ky, params->preproc.embedding.kz,
-            params->preproc.embedding.dx, params->preproc.embedding.dy, params->preproc.embedding.dz
+            params->preproc.embedding.dx, params->preproc.embedding.dy, params->preproc.embedding.dz,
+            static_cast<BorderPolicy>(params->preproc.embedding.spatial_borders)
         ));
     }
     

@@ -18,7 +18,8 @@ enum class BorderPolicy
 {
     CONSTANT, /**< Constant padding with the value which is nearest to the border. */
     MIRROR, /**< Mirror data at the borders. */
-    VALID /**< Crop result to the valid region. */
+    VALID, /**< Crop result to the valid region. */
+    AUTO /**< Choose `VALID` if the invalid border would not be larger than 5% of the data, otherwise `MIRROR`. */
 };
 
 
@@ -41,15 +42,28 @@ enum class BorderPolicy
 * @author Bjoern Barz <bjoern.barz@uni-jena.de>
 */
 template<typename Scalar>
-DataTensor_<Scalar> time_delay_embedding(const DataTensor_<Scalar> & data, int k = 3, int T = 1, BorderPolicy borders = BorderPolicy::CONSTANT /* TODO */)
+DataTensor_<Scalar> time_delay_embedding(const DataTensor_<Scalar> & data, int k = 3, int T = 1, BorderPolicy borders = BorderPolicy::MIRROR)
 {
     assert(k > 0 && T > 0);
     if (k == 1 || data.length() <= 1)
         return data;
     
+    // Determine size of invalid border if any
+    typename DataTensor_<Scalar>::Index borderSize = 0;
+    if (borders == BorderPolicy::AUTO || borders == BorderPolicy::VALID)
+    {
+        borderSize = (k - 1) * T;
+        if (borderSize >= data.length() || (borders == BorderPolicy::AUTO && borderSize * 20 > data.length()))
+        {
+            borders = BorderPolicy::MIRROR;
+            borderSize = 0;
+        }
+    }
+    
     // Create new tensor
     ReflessIndexVector newShape = data.shape();
     newShape.d *= k;
+    newShape.t -= borderSize;
     DataTensor_<Scalar> xdata(newShape);
     
     // Set up some variables
@@ -68,12 +82,12 @@ DataTensor_<Scalar> time_delay_embedding(const DataTensor_<Scalar> & data, int k
             // Determine index of previous time step
             if (borders == BorderPolicy::MIRROR)
             {
-                pt = std::abs(t - (d * T) % (2 * newTM.rows() - 2));
-                if (pt >= newTM.rows())
-                    pt = std::abs(2 * (newTM.rows() - 1) - pt);
+                pt = std::abs(t + static_cast<int>(borderSize) - (d * T) % (2 * tm.rows() - 2));
+                if (pt >= tm.rows())
+                    pt = std::abs(2 * (tm.rows() - 1) - pt);
             }
             else
-                pt = std::max(t - (d * T), 0);
+                pt = std::max(t + static_cast<int>(borderSize) - (d * T), 0);
             
             // Copy sample by sample
             for (s = 0, oldCol = 0, newCol = d * nAttr; s < samplesPerTime; s++, oldCol += nAttr, newCol += nAttrEx)
@@ -114,6 +128,20 @@ DataTensor_<Scalar> spatial_neighbour_embedding(const DataTensor_<Scalar> & data
     if (kx == 1 && ky == 1 && kz == 1)
         return data;
     
+    // Determine size of invalid border if any
+    ReflessIndexVector borderSize;
+    if (borders == BorderPolicy::AUTO || borders == BorderPolicy::VALID)
+    {
+        borderSize.x = (data.width() > 1) ? (kx - 1) * Dx : 0;
+        borderSize.y = (data.height() > 1) ? (ky - 1) * Dy : 0;
+        borderSize.z = (data.depth() > 1) ? (kz - 1) * Dz : 0;
+        if ((borderSize.vec() >= data.shape().vec()).any() || (borders == BorderPolicy::AUTO && (borderSize.vec() * 20 > data.shape().vec()).any()))
+        {
+            borders = BorderPolicy::MIRROR;
+            borderSize.vec().setZero();
+        }
+    }
+    
     // Create new tensor
     ReflessIndexVector newShape = data.shape();
     if (newShape.x <= 1)
@@ -123,6 +151,7 @@ DataTensor_<Scalar> spatial_neighbour_embedding(const DataTensor_<Scalar> & data
     if (newShape.z <= 1)
         kz = 1;
     newShape.d *= (2 * kx - 1) * (2 * ky - 1) * (2 * kz - 1);
+    newShape.vec() -= borderSize.vec() * 2;
     DataTensor_<Scalar> xdata(newShape);
     
     // Set up some variables
@@ -131,57 +160,58 @@ DataTensor_<Scalar> spatial_neighbour_embedding(const DataTensor_<Scalar> & data
                                         nAttrEx = newShape.d;
     
     // Copy data
-    IndexVector loc = data.makeIndexVector(); // current location
+    IndexVector loc = xdata.makeIndexVector(); // current location
     loc.shape.t = loc.shape.d = 1;
     IndexVector neighbour = loc;
+    int w = data.width(), h = data.height(), d = data.depth();
     int dx, dy, dz, attr;
-    for (typename DataTensor_<Scalar>::Index s = 0; s < nLocations; ++s, ++loc)
+    for (; loc.t < loc.shape.t; ++loc)
     {
         auto locMat = xdata.location(loc.x, loc.y, loc.z);
         
         for (dx = -1 * kx + 1, attr = 0; dx < kx; dx++)
         {
             // Determine index of x-neighbour
-            if (loc.shape.x > 1)
+            if (w > 1)
             {
                 if (borders == BorderPolicy::MIRROR)
                 {
-                    neighbour.x = std::abs(static_cast<int>(loc.x) + (dx * Dx) % (2 * static_cast<int>(loc.shape.x) - 2));
-                    if (neighbour.x >= loc.shape.x)
-                        neighbour.x = std::abs(2 * (static_cast<int>(loc.shape.x) - 1) - static_cast<int>(neighbour.x));
+                    neighbour.x = std::abs(static_cast<int>(loc.x + borderSize.x) + (dx * Dx) % (2 * w - 2));
+                    if (neighbour.x >= static_cast<IndexVector::Index>(w))
+                        neighbour.x = std::abs(2 * (w - 1) - static_cast<int>(neighbour.x));
                 }
                 else
-                    neighbour.x = std::max(std::min(static_cast<int>(loc.x) + (dx * Dx), static_cast<int>(loc.shape.x - 1)), 0);
+                    neighbour.x = std::max(std::min(static_cast<int>(loc.x + borderSize.x) + (dx * Dx), w - 1), 0);
             }
             
             for (dy = -1 * ky + 1; dy < ky; dy++)
             {
                 // Determine index of y-neighbour
-                if (loc.shape.y > 1)
+                if (h > 1)
                 {
                     if (borders == BorderPolicy::MIRROR)
                     {
-                        neighbour.y = std::abs(static_cast<int>(loc.y) + (dy * Dy) % (2 * static_cast<int>(loc.shape.y) - 2));
-                        if (neighbour.y >= loc.shape.y)
-                            neighbour.y = std::abs(2 * (static_cast<int>(loc.shape.y) - 1) - static_cast<int>(neighbour.y));
+                        neighbour.y = std::abs(static_cast<int>(loc.y + borderSize.y) + (dy * Dy) % (2 * h - 2));
+                        if (neighbour.y >= static_cast<IndexVector::Index>(h))
+                            neighbour.y = std::abs(2 * (h - 1) - static_cast<int>(neighbour.y));
                     }
                     else
-                        neighbour.y = std::max(std::min(static_cast<int>(loc.y) + (dy * Dy), static_cast<int>(loc.shape.y - 1)), 0);
+                        neighbour.y = std::max(std::min(static_cast<int>(loc.y + borderSize.y) + (dy * Dy), h - 1), 0);
                 }
             
                 for (dz = -1 * kz + 1; dz < kz; dz++, attr += nAttr)
                 {
                     // Determine index of z-neighbour
-                    if (loc.shape.z > 1)
+                    if (d > 1)
                     {
                         if (borders == BorderPolicy::MIRROR)
                         {
-                            neighbour.z = std::abs(static_cast<int>(loc.z) + (dz * Dz) % (2 * static_cast<int>(loc.shape.z) - 2));
-                            if (neighbour.z >= loc.shape.z)
-                                neighbour.z = std::abs(2 * (static_cast<int>(loc.shape.z) - 1) - static_cast<int>(neighbour.z));
+                            neighbour.z = std::abs(static_cast<int>(loc.z + borderSize.z) + (dz * Dz) % (2 * d - 2));
+                            if (neighbour.z >= static_cast<IndexVector::Index>(d))
+                                neighbour.z = std::abs(2 * (d - 1) - static_cast<int>(neighbour.z));
                         }
                         else
-                            neighbour.z = std::max(std::min(static_cast<int>(loc.z) + (dz * Dz), static_cast<int>(loc.shape.z - 1)), 0);
+                            neighbour.z = std::max(std::min(static_cast<int>(loc.z + borderSize.z) + (dz * Dz), d - 1), 0);
                     }
                     
                     // Copy attributes for all time steps
@@ -211,6 +241,16 @@ public:
     * @return Reference to `dataOut` in order to allow for chaining.
     */
     virtual DataTensor & operator()(const DataTensor & dataIn, DataTensor & dataOut) const =0;
+    
+    /**
+    * Some pre-processors may crop the data to a smaller sub-block. In this case, this method
+    * specifies the size of the border that would be cut off at the beginning of the given DataTensor
+    * @p data, so that this offset can be added later to detected ranges.
+    *
+    * @return Returns the size of the border that is cut off at the beginning of each dimension.
+    * A vector of zeroes will be returned if no cropping is performed by this pre-processor.
+    */
+    virtual ReflessIndexVector borderSize(const DataTensor & data) const { return ReflessIndexVector(); };
 
 };
 
@@ -276,6 +316,16 @@ public:
         return (*this)(dataOut = dataIn);
     };
     
+    /**
+    * Some pre-processors may crop the data to a smaller sub-block. In this case, this method
+    * specifies the accumulated size of the border that would be cut off at the beginning of the
+    * given DataTensor @p data, so that this offset can be added later to detected ranges.
+    *
+    * @return Returns the size of the border that is cut off at the beginning of each dimension.
+    * A vector of zeroes will be returned if no cropping is performed.
+    */
+    virtual ReflessIndexVector borderSize(const DataTensor & data) const;
+    
     virtual void enableProfiling(bool enabled = true);
     
     const std::vector<float> & getTiming() const { return this->m_timing; };
@@ -303,12 +353,31 @@ public:
     int T; /**< Time Delay */
     BorderPolicy borderPolicy; /**< How to handle the start of the time series */
 
-    TimeDelayEmbedding() : k(3), T(1), borderPolicy(BorderPolicy::MIRROR) {};
-    TimeDelayEmbedding(int k, int T = 1, BorderPolicy borders = BorderPolicy::MIRROR) : k(k), T(T), borderPolicy(borders) {};
+    TimeDelayEmbedding() : k(3), T(1), borderPolicy(BorderPolicy::AUTO) {};
+    TimeDelayEmbedding(int k, int T = 1, BorderPolicy borders = BorderPolicy::AUTO) : k(k), T(T), borderPolicy(borders) {};
     
     virtual DataTensor & operator()(const DataTensor & dataIn, DataTensor & dataOut) const override
     {
         return (dataOut = time_delay_embedding(dataIn, this->k, this->T, this->borderPolicy));
+    };
+    
+    /**
+    * This method specifies the size of the border that would be cut off at the beginning of the given time series
+    * @p data if `borderPolicy` is `VALID` or `AUTO`.
+    *
+    * @return Returns the size of the border that is cut off at the beginning of each dimension.
+    * A vector of zeroes will be returned if no cropping is performed by this pre-processor.
+    */
+    virtual ReflessIndexVector borderSize(const DataTensor & data) const
+    {
+        ReflessIndexVector bs;
+        if (this->borderPolicy == BorderPolicy::AUTO || this->borderPolicy == BorderPolicy::VALID)
+        {
+            bs.t = (this->k - 1) * this->T;
+            if (bs.t >= data.length() || (this->borderPolicy == BorderPolicy::AUTO && bs.t * 20 > data.length()))
+                bs.t = 0;
+        }
+        return bs;
     };
 
 };
@@ -334,8 +403,8 @@ public:
     int Dz; /**< Spacing between neighbours along the z-axis */
     BorderPolicy borderPolicy; /**< How to handle the borders of the data */
 
-    SpatialNeighbourEmbedding() : kx(0), ky(0), kz(0), Dx(1), Dy(1), Dz(1), borderPolicy(BorderPolicy::MIRROR) {};
-    SpatialNeighbourEmbedding(int kx, int ky, int kz, int Dx = 1, int Dy = 1, int Dz = 1, BorderPolicy borders = BorderPolicy::MIRROR)
+    SpatialNeighbourEmbedding() : kx(0), ky(0), kz(0), Dx(1), Dy(1), Dz(1), borderPolicy(BorderPolicy::AUTO) {};
+    SpatialNeighbourEmbedding(int kx, int ky, int kz, int Dx = 1, int Dy = 1, int Dz = 1, BorderPolicy borders = BorderPolicy::AUTO)
     : kx(kx), ky(ky), kz(kz), Dx(Dx), Dy(Dy), Dz(Dz), borderPolicy(borders) {};
     
     virtual DataTensor & operator()(const DataTensor & dataIn, DataTensor & dataOut) const override
@@ -345,6 +414,27 @@ public:
         else
             dataOut = spatial_neighbour_embedding(dataIn, kx, ky, kz, Dx, Dy, Dz, borderPolicy);
         return dataOut;
+    };
+    
+    /**
+    * This method specifies the size of the border that would be cut off at the top-left corner of the given
+    * DataTensor @p data if `borderPolicy` is `VALID` or `AUTO`.
+    *
+    * @return Returns the size of the border that is cut off at the beginning of each dimension.
+    * A vector of zeroes will be returned if no cropping is performed by this pre-processor.
+    */
+    virtual ReflessIndexVector borderSize(const DataTensor & data) const
+    {
+        ReflessIndexVector bs;
+        if (this->borderPolicy == BorderPolicy::AUTO || this->borderPolicy == BorderPolicy::VALID)
+        {
+            bs.x = (data.width() > 1) ? (kx - 1) * Dx : 0;
+            bs.y = (data.height() > 1) ? (ky - 1) * Dy : 0;
+            bs.z = (data.depth() > 1) ? (kz - 1) * Dz : 0;
+            if ((bs.vec() >= data.shape().vec()).any() || (this->borderPolicy == BorderPolicy::AUTO && (bs.vec() * 20 > data.shape().vec()).any()))
+                bs.vec().setZero();
+        }
+        return bs;
     };
 
 };
