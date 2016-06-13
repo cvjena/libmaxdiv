@@ -419,8 +419,17 @@ def find_max_regions(intervals, num_intervals = None, overlap_th = 0.0):
 #
 # Wrapper and utility functions
 #
-def maxdiv(X, method = 'parzen', num_intervals = 1, proposals = 'dense', **kwargs):
+def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', useLibMaxDiv = None, **kwargs):
     """ Wrapper function for calling maximum divergent regions """
+    
+    if useLibMaxDiv != False:
+        try:
+            from . import libmaxdiv_wrapper
+            return libmaxdiv_wrapper.maxdiv(X, method, num_intervals, proposals, **kwargs)
+        except:
+            if useLibMaxDiv == True:
+                raise
+    
     if 'preproc' in kwargs:
         preprocs = kwargs['preproc'] if isinstance(kwargs['preproc'], list) or isinstance(kwargs['preproc'], tuple) else [kwargs['preproc']]
         preprocMethods = {
@@ -434,7 +443,7 @@ def maxdiv(X, method = 'parzen', num_intervals = 1, proposals = 'dense', **kwarg
         for prep in preprocs:
             if (prep is not None) and (prep in preprocMethods):
                 X = preprocMethods[prep](X)
-            elif prep not in preprocMethods:
+            elif prep is not None:
                 raise Exception("Unknown preprocessing method {}".format(prep))
         del kwargs['preproc']
     
@@ -481,6 +490,7 @@ def maxdiv(X, method = 'parzen', num_intervals = 1, proposals = 'dense', **kwarg
             del kwargs['alpha']
         kwargs['gaussian_mode'] = method[9:].upper()
         interval_scores = maxdiv_gaussian(X, intervals, **kwargs)
+        
     else:
         raise Exception("Unknown method {}".format(method))
 
