@@ -64,10 +64,10 @@ enum maxdiv_gaussian_cov_mode_t
 
 enum maxdiv_border_policy_t
 {
+    MAXDIV_BORDER_POLICY_AUTO,       /**< Choose `VALID` if the invalid border would not be larger than 5% of the data, otherwise `MIRROR`. */
     MAXDIV_BORDER_POLICY_CONSTANT,   /**< Constant padding with the value which is nearest to the border. */
     MAXDIV_BORDER_POLICY_MIRROR,     /**< Mirror data at the borders. */
-    MAXDIV_BORDER_POLICY_VALID,      /**< Crop result to the valid region. */
-    MAXDIV_BORDER_POLICY_AUTO        /**< Choose `VALID` if the invalid border would not be larger than 5% of the data, otherwise `MIRROR`. */
+    MAXDIV_BORDER_POLICY_VALID       /**< Crop result to the valid region. */
 };
 
 enum maxdiv_normalization_t
@@ -94,6 +94,7 @@ typedef struct {
     maxdiv_estimator_t estimator; /**< The distribution model to be fit to the data. */
     unsigned int min_size[MAXDIV_INDEX_DIMENSION - 1]; /**< Minimum size size of the detected ranges along each of the 4 dimensions. */
     unsigned int max_size[MAXDIV_INDEX_DIMENSION - 1]; /**< Maximum size size of the detected ranges along each of the 4 dimensions. `0` means no limit. */
+    MaxDivScalar overlap_th; /**< Overlap threshold for non-maximum suppression: Intervals with a greater IoU will be considered overlapping. */
     
     /* ProposalSearch Parameters */
     maxdiv_proposal_generator_t proposal_generator; /**< The proposal generator to be used. */

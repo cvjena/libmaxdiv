@@ -35,7 +35,7 @@ void printHelp(const char *);
 DetectionList apply_maxdiv(const std::shared_ptr<DataTensor> & data,
                            maxdiv_divergence_t divergence, maxdiv_estimator_t estimator, maxdiv_proposal_generator_t proposals,
                            KLDivergence::KLMode kl_mode, GaussianDensityEstimator::CovMode gauss_cov_mode,
-                           unsigned int min_len, unsigned int max_len, unsigned int num_intervals,
+                           unsigned int min_len, unsigned int max_len, unsigned int num_intervals, Scalar overlap_th,
                            Scalar kernel_sigma_sq, Scalar prop_th, bool prop_mad, bool prop_filter,
                            bool normalize, unsigned int td_embed, unsigned int td_lag, BorderPolicy borders,
                            unsigned int period_num, unsigned int period_len, bool linear_trend, bool linear_season_trend)
@@ -124,6 +124,7 @@ DetectionList apply_maxdiv(const std::shared_ptr<DataTensor> & data,
     
     // Put everything together and construct the SearchStrategy
     ProposalSearch detector(div, proposal_gen, preproc);
+    detector.setOverlapTh(overlap_th);
     detections = detector(data, num_intervals);
     return detections;
 }
@@ -141,7 +142,7 @@ int main(int argc, char * argv[])
     unsigned int min_len = 0, max_len = 0, num_intervals = 0,
                  td_embed = 1, td_lag = 1, period_num = 0, period_len = 1,
                  first_row = 0, first_col = 0, last_col = -1;
-    Scalar kernel_sigma_sq = 1.0, prop_th = 1.5;
+    Scalar overlap_th = 0.0, kernel_sigma_sq = 1.0, prop_th = 1.5;
     int prop_mad = 0, prop_filter = 1, normalize = 0, linear_trend = 0, linear_season_trend = 0, timing = 0;
     char delimiter = ',';
     
@@ -158,6 +159,7 @@ int main(int argc, char * argv[])
             {"min_len",             required_argument,  NULL,       'a'},
             {"max_len",             required_argument,  NULL,       'b'},
             {"num",                 required_argument,  NULL,       'n'},
+            {"overlap_th",          required_argument,  NULL,       'o'},
             {"timing",              no_argument,        &timing,      1},
             
             // Divergence and distribution model
@@ -175,7 +177,7 @@ int main(int argc, char * argv[])
             {"normalize",           no_argument,        &normalize,   1},
             {"td",                  optional_argument,  NULL,       't'},
             {"td_lag",              required_argument,  NULL,       'l'},
-            {"borders",             required_argument,  NULL,       'o'},
+            {"borders",             required_argument,  NULL,       'x'},
             {"period_num",          required_argument,  NULL,       'i'},
             {"period_len",          required_argument,  NULL,       'j'},
             {"linear_trend",        no_argument,        &linear_trend, 1},
@@ -185,13 +187,13 @@ int main(int argc, char * argv[])
             {"delimiter",           required_argument,  NULL,       'u'},
             {"first_row",           required_argument,  NULL,       'r'},
             {"first_col",           required_argument,  NULL,       'c'},
-            {"last_col",            required_argument,  NULL,       'x'},
+            {"last_col",            required_argument,  NULL,       'z'},
             
             {0, 0, 0, 0}
         };
         
         int option_index = 0;
-        c = getopt_long(argc, argv, "", long_options, &option_index);
+        c = getopt_long(argc, argv, "a:b:c:d:e:hi:j:l:n:o:p:q:r:st::u:x:z:", long_options, &option_index);
         switch (c)
         {
             case 'h':
@@ -218,6 +220,14 @@ int main(int argc, char * argv[])
                 if (conv_end == NULL || *conv_end != '\0')
                 {
                     cerr << "Invalid value specified for option --num" << endl;
+                    return 1;
+                }
+                break;
+            case 'o':
+                overlap_th = strtod(optarg, &conv_end);
+                if (conv_end == NULL || *conv_end != '\0')
+                {
+                    cerr << "Invalid value specified for option --overlap_th" << endl;
                     return 1;
                 }
                 break;
@@ -322,7 +332,7 @@ int main(int argc, char * argv[])
                     return 1;
                 }
                 break;
-            case 'o':
+            case 'x':
                 argstr = strtolower(optarg);
                 if (argstr == "constant")
                     borders = BorderPolicy::CONSTANT;
@@ -379,7 +389,7 @@ int main(int argc, char * argv[])
                     return 1;
                 }
                 break;
-            case 'x':
+            case 'z':
                 last_col = strtoul(optarg, &conv_end, 10);
                 if (conv_end == NULL || *conv_end != '\0')
                 {
@@ -424,7 +434,7 @@ int main(int argc, char * argv[])
     // Apply MaxDiv algorithm
     auto start = high_resolution_clock::now();
     DetectionList detections = apply_maxdiv(data, divergence, estimator, proposals, kl_mode, gauss_cov_mode,
-                                            min_len, max_len, num_intervals, kernel_sigma_sq, prop_th, prop_mad, prop_filter,
+                                            min_len, max_len, num_intervals, overlap_th, kernel_sigma_sq, prop_th, prop_mad, prop_filter,
                                             normalize, td_embed, td_lag, borders, period_num, period_len, linear_trend, linear_season_trend);
     auto stop = high_resolution_clock::now();
     if (timing)
@@ -464,6 +474,10 @@ void printHelp(const char * progName)
          << "    --num <int>, -n <int>" << endl
          << "        Maximum number of detections to be returned." << endl
          << endl
+         << "    --overlap_th <float>, -o <float> (default: 0.0)" << endl
+         << "        Overlap threshold for non-maximum suppression: Intervals with a greater IoU will" << endl
+         << "        be considered overlapping." << endl
+         << endl
          << "    --timing" << endl
          << "        Print the time taken by the algorithm to stderr." << endl
          << endl
@@ -499,7 +513,7 @@ void printHelp(const char * progName)
          << "    --td_lag <int>, -l <int> (default: 1)" << endl
          << "        Distance between time steps for time-delay embedding." << endl
          << endl
-         << "    --borders <str>, -o <str> (default: AUTO)" << endl
+         << "    --borders <str>, -x <str> (default: AUTO)" << endl
          << "        Policy to be applied at the beginning of the time-series when performing time-delay" << endl
          << "        embedding. One of: CONSTANT, MIRROR, VALID, AUTO" << endl
          << endl
@@ -525,7 +539,7 @@ void printHelp(const char * progName)
          << "    --first_col <int>, -c <int> (default: 0)" << endl
          << "        The first column in the CSV file to be read." << endl
          << endl
-         << "    --last_col <int>, -x <int>" << endl
+         << "    --last_col <int>, -z <int>" << endl
          << "        The last column in the CSV file to be read." << endl
          << endl;
 }

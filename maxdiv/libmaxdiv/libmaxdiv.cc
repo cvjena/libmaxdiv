@@ -20,6 +20,7 @@ void maxdiv_init_params(maxdiv_params_t * params)
     params->estimator = MAXDIV_GAUSSIAN;
     std::fill(params->min_size, params->min_size + MAXDIV_INDEX_DIMENSION - 1, 0);
     std::fill(params->max_size, params->max_size + MAXDIV_INDEX_DIMENSION - 1, 0);
+    params->overlap_th = 0.0;
     
     // Proposal Search Parameters
     params->proposal_generator = MAXDIV_DENSE_PROPOSALS;
@@ -196,7 +197,9 @@ unsigned int maxdiv_compile_pipeline(const maxdiv_params_t * params)
     }
     
     // Put everything together and construct the SearchStrategy
-    maxdiv_pipelines.push_back(std::make_shared<ProposalSearch>(divergence, proposals, preproc));
+    std::shared_ptr<ProposalSearch> detector = std::make_shared<ProposalSearch>(divergence, proposals, preproc);
+    detector->setOverlapTh(params->overlap_th);
+    maxdiv_pipelines.push_back(detector);
     return maxdiv_pipelines.size();
 }
 
@@ -217,7 +220,8 @@ void maxdiv_exec(unsigned int pipeline, MaxDivScalar * data, const unsigned int 
     
     // Determine data shape
     ReflessIndexVector dataShape;
-    std::copy(shape, shape + MAXDIV_INDEX_DIMENSION, dataShape.ind);
+    if (shape != NULL)
+        std::copy(shape, shape + MAXDIV_INDEX_DIMENSION, dataShape.ind);
     
     // Check parameters
     if (pipeline == 0 || pipeline > maxdiv_pipelines.size() || !maxdiv_pipelines[pipeline - 1] || data == NULL || shape == NULL || dataShape.prod() == 0)

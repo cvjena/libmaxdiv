@@ -107,6 +107,12 @@ public:
     const std::shared_ptr<const PreprocessingPipeline> & getPreprocessingPipeline() const { return this->m_preproc; };
     
     /**
+    * @return Returns the current overlap threshold used for non-maximum suppression:
+    * Intervals with an Intersection over Union (IoU) greater than this threshold will be considered overlapping.
+    */
+    Scalar getOverlapTh() const { return this->m_overlap_th; };
+    
+    /**
     * Changes the divergence measure used by this strategy to compare a sub-block of data with the remaining data.
     *
     * @param[in] divergence Pointer to the new divergence. Must not be `NULL`.
@@ -119,12 +125,21 @@ public:
     * @param[in] preprocessing Pointer to the new preprocessing pipeline. May be `NULL`.
     */
     void setPreprocessingPipeline(const std::shared_ptr<const PreprocessingPipeline> & preprocessing) { this->m_preproc = preprocessing; };
+    
+    /**
+    * Changes the overlap threshold used for non-maximum suppression.
+    *
+    * @param[in] overlap_th Intervals with an Intersection over Union (IoU) greater than this threshold will be considered overlapping.
+    * Must be in the range `[0,1]`.
+    */
+    void setOverlapTh(Scalar overlap_th) { if (overlap_th >= 0 and overlap_th <= 1) this->m_overlap_th = overlap_th; };
 
 
 protected:
 
     std::shared_ptr<Divergence> m_divergence; /**< The divergence measure used to compare a sub-block of the data with the remaining data. */
     std::shared_ptr<const PreprocessingPipeline> m_preproc; /**< The pre-processing pipeline to be applied to the data before searching for anomalous sub-blocks. */
+    Scalar m_overlap_th; /**< Overlap threshold for non-maximum suppression: Intervals with a greater IoU will be considered overlapping. */
 
 };
 

@@ -10,17 +10,17 @@ using namespace MaxDiv;
 
 
 SearchStrategy::SearchStrategy()
-: autoReset(true), m_divergence(new KLDivergence(std::make_shared<GaussianDensityEstimator>())), m_preproc(nullptr) {}
+: autoReset(true), m_divergence(new KLDivergence(std::make_shared<GaussianDensityEstimator>())), m_preproc(nullptr), m_overlap_th(0.0) {}
 
 SearchStrategy::SearchStrategy(const std::shared_ptr<Divergence> & divergence)
-: autoReset(true), m_divergence(divergence), m_preproc(nullptr)
+: autoReset(true), m_divergence(divergence), m_preproc(nullptr), m_overlap_th(0.0)
 {
     if (divergence == nullptr)
         throw std::invalid_argument("divergence must not be NULL.");
 }
 
 SearchStrategy::SearchStrategy(const std::shared_ptr<Divergence> & divergence, const std::shared_ptr<const PreprocessingPipeline> & preprocessing)
-: autoReset(true), m_divergence(divergence), m_preproc(preprocessing)
+: autoReset(true), m_divergence(divergence), m_preproc(preprocessing), m_overlap_th(0.0)
 {
     if (divergence == nullptr)
         throw std::invalid_argument("divergence must not be NULL.");
@@ -92,7 +92,7 @@ DetectionList ProposalSearch::operator()(const std::shared_ptr<DataTensor> & dat
         }
         
         // Non-maximum suppression
-        nonMaximumSuppression(detections, numDetections);
+        nonMaximumSuppression(detections, numDetections, this->m_overlap_th);
         
         // Add offset to the detected ranges if a border has been cut off from the original data
         if (borderSize != 0)
@@ -153,7 +153,7 @@ DetectionList ProposalSearch::operator()(const std::shared_ptr<const DataTensor>
         }
         
         // Non-maximum suppression
-        nonMaximumSuppression(detections, numDetections);
+        nonMaximumSuppression(detections, numDetections, this->m_overlap_th);
         
         // Add offset to the detected ranges if a border has been cut off from the original data
         if (borderSize != 0)

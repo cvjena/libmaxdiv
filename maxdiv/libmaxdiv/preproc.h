@@ -16,10 +16,10 @@ namespace MaxDiv
 */
 enum class BorderPolicy
 {
+    AUTO, /**< Choose `VALID` if the invalid border would not be larger than 5% of the data, otherwise `MIRROR`. */
     CONSTANT, /**< Constant padding with the value which is nearest to the border. */
     MIRROR, /**< Mirror data at the borders. */
-    VALID, /**< Crop result to the valid region. */
-    AUTO /**< Choose `VALID` if the invalid border would not be larger than 5% of the data, otherwise `MIRROR`. */
+    VALID /**< Crop result to the valid region. */
 };
 
 
