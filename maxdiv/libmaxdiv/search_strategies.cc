@@ -68,6 +68,7 @@ DetectionList ProposalSearch::operator()(const std::shared_ptr<DataTensor> & dat
         
         // Score every proposed range
         #ifdef _OPENMP
+        Eigen::setNbThreads(1);
         #pragma omp parallel
         {
             std::shared_ptr<Divergence> divergence = this->m_divergence->clone();
@@ -77,6 +78,7 @@ DetectionList ProposalSearch::operator()(const std::shared_ptr<DataTensor> & dat
             #pragma omp critical
             detections.insert(detections.end(), localDetections.begin(), localDetections.end());
         }
+        Eigen::setNbThreads(0);
         #else
         for (const IndexRange & range : *(this->m_proposals))
             detections.push_back(Detection(range, (*(this->m_divergence))(range)));

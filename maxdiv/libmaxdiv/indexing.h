@@ -458,7 +458,7 @@ struct IndexRange
     /**
     * @return The volume of this block, i.e. the number of elements in the range.
     */
-    IndexVector::Index volume() const { return this->shape().prod(); };
+    IndexVector::Index volume() const { return (this->b.vec() - this->a.vec().min(this->b.vec())).prod(); };
     
     /**
     * Computes the *intersection over union* between this block and another one.
@@ -469,7 +469,7 @@ struct IndexRange
         IndexVector intA, intB;
         intA.vec() = this->a.vec().max(other.a.vec());
         intB.vec() = this->b.vec().min(other.b.vec());
-        IndexVector::Index intVol = IndexRange(intA, intB).volume();
+        IndexVector::Index intVol = (intB.vec() - intA.vec().min(intB.vec())).prod();
         return static_cast<double>(intVol) / static_cast<double>(this->volume() + other.volume() - intVol);
     };
     
