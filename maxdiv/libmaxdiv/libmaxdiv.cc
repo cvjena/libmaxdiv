@@ -66,40 +66,32 @@ unsigned int maxdiv_compile_pipeline(const maxdiv_params_t * params)
     if (params->strategy != MAXDIV_PROPOSAL_SEARCH)
         return 0;
     
-    // Create divergence and density estimator
+    // Create density estimator
+    std::shared_ptr<DensityEstimator> densityEstimator;
+    GaussianDensityEstimator::CovMode gaussian_cov_mode = static_cast<GaussianDensityEstimator::CovMode>(params->gaussian_cov_mode);
+    switch (params->estimator)
+        {
+            case MAXDIV_KDE:
+                densityEstimator = std::make_shared<KernelDensityEstimator>(params->kernel_sigma_sq);
+                break;
+            case MAXDIV_GAUSSIAN:
+                densityEstimator = std::make_shared<GaussianDensityEstimator>(gaussian_cov_mode);
+                break;
+            default:
+                return 0;
+        }
+    
+    // Create divergence
     std::shared_ptr<Divergence> divergence;
     KLDivergence::KLMode kl_mode = static_cast<KLDivergence::KLMode>(params->kl_mode);
-    GaussianDensityEstimator::CovMode gaussian_cov_mode = static_cast<GaussianDensityEstimator::CovMode>(params->gaussian_cov_mode);
     switch (params->divergence)
     {
         case MAXDIV_KL_DIVERGENCE:
-            switch (params->estimator)
-            {
-                case MAXDIV_KDE:
-                    divergence = std::make_shared<KLDivergence>(std::make_shared<KernelDensityEstimator>(params->kernel_sigma_sq), kl_mode);
-                    break;
-                case MAXDIV_GAUSSIAN:
-                    divergence = std::make_shared<KLDivergence>(std::make_shared<GaussianDensityEstimator>(gaussian_cov_mode), kl_mode);
-                    break;
-                default:
-                    return 0;
-            }
+            divergence = std::make_shared<KLDivergence>(densityEstimator, kl_mode);
             break;
-        
         case MAXDIV_JS_DIVERGENCE:
-            switch (params->estimator)
-            {
-                case MAXDIV_KDE:
-                    divergence = std::make_shared<JSDivergence>(std::make_shared<KernelDensityEstimator>(params->kernel_sigma_sq));
-                    break;
-                case MAXDIV_GAUSSIAN:
-                    divergence = std::make_shared<JSDivergence>(std::make_shared<GaussianDensityEstimator>(gaussian_cov_mode));
-                    break;
-                default:
-                    return 0;
-            }
+            divergence = std::make_shared<JSDivergence>(densityEstimator);
             break;
-        
         default:
             return 0;
     }

@@ -42,38 +42,30 @@ DetectionList apply_maxdiv(const std::shared_ptr<DataTensor> & data,
 {
     DetectionList detections;
     
-    // Create divergence and density estimator
+    // Create density estimator
+    std::shared_ptr<DensityEstimator> densityEstimator;
+    switch (estimator)
+    {
+        case MAXDIV_KDE:
+            densityEstimator = std::make_shared<KernelDensityEstimator>(kernel_sigma_sq);
+            break;
+        case MAXDIV_GAUSSIAN:
+            densityEstimator = std::make_shared<GaussianDensityEstimator>(gauss_cov_mode);
+            break;
+        default:
+            return detections;
+    }
+    
+    // Create divergence
     std::shared_ptr<Divergence> div;
     switch (divergence)
     {
         case MAXDIV_KL_DIVERGENCE:
-            switch (estimator)
-            {
-                case MAXDIV_KDE:
-                    div = std::make_shared<KLDivergence>(std::make_shared<KernelDensityEstimator>(kernel_sigma_sq), kl_mode);
-                    break;
-                case MAXDIV_GAUSSIAN:
-                    div = std::make_shared<KLDivergence>(std::make_shared<GaussianDensityEstimator>(gauss_cov_mode), kl_mode);
-                    break;
-                default:
-                    return detections;
-            }
+            div = std::make_shared<KLDivergence>(densityEstimator, kl_mode);
             break;
-        
         case MAXDIV_JS_DIVERGENCE:
-            switch (estimator)
-            {
-                case MAXDIV_KDE:
-                    div = std::make_shared<JSDivergence>(std::make_shared<KernelDensityEstimator>(kernel_sigma_sq));
-                    break;
-                case MAXDIV_GAUSSIAN:
-                    div = std::make_shared<JSDivergence>(std::make_shared<GaussianDensityEstimator>(gauss_cov_mode));
-                    break;
-                default:
-                    return detections;
-            }
+            div = std::make_shared<JSDivergence>(densityEstimator);
             break;
-        
         default:
             return detections;
     }

@@ -102,9 +102,9 @@ public:
     * Constructs an uninitialized KL divergence using a given GaussianDensityEstimator.
     * `init()` has to be called before this divergence can be used.
     *
-    * The advantage of this version of the constructor compared to the more general one taking a
-    * `DensityEstimator` is that a closed form solution for the KL divergence of Gaussian distributions
-    * can be computed if it is known that the given density estimator is a Gaussian one.
+    * Compared to the more general constructor which takes a pointer to a `DensityEstimator`,
+    * this one does not need to perform a `dynamic_cast` to determine the type of the density
+    * estimator at run-time.
     *
     * @param[in] densityEstimator The density estimator to be used. Must not be `NULL`.
     *
@@ -115,9 +115,9 @@ public:
     /**
     * Constructs and initializes a KL divergence using a given GaussianDensityEstimator.
     *
-    * The advantage of this version of the constructor compared to the more general one taking a
-    * `DensityEstimator` is that a closed form solution for the KL divergence of Gaussian distributions
-    * can be computed if it is known that the given density estimator is a Gaussian one.
+    * Compared to the more general constructor which takes a pointer to a `DensityEstimator`,
+    * this one does not need to perform a `dynamic_cast` to determine the type of the density
+    * estimator at run-time.
     *
     * @param[in] densityEstimator The density estimator to be used. Must not be `NULL`.
     *

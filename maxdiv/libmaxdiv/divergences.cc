@@ -11,14 +11,20 @@ using namespace MaxDiv;
 //-----------------------------//
 
 KLDivergence::KLDivergence(const std::shared_ptr<DensityEstimator> & densityEstimator, KLMode mode)
-: m_mode(mode), m_densityEstimator(densityEstimator), m_gaussDensityEstimator(nullptr), m_numSamples(0)
+: m_mode(mode),
+  m_densityEstimator(densityEstimator),
+  m_gaussDensityEstimator(std::dynamic_pointer_cast<GaussianDensityEstimator>(densityEstimator)),
+  m_numSamples(0)
 {
     if (densityEstimator == nullptr)
         throw std::invalid_argument("densityEstimator must not be NULL.");
 }
 
 KLDivergence::KLDivergence(const std::shared_ptr<DensityEstimator> & densityEstimator, const std::shared_ptr<const DataTensor> & data, KLMode mode)
-: m_mode(mode), m_densityEstimator(densityEstimator), m_gaussDensityEstimator(nullptr), m_numSamples(0)
+: m_mode(mode),
+  m_densityEstimator(densityEstimator),
+  m_gaussDensityEstimator(std::dynamic_pointer_cast<GaussianDensityEstimator>(densityEstimator)),
+  m_numSamples(0)
 {
     if (densityEstimator == nullptr)
         throw std::invalid_argument("densityEstimator must not be NULL.");
