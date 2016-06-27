@@ -181,6 +181,98 @@ protected:
 
 
 /**
+* @brief A length-normalized variant of the KL divergence for Gaussian Data
+*
+* This divergence is based on the test statistic proposed by Anderson (1984) on page 442.
+* Theoretically, it should not be biased towards larger or smaller ranges as opposed to the KL divergence.
+* However, this unbiasedness does only hold asymptotically. Thus, it does not need to perform better than
+* the plain KL divergence in practice.
+*
+* It can be defined as follows:
+*
+* \f[
+*       \text{TS}(p_I, p_\Omega) = \text{trace}(\Sigma^{-1} B) + n \cdot \left [
+*           \left( \bar{x} - \mu \right )^T \Sigma^{-1} \left( \bar{x} - \mu \right)
+*           + \text{log} \left | \Sigma \right | - \text{log} \left | B \right |
+*           + D \cdot \left( \text{log}(n) - 1 \right )
+*       \right ]
+* \f]
+*
+* Where \f$ B \f$ is the outer product of the data after subtracting the estimated mean \f$ \bar{x} \f$.
+*
+* Though this divergence measure should not be biased regarding the length of the intervals, it still
+* systematically yields higher scores for time-series with more attributes. Thus, we subtract the
+* theoretical mean from the scores and divide them by the standard deviation. Those are known, since
+* the scores should be distributed according to a chi^2 distribution when applied to time-series
+* consisting of white noise.
+*
+* @author Bjoern Barz <bjoern.barz@uni-jena.de>
+*/
+class GaussianTestStatisticDivergence : public KLDivergence
+{
+public:
+
+    GaussianTestStatisticDivergence() = delete;
+    
+    /**
+    * Constructs an uninitialized divergence using a given GaussianDensityEstimator.
+    * `init()` has to be called before this divergence can be used.
+    *
+    * @param[in] densityEstimator The gaussian density estimator to be used. Must not be `NULL`.
+    */
+    GaussianTestStatisticDivergence(const std::shared_ptr<GaussianDensityEstimator> & densityEstimator);
+    
+    /**
+    * Constructs and initializes a divergence using a given GaussianDensityEstimator.
+    *
+    * @param[in] densityEstimator The gaussian density estimator to be used. Must not be `NULL`.
+    *
+    * @param[in] data The data tensor to initialize the density estimator for.
+    */
+    GaussianTestStatisticDivergence(const std::shared_ptr<GaussianDensityEstimator> & densityEstimator, const std::shared_ptr<const DataTensor> & data);
+    
+    /**
+    * Copy constructor.
+    */
+    GaussianTestStatisticDivergence(const GaussianTestStatisticDivergence & other);
+    
+    GaussianTestStatisticDivergence & operator=(const GaussianTestStatisticDivergence & other);
+    
+    /**
+    * Creates a copy of this object by calling the copy constructor of the actual derived class.
+    *
+    * @return Returns a pointer to a copy of this object.
+    */
+    virtual std::shared_ptr<Divergence> clone() const override;
+    
+    /**
+    * Initializes the density estimator used by this divergence with a given DataTensor @p data.
+    */
+    virtual void init(const std::shared_ptr<const DataTensor> & data) override;
+    
+    /**
+    * Computes the test statistic for a given sub-block of the data passed to `init()`, while considering
+    * the distribution of the rest of the time-series as "true distribution".
+    *
+    * `init()` has to be called before this can be used.
+    *
+    * @param[in] innerRange The sub-block to compare against the rest of the data passed to `init()`.
+    *
+    * @return Returns the value of the test statistic which is high if the distributions of the two data
+    * segments are very dissimilar, but zero if their distributions are identical.
+    */
+    virtual Scalar operator()(const IndexRange & innerRange) override;
+
+
+protected:
+
+    Scalar m_scoreMean; /**< The theoretical mean of the scores. */
+    Scalar m_scoreSD; /**< The theoretical standard deviation of the scores. */
+
+};
+
+
+/**
 * @brief Jensen-Shannon Divergence
 *
 * The Jensen-Shannon Divergence can be defined as:

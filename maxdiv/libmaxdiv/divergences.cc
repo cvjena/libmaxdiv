@@ -139,6 +139,69 @@ Scalar KLDivergence::operator()(const IndexRange & innerRange)
 }
 
 
+//-------------------------//
+// Gaussian Test Statistic //
+//-------------------------//
+
+GaussianTestStatisticDivergence::GaussianTestStatisticDivergence(const std::shared_ptr<GaussianDensityEstimator> & densityEstimator)
+: KLDivergence(densityEstimator, CovMode::I_OMEGA), m_scoreMean(0), m_scoreSD(1)
+{}
+
+GaussianTestStatisticDivergence::GaussianTestStatisticDivergence(const std::shared_ptr<GaussianDensityEstimator> & densityEstimator, const std::shared_ptr<const DataTensor> & data)
+: KLDivergence(densityEstimator, CovMode::I_OMEGA), m_scoreMean(0), m_scoreSD(1)
+{
+    this->init(data);
+}
+
+GaussianTestStatisticDivergence::GaussianTestStatisticDivergence(const GaussianTestStatisticDivergence & other)
+: KLDivergence(other), m_scoreMean(other.m_scoreMean), m_scoreSD(other.m_scoreSD)
+{}
+
+GaussianTestStatisticDivergence & GaussianTestStatisticDivergence::operator=(const GaussianTestStatisticDivergence & other)
+{
+    KLDivergence::operator=(other);
+    this->m_scoreMean = other.m_scoreMean;
+    this->m_scoreSD = other.m_scoreSD;
+    return *this;
+}
+
+std::shared_ptr<Divergence> GaussianTestStatisticDivergence::clone() const
+{
+    return std::make_shared<GaussianTestStatisticDivergence>(*this);
+}
+
+void GaussianTestStatisticDivergence::init(const std::shared_ptr<const DataTensor> & data)
+{
+    KLDivergence::init(data);
+    
+    DataTensor::Index na = data.numAttrib();
+    this->m_scoreMean = (na * (na + 3)) / 2;
+    this->m_scoreSD = std::sqrt(2 * this->m_scoreMean);
+}
+
+Scalar GaussianTestStatisticDivergence::operator()(const IndexRange & innerRange)
+{
+    // Estimate distributions
+    this->m_densityEstimator->fit(innerRange);
+    IndexVector::Index len = innerRange.shape().prod(0, MAXDIV_INDEX_DIMENSION - 1);
+    IndexVector::Index d = innerRange.d().length();
+    
+    // Compute test statistic
+    Scalar score = 0;
+    GaussianDensityEstimator * gde = this->m_gaussDensityEstimator.get();
+    score += gde->mahalanobisDistance(gde->getInnerMean(), gde->getOuterMean(), false);
+    if (gde->getMode() == GaussianDensityEstimator::CovMode::FULL)
+    {
+        score += gde->getOuterCovLogDet() - (gde->getInnerCovLogDet() + d * std::log(len)) + d * (std::log(len) - 1);
+        score = gde->getOuterCovChol().solve(gde->getInnerCov() * static_cast<Scalar>(len)).trace() + len * score;
+    }
+    
+    // Normalize score regarding the number of attributes in the time-series
+    score = (score - this->m_scoreMean) / this->m_scoreSD;
+    return score;
+}
+
+
 //---------------------------//
 // Jensen-Shannon Divergence //
 //---------------------------//

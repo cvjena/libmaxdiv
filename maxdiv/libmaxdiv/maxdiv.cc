@@ -66,6 +66,9 @@ DetectionList apply_maxdiv(const std::shared_ptr<DataTensor> & data,
         case MAXDIV_JS_DIVERGENCE:
             div = std::make_shared<JSDivergence>(densityEstimator);
             break;
+        case MAXDIV_GAUSS_TEST:
+            div = std::make_shared<GaussianTestStatisticDivergence>(std::dynamic_pointer_cast<GaussianDensityEstimator>(densityEstimator));
+            break;
         default:
             return detections;
     }
@@ -242,6 +245,8 @@ int main(int argc, char * argv[])
                 }
                 else if (argstr == "JS")
                     divergence = MAXDIV_JS_DIVERGENCE;
+                else if (argstr == "GAUSS_TEST")
+                    divergence = MAXDIV_GAUSS_TEST;
                 else
                 {
                     cerr << "Unknown divergence: " << argstr << endl << "See --help for a list of possible values." << endl;
@@ -474,7 +479,7 @@ void printHelp(const char * progName)
          << "        Print the time taken by the algorithm to stderr." << endl
          << endl
          << "    --divergence <str>, -d <str> (default: KL_I_OMEGA)" << endl
-         << "        Divergence measure. One of: KL_I_OMEGA, KL_OMEGA_I, KL_SYM, JS" << endl
+         << "        Divergence measure. One of: KL_I_OMEGA, KL_OMEGA_I, KL_SYM, JS, GAUSS_TEST" << endl
          << endl
          << "    --estimator <str>, -e <str> (default: GAUSSIAN)" << endl
          << "        Distribution model. One of: GAUSSIAN, GAUSSIAN_GLOBAL_COV, GAUSSIAN_ID_COV, PARZEN" << endl

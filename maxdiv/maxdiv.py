@@ -285,6 +285,10 @@ def maxdiv_gaussian(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'COV', score
     outer_X = np.apply_along_axis(lambda x: np.ravel(np.outer(x,x)), 0, X)
     outer_X_integral = np.cumsum(outer_X, axis=1)
     outer_sums_all = outer_X_integral[:, -1]
+    
+    if mode == 'TS':
+        ts_mean = X.shape[0] + (X.shape[0] * (X.shape[0] + 1)) / 2
+        ts_sd = np.sqrt(2 * ts_mean)
 
     eps = 1e-7
     for a, b, base_score in intervals:
@@ -310,8 +314,8 @@ def maxdiv_gaussian(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'COV', score
                 np.outer(sums_non_extreme, sums_non_extreme) + eps * np.eye(dimension)
 
         if mode != 'JSD':
-            _, logdet_extreme = slogdet(cov_extreme)
-            _, logdet_non_extreme = slogdet(cov_non_extreme)
+            logdet_extreme = slogdet(cov_extreme)[1]
+            logdet_non_extreme = slogdet(cov_non_extreme)[1]
             diff = sums_extreme - sums_non_extreme
 
         # the mode parameter determines which KL divergence to use
@@ -339,6 +343,20 @@ def maxdiv_gaussian(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'COV', score
             # logdet terms
             kl_I_Omega += logdet_non_extreme - logdet_extreme
             score += kl_I_Omega
+        
+        # significance test from Kanungo & Haralick
+        if mode == 'TS':
+            inv_cov_non_extreme = inv(cov_non_extreme)
+            # term for the mahalanobis distance
+            ts = np.dot(diff, np.dot(inv_cov_non_extreme, diff.T))
+            # logdet terms
+            ts += logdet_non_extreme - (logdet_extreme + dimension * np.log(extreme_interval_length))
+            # dimensionality terms
+            ts += dimension * (np.log(extreme_interval_length) - 1)
+            # trace term
+            ts = np.trace(np.dot(inv_cov_non_extreme, cov_extreme * extreme_interval_length)) + extreme_interval_length * ts
+            # dimensionality normalization
+            score += (ts - ts_mean) / ts_sd
         
         # Jensen-Shannon Divergence
         if mode == 'JSD':

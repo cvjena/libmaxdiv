@@ -32,7 +32,8 @@ enum maxdiv_search_strategy_t { MAXDIV_PROPOSAL_SEARCH };
 enum maxdiv_divergence_t
 {
     MAXDIV_KL_DIVERGENCE, /**< Kullback-Leibler Divergence */
-    MAXDIV_JS_DIVERGENCE /**< Jensen-Shannon Divergence */
+    MAXDIV_JS_DIVERGENCE, /**< Jensen-Shannon Divergence */
+    MAXDIV_GAUSS_TEST     /**< Test statistic for normally distributed data */
 };
 
 enum maxdiv_estimator_t
