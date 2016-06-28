@@ -14,7 +14,7 @@ KLDivergence::KLDivergence(const std::shared_ptr<DensityEstimator> & densityEsti
 : m_mode(mode),
   m_densityEstimator(densityEstimator),
   m_gaussDensityEstimator(std::dynamic_pointer_cast<GaussianDensityEstimator>(densityEstimator)),
-  m_numSamples(0)
+  m_numSamples(0), m_numAttributes(0), m_chiMean(0), m_chiSD(1)
 {
     if (densityEstimator == nullptr)
         throw std::invalid_argument("densityEstimator must not be NULL.");
@@ -24,7 +24,7 @@ KLDivergence::KLDivergence(const std::shared_ptr<DensityEstimator> & densityEsti
 : m_mode(mode),
   m_densityEstimator(densityEstimator),
   m_gaussDensityEstimator(std::dynamic_pointer_cast<GaussianDensityEstimator>(densityEstimator)),
-  m_numSamples(0)
+  m_numSamples(0), m_numAttributes(0), m_chiMean(0), m_chiSD(1)
 {
     if (densityEstimator == nullptr)
         throw std::invalid_argument("densityEstimator must not be NULL.");
@@ -33,14 +33,16 @@ KLDivergence::KLDivergence(const std::shared_ptr<DensityEstimator> & densityEsti
 }
 
 KLDivergence::KLDivergence(const std::shared_ptr<GaussianDensityEstimator> & densityEstimator, KLMode mode)
-: m_mode(mode), m_densityEstimator(densityEstimator), m_gaussDensityEstimator(densityEstimator), m_numSamples(0)
+: m_mode(mode), m_densityEstimator(densityEstimator), m_gaussDensityEstimator(densityEstimator),
+  m_numSamples(0), m_numAttributes(0), m_chiMean(0), m_chiSD(1)
 {
     if (densityEstimator == nullptr)
         throw std::invalid_argument("densityEstimator must not be NULL.");
 }
 
 KLDivergence::KLDivergence(const std::shared_ptr<GaussianDensityEstimator> & densityEstimator, const std::shared_ptr<const DataTensor> & data, KLMode mode)
-: m_mode(mode), m_densityEstimator(densityEstimator), m_gaussDensityEstimator(densityEstimator), m_numSamples(0)
+: m_mode(mode), m_densityEstimator(densityEstimator), m_gaussDensityEstimator(densityEstimator),
+  m_numSamples(0), m_numAttributes(0), m_chiMean(0), m_chiSD(1)
 {
     if (densityEstimator == nullptr)
         throw std::invalid_argument("densityEstimator must not be NULL.");
@@ -49,7 +51,7 @@ KLDivergence::KLDivergence(const std::shared_ptr<GaussianDensityEstimator> & den
 }
 
 KLDivergence::KLDivergence(const KLDivergence & other)
-: m_mode(other.m_mode), m_numSamples(other.m_numSamples)
+: m_mode(other.m_mode), m_numSamples(other.m_numSamples), m_numAttributes(other.m_numAttributes), m_chiMean(other.m_chiMean), m_chiSD(other.m_chiSD)
 {
     if (other.m_gaussDensityEstimator != nullptr)
         this->m_densityEstimator = this->m_gaussDensityEstimator = std::make_shared<GaussianDensityEstimator>(*(other.m_gaussDensityEstimator));
@@ -64,6 +66,9 @@ KLDivergence & KLDivergence::operator=(const KLDivergence & other)
 {
     this->m_mode = other.m_mode;
     this->m_numSamples = other.m_numSamples;
+    this->m_numAttributes = other.m_numAttributes;
+    this->m_chiMean = other.m_chiMean;
+    this->m_chiSD = other.m_chiSD;
     if (other.m_gaussDensityEstimator != nullptr)
         this->m_densityEstimator = this->m_gaussDensityEstimator = std::make_shared<GaussianDensityEstimator>(*(other.m_gaussDensityEstimator));
     else
@@ -83,6 +88,9 @@ void KLDivergence::init(const std::shared_ptr<const DataTensor> & data)
 {
     this->m_densityEstimator->init(data);
     this->m_numSamples = data->numSamples();
+    this->m_numAttributes = data->numAttrib();
+    this->m_chiMean = (this->m_numAttributes * (this->m_numAttributes + 3)) / 2;
+    this->m_chiSD = std::sqrt(2 * this->m_chiMean);
 }
 
 void KLDivergence::reset()
@@ -94,6 +102,7 @@ Scalar KLDivergence::operator()(const IndexRange & innerRange)
 {
     // Estimate distributions
     this->m_densityEstimator->fit(innerRange);
+    DataTensor::Index numExtremes = innerRange.shape().prod(0, MAXDIV_INDEX_DIMENSION - 2);
     
     // Compute divergence
     Scalar score = 0;
@@ -102,13 +111,14 @@ Scalar KLDivergence::operator()(const IndexRange & innerRange)
         // There is a closed form solution for the KL divergence for normal distributions:
         // KL(I, Omega) = (trace(S_Omega^-1 * S_I) + (mu_I - mu_Omega)^T * S_Omega^-1 * (mu_I - mu_Omega) - D + log(|S_Omega|) - log(|S_I|)) / 2
         GaussianDensityEstimator * gde = this->m_gaussDensityEstimator.get();
-        if (this->m_mode == KLMode::I_OMEGA || this->m_mode == KLMode::SYM)
+        if (this->m_mode == KLMode::I_OMEGA || this->m_mode == KLMode::SYM || this->m_mode == KLMode::UNBIASED)
         {
             score += gde->mahalanobisDistance(gde->getInnerMean(), gde->getOuterMean(), false);
             if (gde->getMode() == GaussianDensityEstimator::CovMode::FULL)
             {
                 score += gde->getOuterCovChol().solve(gde->getInnerCov()).trace()
-                         + gde->getOuterCovLogDet() - gde->getInnerCovLogDet();
+                         + gde->getOuterCovLogDet() - gde->getInnerCovLogDet()
+                         - this->m_numAttributes;
             }
         }
         if (this->m_mode == KLMode::OMEGA_I || this->m_mode == KLMode::SYM)
@@ -117,14 +127,16 @@ Scalar KLDivergence::operator()(const IndexRange & innerRange)
             if (gde->getMode() == GaussianDensityEstimator::CovMode::FULL)
             {
                 score += gde->getInnerCovChol().solve(gde->getOuterCov()).trace()
-                         + gde->getInnerCovLogDet() - gde->getOuterCovLogDet();
+                         + gde->getInnerCovLogDet() - gde->getOuterCovLogDet()
+                         - this->m_numAttributes;
             }
         }
+        if (this->m_mode == KLMode::UNBIASED)
+            score = (numExtremes * score - this->m_chiMean) / this->m_chiSD;
     }
     else
     {
-        DataTensor::Index numExtremes = innerRange.shape().prod(0, MAXDIV_INDEX_DIMENSION - 2);
-        if (this->m_mode == KLMode::I_OMEGA || this->m_mode == KLMode::SYM)
+        if (this->m_mode == KLMode::I_OMEGA || this->m_mode == KLMode::SYM || this->m_mode == KLMode::UNBIASED)
         {
             std::pair<Scalar, Scalar> ll = this->m_densityEstimator->logLikelihood(innerRange);
             score += (ll.first - ll.second) / numExtremes;
@@ -134,70 +146,9 @@ Scalar KLDivergence::operator()(const IndexRange & innerRange)
             std::pair<Scalar, Scalar> ll = this->m_densityEstimator->logLikelihoodOutsideRange(innerRange);
             score += (ll.second - ll.first) / (this->m_numSamples - numExtremes);
         }
+        if (this->m_mode == KLMode::UNBIASED)
+            score *= numExtremes;
     }
-    return score;
-}
-
-
-//-------------------------//
-// Gaussian Test Statistic //
-//-------------------------//
-
-GaussianTestStatisticDivergence::GaussianTestStatisticDivergence(const std::shared_ptr<GaussianDensityEstimator> & densityEstimator)
-: KLDivergence(densityEstimator, KLMode::I_OMEGA), m_scoreMean(0), m_scoreSD(1)
-{}
-
-GaussianTestStatisticDivergence::GaussianTestStatisticDivergence(const std::shared_ptr<GaussianDensityEstimator> & densityEstimator, const std::shared_ptr<const DataTensor> & data)
-: KLDivergence(densityEstimator, KLMode::I_OMEGA), m_scoreMean(0), m_scoreSD(1)
-{
-    this->init(data);
-}
-
-GaussianTestStatisticDivergence::GaussianTestStatisticDivergence(const GaussianTestStatisticDivergence & other)
-: KLDivergence(other), m_scoreMean(other.m_scoreMean), m_scoreSD(other.m_scoreSD)
-{}
-
-GaussianTestStatisticDivergence & GaussianTestStatisticDivergence::operator=(const GaussianTestStatisticDivergence & other)
-{
-    KLDivergence::operator=(other);
-    this->m_scoreMean = other.m_scoreMean;
-    this->m_scoreSD = other.m_scoreSD;
-    return *this;
-}
-
-std::shared_ptr<Divergence> GaussianTestStatisticDivergence::clone() const
-{
-    return std::make_shared<GaussianTestStatisticDivergence>(*this);
-}
-
-void GaussianTestStatisticDivergence::init(const std::shared_ptr<const DataTensor> & data)
-{
-    KLDivergence::init(data);
-    
-    DataTensor::Index na = data->numAttrib();
-    this->m_scoreMean = (na * (na + 3)) / 2;
-    this->m_scoreSD = std::sqrt(2 * this->m_scoreMean);
-}
-
-Scalar GaussianTestStatisticDivergence::operator()(const IndexRange & innerRange)
-{
-    // Estimate distributions
-    this->m_densityEstimator->fit(innerRange);
-    IndexVector::Index len = innerRange.shape().prod(0, MAXDIV_INDEX_DIMENSION - 1);
-    IndexVector::Index d = innerRange.d().length();
-    
-    // Compute test statistic
-    Scalar score = 0;
-    GaussianDensityEstimator * gde = this->m_gaussDensityEstimator.get();
-    score += gde->mahalanobisDistance(gde->getInnerMean(), gde->getOuterMean(), false);
-    if (gde->getMode() == GaussianDensityEstimator::CovMode::FULL)
-    {
-        score += gde->getOuterCovLogDet() - (gde->getInnerCovLogDet() + d * std::log(len)) + d * (std::log(len) - 1);
-        score = gde->getOuterCovChol().solve(gde->getInnerCov() * static_cast<Scalar>(len)).trace() + len * score;
-    }
-    
-    // Normalize score regarding the number of attributes in the time-series
-    score = (score - this->m_scoreMean) / this->m_scoreSD;
     return score;
 }
 

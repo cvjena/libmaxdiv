@@ -32,8 +32,7 @@ enum maxdiv_search_strategy_t { MAXDIV_PROPOSAL_SEARCH };
 enum maxdiv_divergence_t
 {
     MAXDIV_KL_DIVERGENCE, /**< Kullback-Leibler Divergence */
-    MAXDIV_JS_DIVERGENCE, /**< Jensen-Shannon Divergence */
-    MAXDIV_GAUSS_TEST     /**< Test statistic for normally distributed data */
+    MAXDIV_JS_DIVERGENCE  /**< Jensen-Shannon Divergence */
 };
 
 enum maxdiv_estimator_t
@@ -53,7 +52,8 @@ enum maxdiv_kl_mode_t
 {
     MAXDIV_KL_I_OMEGA, /**< Integrate over the inner (extremal) range. */
     MAXDIV_KL_OMEGA_I, /**< Integrate over the outer (nominal) range. */
-    MAXDIV_KL_SYM /**< Symmetric version of the KL divergence: I_OMEGA + OMEGA_I */
+    MAXDIV_KL_SYM,     /**< Symmetric version of the KL divergence: I_OMEGA + OMEGA_I */
+    MAXDIV_KL_UNBIASED /**< A variant of I_OMEGA which is normalized regarding the length of the interval and the dimensionality of the time-series. */
 };
 
 enum maxdiv_gaussian_cov_mode_t

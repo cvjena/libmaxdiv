@@ -330,33 +330,22 @@ def maxdiv_gaussian(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'COV', score
             # trace term
             kl_Omega_I += np.trace(np.dot(inv_cov_extreme, cov_non_extreme))
             # logdet terms
-            kl_Omega_I += logdet_extreme - logdet_non_extreme
+            kl_Omega_I += logdet_extreme - logdet_non_extreme - dimension
             score += kl_Omega_I
 
         # version for maximizing KL(p_I, p_Omega)
-        if mode == "I_OMEGA" or mode == "SYM":
+        if mode in ("I_OMEGA", "SYM", "TS"):
             inv_cov_non_extreme = inv(cov_non_extreme)
             # term for the mahalanobis distance
             kl_I_Omega = np.dot(diff, np.dot(inv_cov_non_extreme, diff.T))
             # trace term
             kl_I_Omega += np.trace(np.dot(inv_cov_non_extreme, cov_extreme))
             # logdet terms
-            kl_I_Omega += logdet_non_extreme - logdet_extreme
-            score += kl_I_Omega
-        
-        # significance test from Kanungo & Haralick
-        if mode == 'TS':
-            inv_cov_non_extreme = inv(cov_non_extreme)
-            # term for the mahalanobis distance
-            ts = np.dot(diff, np.dot(inv_cov_non_extreme, diff.T))
-            # logdet terms
-            ts += logdet_non_extreme - (logdet_extreme + dimension * np.log(extreme_interval_length))
-            # dimensionality terms
-            ts += dimension * (np.log(extreme_interval_length) - 1)
-            # trace term
-            ts = np.trace(np.dot(inv_cov_non_extreme, cov_extreme * extreme_interval_length)) + extreme_interval_length * ts
-            # dimensionality normalization
-            score += (ts - ts_mean) / ts_sd
+            kl_I_Omega += logdet_non_extreme - logdet_extreme - dimension
+            if mode == 'TS':
+                score += (extreme_interval_length * kl_I_Omega - ts_mean) / ts_sd
+            else:
+                score += kl_I_Omega
         
         # Jensen-Shannon Divergence
         if mode == 'JSD':

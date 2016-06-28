@@ -92,9 +92,6 @@ unsigned int maxdiv_compile_pipeline(const maxdiv_params_t * params)
         case MAXDIV_JS_DIVERGENCE:
             divergence = std::make_shared<JSDivergence>(densityEstimator);
             break;
-        case MAXDIV_GAUSS_TEST:
-            divergence = std::make_shared<GaussianTestStatisticDivergence>(std::dynamic_pointer_cast<GaussianDensityEstimator>(densityEstimator));
-            break;
         default:
             return 0;
     }
