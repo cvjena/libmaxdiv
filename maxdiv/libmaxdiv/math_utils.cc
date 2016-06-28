@@ -9,7 +9,7 @@ ScalarMatrix MaxDiv::gauss_kernel(const DataTensor & data, Scalar kernel_sigma_s
 
 
 GaussKernel::GaussKernel(const DataTensor & data, Scalar kernel_sigma_sq, bool normed)
-: m_data(data), m_sigma_sq(-2 * kernel_sigma_sq), m_norm(sqrt(2 * M_PI * kernel_sigma_sq)), m_normed(normed) {}
+: m_data(data), m_sigma_sq(-2 * kernel_sigma_sq), m_norm(std::pow(2 * M_PI * kernel_sigma_sq, data.numAttrib() / 2.0)), m_normed(normed) {}
     
 Scalar GaussKernel::operator()(DataTensor::Index x, DataTensor::Index y) const
 {

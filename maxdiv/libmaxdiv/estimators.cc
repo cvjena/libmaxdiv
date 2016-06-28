@@ -286,7 +286,7 @@ std::pair<Scalar, Scalar> DensityEstimator::logLikelihoodOutsideRange(IndexRange
 //------------------------//
 
 KernelDensityEstimator::KernelDensityEstimator()
-: DensityEstimator(), m_sigma_sq(1.0), m_normed(true), m_kernel(nullptr), m_cumKernel(nullptr), m_extremeRange() {}
+: DensityEstimator(), m_sigma_sq(1.0), m_normed(false), m_kernel(nullptr), m_cumKernel(nullptr), m_extremeRange() {}
 
 KernelDensityEstimator::KernelDensityEstimator(Scalar kernel_sigma_sq, bool normed)
 : DensityEstimator(), m_sigma_sq(kernel_sigma_sq), m_normed(normed), m_kernel(nullptr), m_cumKernel(nullptr), m_extremeRange() {}

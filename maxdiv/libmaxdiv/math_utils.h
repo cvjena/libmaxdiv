@@ -76,13 +76,13 @@ void cholesky(const Eigen::MatrixBase<Derived> & mat, Eigen::LLT<typename Derive
 }
 
 /**
-* Computes a Gaussian kernel: `k(x,y) = 1/sqrt(2 * pi * sigma^2) * exp(||x-y||^2 / (-2 * sigma^2))`
+* Computes a Gaussian kernel: `k(x,y) = (1/(2 * pi * sigma^2))^(D/2) * exp(||x-y||^2 / (-2 * sigma^2))`
 *
 * @param[in] X N-by-D-Matrix with N samples of dimensionality D.
 *
 * @param[in] kernel_sigma_sq The value of `sigma^2`.
 *
-* @param[in] normed Specifies whether to normalize the kernel by dividing all values by `sqrt(2 * pi * sigma^2)`.
+* @param[in] normed Specifies whether to normalize the kernel by dividing all values by `(2 * pi * sigma^2)^(D/2)`.
 *
 * @return Returns the Gaussian kernel.
 */
@@ -107,18 +107,18 @@ typename Derived::PlainObject gauss_kernel(const Eigen::MatrixBase<Derived> & X,
     kernel /= -2 * kernel_sigma_sq;
     kernel = kernel.array().exp();
     if (normed)
-        kernel /= sqrt(2 * M_PI * kernel_sigma_sq);
+        kernel /= std::pow(2 * M_PI * kernel_sigma_sq, X.cols() / 2.0);
     return kernel;
 }
 
 /**
-* Computes a Gaussian kernel: `k(x,y) = 1/sqrt(2 * pi * sigma^2) * exp(||x-y||^2 / (-2 * sigma^2))`
+* Computes a Gaussian kernel: `k(x,y) = (1/(2 * pi * sigma^2))^(D/2) * exp(||x-y||^2 / (-2 * sigma^2))`
 *
 * @param[in] data DataTensor with the samples to compute the Gaussian kernel for.
 *
 * @param[in] kernel_sigma_sq The value of `sigma^2`.
 *
-* @param[in] normed Specifies whether to normalize the kernel by dividing all values by `sqrt(2 * pi * sigma^2)`.
+* @param[in] normed Specifies whether to normalize the kernel by dividing all values by `(2 * pi * sigma^2)^(D/2)`.
 *
 * @return Returns the Gaussian kernel.
 */
@@ -129,7 +129,7 @@ ScalarMatrix gauss_kernel(const DataTensor & data, Scalar kernel_sigma_sq = 1, b
 * @brief An implicit representation of a Gaussian kernel
 *
 * Given data samples x and y, the Gaussian kernel is defined as:
-* `k(x,y) = 1/sqrt(2 * pi * sigma^2) * exp(||x-y||^2 / (-2 * sigma^2))`
+* `k(x,y) = (1/(2 * pi * sigma^2))^(D/2) * exp(||x-y||^2 / (-2 * sigma^2))`
 *
 * As opposed to the `gauss_kernel` function, this class does not materialize the entire kernel at once,
 * but computes its values on demand. This can be used to save memory when dealing with a lot of samples.
@@ -145,7 +145,7 @@ public:
     *
     * @param[in] kernel_sigma_sq The value of `sigma^2`.
     *
-    * @param[in] normed Specifies whether to normalize the kernel by dividing all values by `sqrt(2 * pi * sigma^2)`.
+    * @param[in] normed Specifies whether to normalize the kernel by dividing all values by `(2 * pi * sigma^2)^(D/2)`.
     */
     GaussKernel(const DataTensor & data, Scalar kernel_sigma_sq = 1, bool normed = true);
     

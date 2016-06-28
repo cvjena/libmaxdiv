@@ -499,7 +499,7 @@ def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', u
 
     if method == 'parzen':
         # compute kernel matrix first (Gaussian kernel)
-        K = maxdiv_util.calc_gaussian_kernel(X, **kernelparameters)
+        K = maxdiv_util.calc_gaussian_kernel(X, normalized = False, **kernelparameters)
         # obtain the interval [a,b] of the extreme event with score score
         interval_scores = maxdiv_parzen(K, intervals, **kwargs)
 

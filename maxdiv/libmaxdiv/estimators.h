@@ -174,9 +174,10 @@ public:
     *
     * @param[in] kernel_sigma_sq The "standard deviation" of the gaussian kernel.
     *
-    * @param[in] normed Specifies whether to normalize the kernel in order to get a proper distribution.
+    * @param[in] normed Specifies whether to normalize the kernel in order to get a proper distribution
+    * (not necessary for use with KL divergence).
     */
-    KernelDensityEstimator(Scalar kernel_sigma_sq, bool normed = true);
+    KernelDensityEstimator(Scalar kernel_sigma_sq, bool normed = false);
     
     /**
     * Constructs and initializes a KernelDensityEstimator for a given data tensor.
@@ -185,9 +186,10 @@ public:
     *
     * @param[in] kernel_sigma_sq The "standard deviation" of the gaussian kernel.
     *
-    * @param[in] normed Specifies whether to normalize the kernel in order to get a proper distribution.
+    * @param[in] normed Specifies whether to normalize the kernel in order to get a proper distribution
+    * (not necessary for use with KL divergence).
     */
-    KernelDensityEstimator(const std::shared_ptr<const DataTensor> & data, Scalar kernel_sigma_sq = 1.0, bool normed = true);
+    KernelDensityEstimator(const std::shared_ptr<const DataTensor> & data, Scalar kernel_sigma_sq = 1.0, bool normed = false);
     
     /**
     * Makes a flat copy of another KernelDensityEstimator. Most internal structures will be shared
