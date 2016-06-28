@@ -24,7 +24,7 @@ using namespace std;
 using namespace std::chrono;
 
 
-enum maxdiv_divergence_t { MAXDIV_KL_DIVERGENCE, MAXDIV_JS_DIVERGENCE };
+enum maxdiv_divergence_t { MAXDIV_KL_DIVERGENCE, MAXDIV_JS_DIVERGENCE, MAXDIV_GAUSS_TEST };
 enum maxdiv_estimator_t { MAXDIV_KDE, MAXDIV_GAUSSIAN };
 enum maxdiv_proposal_generator_t { MAXDIV_DENSE_PROPOSALS, MAXDIV_POINTWISE_PROPOSALS_HOTELLINGST, MAXDIV_POINTWISE_PROPOSALS_KDE };
 

@@ -144,11 +144,11 @@ Scalar KLDivergence::operator()(const IndexRange & innerRange)
 //-------------------------//
 
 GaussianTestStatisticDivergence::GaussianTestStatisticDivergence(const std::shared_ptr<GaussianDensityEstimator> & densityEstimator)
-: KLDivergence(densityEstimator, CovMode::I_OMEGA), m_scoreMean(0), m_scoreSD(1)
+: KLDivergence(densityEstimator, KLMode::I_OMEGA), m_scoreMean(0), m_scoreSD(1)
 {}
 
 GaussianTestStatisticDivergence::GaussianTestStatisticDivergence(const std::shared_ptr<GaussianDensityEstimator> & densityEstimator, const std::shared_ptr<const DataTensor> & data)
-: KLDivergence(densityEstimator, CovMode::I_OMEGA), m_scoreMean(0), m_scoreSD(1)
+: KLDivergence(densityEstimator, KLMode::I_OMEGA), m_scoreMean(0), m_scoreSD(1)
 {
     this->init(data);
 }
@@ -174,7 +174,7 @@ void GaussianTestStatisticDivergence::init(const std::shared_ptr<const DataTenso
 {
     KLDivergence::init(data);
     
-    DataTensor::Index na = data.numAttrib();
+    DataTensor::Index na = data->numAttrib();
     this->m_scoreMean = (na * (na + 3)) / 2;
     this->m_scoreSD = std::sqrt(2 * this->m_scoreMean);
 }
