@@ -272,6 +272,10 @@ def maxdiv_gaussian(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'COV', score
              is an anomaly or not.
     """
 
+    if gaussian_mode in ('COV_TS', 'TS'):
+        gaussian_mode = 'COV'
+        mode = 'TS'
+    
     if gaussian_mode!='COV':
         return maxdiv_gaussian_globalcov(X, intervals, mode, gaussian_mode)
 

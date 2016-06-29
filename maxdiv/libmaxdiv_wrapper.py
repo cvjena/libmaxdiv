@@ -234,9 +234,11 @@ def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', *
     
     # Method
     method = method.lower()
-    if method == 'gaussian_cov':
+    if method in ('gaussian_cov', 'gaussian_cov_ts', 'gaussian_ts'):
         params.estimator = enums['MAXDIV_GAUSSIAN']
         params.gaussian_cov_mode = enums['MAXDIV_GAUSSIAN_COV_FULL']
+        if method in ('gaussian_cov_ts', 'gaussian_ts'):
+            kwargs['mode'] = 'TS'
     elif method == 'gaussian_global_cov':
         params.estimator = enums['MAXDIV_GAUSSIAN']
         params.gaussian_cov_mode = enums['MAXDIV_GAUSSIAN_COV_SHARED']
