@@ -233,8 +233,8 @@ def plotDetections(func, regions, gt = [], ticks = None, export = None, silent =
     # Set tick labels
     if ticks is not None:
         ax = plt.gca()
-        ax.set_xticks(ticks.keys())
-        ax.set_xticklabels(ticks.values())
+        ax.set_xticks(list(ticks.keys()))
+        ax.set_xticklabels(list(ticks.values()))
     
     # Display plot
     if export:

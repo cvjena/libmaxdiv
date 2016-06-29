@@ -393,13 +393,13 @@ IndexRange PointwiseProposalGenerator::next(const ReflessIndexVector & startInde
         {
             if (searchState->isolated_pos < searchState->isolated_peak)
             {
-                range.a = IndexVector(this->m_curStartPoint.shape, searchState->isolated_pos);
-                range.b = IndexVector(this->m_curStartPoint.shape, searchState->isolated_peak);
+                range.a = IndexVector(this->m_curStartPoint.shape, searchState->isolated_pos * this->m_curStartPoint.shape.d);
+                range.b = IndexVector(this->m_curStartPoint.shape, searchState->isolated_peak * this->m_curStartPoint.shape.d);
             }
             else
             {
-                range.a = IndexVector(this->m_curStartPoint.shape, searchState->isolated_peak);
-                range.b = IndexVector(this->m_curStartPoint.shape, searchState->isolated_pos);
+                range.a = IndexVector(this->m_curStartPoint.shape, searchState->isolated_peak * this->m_curStartPoint.shape.d);
+                range.b = IndexVector(this->m_curStartPoint.shape, searchState->isolated_pos * this->m_curStartPoint.shape.d);
             }
             range.b.vec() += 1;
             searchState->isolated_pos += 1;

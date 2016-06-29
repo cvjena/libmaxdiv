@@ -470,7 +470,7 @@ def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', u
     
     if isinstance(proposals, types.GeneratorType) or isinstance(proposals, list):
         intervals = proposals
-    if proposals == 'dense':
+    elif proposals == 'dense':
         intervals = denseRegionProposals(X, **proposalParameters)
         kwargs['score_merge_coeff'] = None
     elif proposals == 'pointwise':

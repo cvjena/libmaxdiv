@@ -247,7 +247,8 @@ DataTensor & ZScoreDeseasonalization::operator()(DataTensor & data) const
             for (DataTensor::Index offs = 0; offs < cols; offs += nAttrib)
             {
                 auto locSeasonData = seasonData.block(0, offs, seasonData.rows(), nAttrib);
-                cov.noalias() = (locSeasonData.transpose() * locSeasonData) / seasonData.rows();
+                cov.noalias() = locSeasonData.transpose() * locSeasonData;
+                cov /= seasonData.rows();
                 es.compute(cov);
                 locSeasonData = locSeasonData * es.operatorInverseSqrt();
             }

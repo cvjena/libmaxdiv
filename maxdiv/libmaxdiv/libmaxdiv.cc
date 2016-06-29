@@ -117,12 +117,12 @@ unsigned int maxdiv_compile_pipeline(const maxdiv_params_t * params)
         
         case MAXDIV_POINTWISE_PROPOSALS_HOTELLINGST:
             ppParams.scorer = &hotellings_t;
-            proposals = std::make_shared<PointwiseProposalGenerator>(ppParams);
+            proposals = std::make_shared<PointwiseProposalGenerator>(lengthRange, ppParams);
             break;
         
         case MAXDIV_POINTWISE_PROPOSALS_KDE:
             ppParams.scorer = [ppKernelSigmaSq](const DataTensor & data) { return pointwise_kde(data, ppKernelSigmaSq); };
-            proposals = std::make_shared<PointwiseProposalGenerator>(ppParams);
+            proposals = std::make_shared<PointwiseProposalGenerator>(lengthRange, ppParams);
             break;
         
         default:

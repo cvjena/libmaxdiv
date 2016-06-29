@@ -434,7 +434,8 @@ GaussianDensityEstimator::GaussianDensityEstimator(const GaussianDensityEstimato
   m_innerMean(other.m_innerMean), m_outerMean(other.m_outerMean),
   m_innerCov(other.m_innerCov), m_outerCov(other.m_outerCov),
   m_innerCovChol(other.m_innerCovChol), m_outerCovChol(other.m_outerCovChol),
-  m_innerCovLogDet(other.m_innerCovLogDet), m_outerCovLogDet(other.m_outerCovLogDet)
+  m_innerCovLogDet(other.m_innerCovLogDet), m_outerCovLogDet(other.m_outerCovLogDet),
+  m_normalizer(other.m_normalizer), m_innerNormalizer(other.m_innerNormalizer), m_outerNormalizer(other.m_outerNormalizer)
 {}
 
 GaussianDensityEstimator & GaussianDensityEstimator::operator=(const GaussianDensityEstimator & other)
@@ -452,6 +453,9 @@ GaussianDensityEstimator & GaussianDensityEstimator::operator=(const GaussianDen
     this->m_outerCovChol = other.m_outerCovChol;
     this->m_innerCovLogDet = other.m_innerCovLogDet;
     this->m_outerCovLogDet = other.m_outerCovLogDet;
+    this->m_normalizer = other.m_normalizer;
+    this->m_innerNormalizer = other.m_innerNormalizer;
+    this->m_outerNormalizer = other.m_outerNormalizer;
     return *this;
 }
 
@@ -490,7 +494,8 @@ void GaussianDensityEstimator::init(const std::shared_ptr<const DataTensor> & da
             // Compute global covariance matrix
             Sample mean = this->m_cumsum->sample(this->m_cumsum->numSamples() - 1) / static_cast<Scalar>(this->m_cumsum->numSamples());
             DataTensor centered = *(this->m_data) - mean;
-            this->m_innerCov = (centered.data().transpose() * centered.data()) / static_cast<Scalar>(this->m_data->numSamples());
+            this->m_innerCov.noalias() = centered.data().transpose() * centered.data();
+            this->m_innerCov /= static_cast<Scalar>(this->m_data->numSamples());
             cholesky(this->m_innerCov, &(this->m_innerCovChol), &(this->m_innerCovLogDet));
             
             // Compute normalizing constant
@@ -523,7 +528,7 @@ void GaussianDensityEstimator::computeCumOuter(const DataTensor & data)
     Eigen::Map<const Sample> singleProdVec(singleProd.data(), outerShape.d);
     for (DataTensor::Index sample = 0; sample < data.numSamples(); ++sample)
     {
-        singleProd = data.sample(sample) * data.sample(sample).transpose();
+        singleProd.noalias() = data.sample(sample) * data.sample(sample).transpose();
         this->m_cumOuter->sample(sample) = singleProdVec;
     }
         
@@ -554,6 +559,8 @@ void GaussianDensityEstimator::fit(const IndexRange & range)
     // Compute covariance matrices
     if (this->m_covMode == CovMode::FULL)
     {
+        Scalar eps = std::numeric_limits<Scalar>::epsilon();
+        
         Eigen::Map<Sample> innerCovVec(this->m_innerCov.data(), this->m_cumOuter->numAttrib(), 1);
         Eigen::Map<Sample> outerCovVec(this->m_outerCov.data(), this->m_cumOuter->numAttrib(), 1);
         if (this->m_singletonDim >= 0)
@@ -578,8 +585,8 @@ void GaussianDensityEstimator::fit(const IndexRange & range)
         cholesky(this->m_outerCov, &(this->m_outerCovChol), &(this->m_outerCovLogDet));
         
         // Compute normalizing constant
-        this->m_innerNormalizer = this->m_normalizer * std::exp(this->m_innerCovLogDet / 2);
-        this->m_outerNormalizer = this->m_normalizer * std::exp(this->m_outerCovLogDet / 2);
+        this->m_innerNormalizer = this->m_normalizer * std::exp(this->m_innerCovLogDet / 2) + eps;
+        this->m_outerNormalizer = this->m_normalizer * std::exp(this->m_outerCovLogDet / 2) + eps;
     }
 }
 

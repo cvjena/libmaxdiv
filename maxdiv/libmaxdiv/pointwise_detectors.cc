@@ -27,6 +27,7 @@ DataTensor MaxDiv::hotellings_t(const DataTensor & data)
             // Compute covariance matrix S
             ScalarMatrix cov;
             cov.noalias() = centered.data().transpose() * centered.data();
+            cov /= static_cast<Scalar>(centered.numSamples());
             
             // Compute S^-1 * (x - mu)
             Eigen::LLT<ScalarMatrix> llt;
