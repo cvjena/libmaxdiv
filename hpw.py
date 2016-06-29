@@ -21,6 +21,34 @@ def read_hpw_csv(csvFile):
     The first line is assumed to be field headings and will be ignored.
     """
     
+    ts = []
+    dates = []
+    with open(csvFile) as f:
+        reader = csv.reader(f)
+        for i, line in enumerate(reader):
+            if i == 0:
+                continue
+            fields = [float(x) for x in line[1:]]
+            for j in range(len(fields)):
+                if np.isnan(fields[j]):
+                    if len(ts) == 0:
+                        continue
+                    else:
+                        fields[j] = ts[-1][j]
+            ts.append(fields)
+            dates.append(datetime.datetime(*[int(x) for i, x in enumerate(line[0].split('-'))]))
+    
+    return np.array(ts).T, dates
+
+
+def read_reduced_hpw_csv(csvFile):
+    """ Reads HPW data from a CSV file and takes 4-hourly mean values.
+    
+    The CSV file must contain 4 fields per line:
+    date as 'yyyy-m-d-h', wind speed, air pressure and wave height
+    The first line is assumed to be field headings and will be ignored.
+    """
+    
     # Read data from CSV file into ordered dict
     data = OrderedDict()
     with open(csvFile) as f:
@@ -71,10 +99,13 @@ if __name__ == '__main__':
             scores = baselines_noninterval.pointwiseKDE(preproc.td(data))
         else:
             scores = baselines_noninterval.hotellings_t(preproc.td(data))
-        regions = baselines_noninterval.pointwiseScoresToIntervals(scores, 10)
+        regions = baselines_noninterval.pointwiseScoresToIntervals(scores, 24)
+    elif method == 'gaussian_cov_ts':
+        regions = maxdiv.maxdiv(data, 'gaussian_cov', mode = 'TS', preproc = 'td', proposals = propmeth,
+                                extint_min_len = 24, extint_max_len = 170, num_intervals = 5)
     else:
         regions = maxdiv.maxdiv(data, method, mode = 'I_OMEGA', preproc = 'td', proposals = propmeth,
-                                extint_min_len = 10, extint_max_len = 30, num_intervals = 5)
+                                extint_min_len = 24, extint_max_len = 170, num_intervals = 5)
     
     # Console output
     print('-- Ground Truth --')
@@ -85,6 +116,6 @@ if __name__ == '__main__':
         print('{!s} - {!s} (Score: {})'.format(dates[a], dates[b-1], score))
     
     # Plot
-    ygt = [(datetime_diff(a, dates[0]) / 4, datetime_diff(b, dates[0]) / 4) for a, b in HURRICANE_GT.values()]
+    ygt = [(datetime_diff(a, dates[0]), datetime_diff(b, dates[0])) for a, b in HURRICANE_GT.values()]
     eval.plotDetections(data, regions, ygt,
-                        ticks = { datetime_diff(d, dates[0]) / 4 : d.strftime('%b %Y') for d in (datetime.date(2012,mon,1) for mon in range(6, 12)) })
+                        ticks = { datetime_diff(d, dates[0]) : d.strftime('%b %Y') for d in (datetime.date(2012,mon,1) for mon in range(6, 12)) })

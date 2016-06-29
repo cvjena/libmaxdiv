@@ -195,33 +195,34 @@ def plotDetections(func, regions, gt = [], ticks = None, export = None, silent =
         plotted_function = True
     
     # Plot detected intervals with color intensities corresponding to their score
-    minScore = min(r[2] for r in regions)
-    maxScore = max(r[2] for r in regions)
-    for i in range(len(regions)):
-        a, b, score = regions[i]
-        if not silent:
-            print ("Region {}/{}: {} - {} (Score: {})".format(i, len(regions), a, b, score))
-        intensity = float(score - minScore) / (maxScore - minScore) if minScore < maxScore else 1.0
-        show_interval(func, a, b, 10000, plot_function = not plotted_function,
-                      color = (0.8 - intensity * 0.8, 0.8 - intensity * 0.8, 1.0))
-        plotted_function = True
-    
-        # Show supplementary visualization
-        if detailedvis:
-            mainFigNum = plt.gcf().number
-            detailfig = plt.figure()
-            if func.shape[0]==1:
-                h_nonextreme, bin_edges = np.histogram( np.hstack([ func[0,:a], func[0, b:] ]), bins=40 )
-                h_extreme, _ = np.histogram(func[0,a:b], bins=bin_edges)
-                bin_means = 0.5 * (bin_edges[:-1] + bin_edges[1:])
-                plt.plot(bin_means, h_extreme, figure = detailfig)
-                plt.plot(bin_means, h_nonextreme, figure = detailfig)
-            else:
-                X_nonextreme = np.hstack([ func[:2, :a], func[:2, b:] ])
-                X_extreme = func[:2, a:b]
-                plt.plot( X_nonextreme[0], X_nonextreme[0], 'bo', figure = detailfig )
-                plt.plot( X_extreme[0], X_extreme[0], 'r+', figure = detailfig )
-            plt.figure(mainFigNum)
+    if len(regions) > 0:
+        minScore = min(r[2] for r in regions)
+        maxScore = max(r[2] for r in regions)
+        for i in range(len(regions)):
+            a, b, score = regions[i]
+            if not silent:
+                print ("Region {}/{}: {} - {} (Score: {})".format(i, len(regions), a, b, score))
+            intensity = float(score - minScore) / (maxScore - minScore) if minScore < maxScore else 1.0
+            show_interval(func, a, b, 10000, plot_function = not plotted_function,
+                          color = (0.8 - intensity * 0.8, 0.8 - intensity * 0.8, 1.0))
+            plotted_function = True
+        
+            # Show supplementary visualization
+            if detailedvis:
+                mainFigNum = plt.gcf().number
+                detailfig = plt.figure()
+                if func.shape[0]==1:
+                    h_nonextreme, bin_edges = np.histogram( np.hstack([ func[0,:a], func[0, b:] ]), bins=40 )
+                    h_extreme, _ = np.histogram(func[0,a:b], bins=bin_edges)
+                    bin_means = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+                    plt.plot(bin_means, h_extreme, figure = detailfig)
+                    plt.plot(bin_means, h_nonextreme, figure = detailfig)
+                else:
+                    X_nonextreme = np.hstack([ func[:2, :a], func[:2, b:] ])
+                    X_extreme = func[:2, a:b]
+                    plt.plot( X_nonextreme[0], X_nonextreme[0], 'bo', figure = detailfig )
+                    plt.plot( X_extreme[0], X_extreme[0], 'r+', figure = detailfig )
+                plt.figure(mainFigNum)
 
     # Draw legend
     patch_detected_extreme = mpatches.Patch(color='blue', alpha=0.3, label='detect. extreme')
