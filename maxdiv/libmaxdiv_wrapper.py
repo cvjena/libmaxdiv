@@ -327,6 +327,10 @@ def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', *
                         params.preproc.detrending.method = enums['MAXDIV_DETREND_LINEAR']
                 else:
                     raise ValueError("Unknown preprocessing method {}".format(prep))
+    if ('td_dim' in kwargs) and (kwargs['td_dim'] is not None) and (kwargs['td_dim'] > 0):
+        params.preproc.embedding.kt = kwargs['td_dim']
+    if ('td_lag' in kwargs) and (kwargs['td_lag'] is not None) and (kwargs['td_lag'] > 0):
+        params.preproc.embedding.dt = kwargs['td_lag']
     
     return maxdiv_exec(X, params, num_intervals)
 

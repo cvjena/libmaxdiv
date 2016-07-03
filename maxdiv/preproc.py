@@ -32,11 +32,11 @@ def local_linear_regression(X, window_size=5):
     return params
 
 
-def td(X, m=3):
+def td(X, m = 3, T = 1):
     """ time-delay transformation """
     newX = np.copy(X)
-    for i in range(1,m):
-        shift = np.arange(-i, X.shape[1]-i, 1)
+    for i in range(1, m):
+        shift = np.arange(-i * T, X.shape[1] - (i * T), 1)
         shift[shift<0] = 0
         newX = np.vstack([newX, X[:, shift]])
     return newX

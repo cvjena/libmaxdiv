@@ -16,6 +16,9 @@ maxdiv_tools.add_algorithm_parameters(parser)
 
 args = parser.parse_args()
 
+canonical_order = ['meanshift', 'meanshift_hard', 'meanshift5', 'meanshift5_hard', 'amplitude_change', 'frequency_change', 'mixed',
+                   'meanshift_multvar', 'amplitude_change_multvar', 'frequency_change_multvar', 'mixed_multvar']
+
 # prepare parameters for calling maxdiv
 args_dict = vars(args)
 parameters = {parameter_name: args_dict[parameter_name] for parameter_name in maxdiv_tools.get_algorithm_parameters()}
@@ -40,6 +43,8 @@ num = 0
 for ftype in data:
     if len(subsets)>0 and not ftype in subsets:
         continue
+    if ftype not in canonical_order:
+        canonical_order.append(ftype)
     
     print('-- {} --'.format(ftype))
 
@@ -77,10 +82,12 @@ for ftype in data:
     all_gt += ygts
 
 print('-- Aggregated AUC --')
-for ftype in aucs:
-    print ("{}: {} (+/- {})".format(ftype, np.mean(aucs[ftype]), np.std(aucs[ftype])))
+for ftype in canonical_order:
+    if ftype in aucs:
+        print ("{}: {} (+/- {})".format(ftype, np.mean(aucs[ftype]), np.std(aucs[ftype])))
 
 print('-- Average Precision --')
-for ftype in aps:
-    print ("{}: {}".format(ftype, aps[ftype]))
+for ftype in canonical_order:
+    if ftype in aps:
+        print ("{}: {}".format(ftype, aps[ftype]))
 print ("OVERALL AP: {}".format(eval.average_precision(all_gt, all_regions)))

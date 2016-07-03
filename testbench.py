@@ -1,6 +1,7 @@
 """ Synthetic Test Bench for MaxDiv """
 
 from maxdiv import maxdiv_util
+import sys
 import numpy as np
 import matplotlib.pylab as plt
 try:
@@ -10,8 +11,6 @@ except ImportError:
     # pickle if available.
     import pickle
 
-# ensure reproducable results
-np.random.seed(0)
 
 def sample_gp(X, meany, sigma, n=1, noise=0.001):
     """ sample a function from a Gaussian process with Gaussian kernel """
@@ -34,165 +33,218 @@ def sample_interval(n, minlen, maxlen):
     return defect, defect_start, defect_end
 
 
-def sample_multiple_intervals(n, minlen, maxlen, max_intervals):
+def sample_multiple_intervals(n, minlen, maxlen, max_intervals, spacing = 50):
     """ sample the bounds of multiple non-overlapping intervals """
+    
     defect = np.zeros(n, dtype=bool)
     regions = []
-    first_pos = 0
-    for i in range(max_intervals):
-        defect_start = int(np.random.randint(first_pos, n - minlen))
-        defect_end = int(np.random.randint(defect_start+minlen,min(defect_start+maxlen,n)))
-        defect[defect_start:defect_end] = True
-        regions.append((defect_start, defect_end))
-        first_pos = defect_end + 20
-        if first_pos + minlen >= n:
-            break
+    
+    while (len(regions) < max_intervals) and (maxlen >= minlen):
+    
+        defect_start = int(np.random.randint(0, n - minlen))
+        defect_len = int(np.random.randint(minlen, maxlen + 1))
+        defect_end = defect_start + defect_len
+        
+        if not np.any(defect[max(0, defect_start - spacing):min(n, defect_end + spacing)]):
+            defect[defect_start:defect_end] = True
+            regions.append((defect_start, defect_end))
+            
+            max_non_defect_len = 0
+            last_defect_end = 0
+            for i in range(1, n):
+                if defect[i-1] and (not defect[i]):
+                    last_defect_end = i
+                elif (not defect[i-1]) and defect[i]:
+                    non_defect_len = i - last_defect_end - spacing
+                    if last_defect_end > 0:
+                        non_defect_len -= spacing
+                    max_non_defect_len = max(max_non_defect_len, non_defect_len)
+            if not defect[n-1]:
+                max_non_defect_len = max(max_non_defect_len, n - last_defect_end - spacing)
+            maxlen = min(maxlen, max_non_defect_len)
+        
     return defect, regions
 
 
-X = np.arange(0,1,0.004)
-X = np.reshape(X, [1, len(X)])
-n = X.shape[1]
-
-y = {}
-f = {}
-
-# simple mean shift
-numf = 20
-zeroy = np.zeros(X.shape[1])
-
-print ("Generating time series of length {}".format(n))
-defect_maxlen = int(0.2*n)
-defect_minlen = int(0.05*n)
-print ("Minimal and maximal length of one extreme {} - {}".format(defect_minlen, defect_maxlen))
-
-sigma = 0.02
-y['meanshift'] = []
-gps = sample_gp(X, zeroy, sigma, numf)
-f['meanshift'] = np.reshape(gps, [gps.shape[0], 1, gps.shape[1]])
-for i in range(numf):
-    defect, _, _ = sample_interval(n, defect_minlen, defect_maxlen)
-    y['meanshift'].append(defect)
-    f['meanshift'][i,0,defect] -= np.random.rand()*1.0 + 3.0 # easy
-    #f['meanshift'][i,0,defect] -= np.random.rand()*0.5 + 0.5 # hard
-#    plt.plot(X.T, f['meanshift'][i])
-#plt.show()
-
-sigma = 0.02
-y['meanshift_hard'] = []
-gps = sample_gp(X, zeroy, sigma, numf)
-f['meanshift_hard'] = np.reshape(gps, [gps.shape[0], 1, gps.shape[1]])
-for i in range(numf):
-    defect, _, _ = sample_interval(n, defect_minlen, defect_maxlen)
-    y['meanshift_hard'].append(defect)
-    f['meanshift_hard'][i,0,defect] -= np.random.rand()*0.5 + 0.5
-
-sigma = 0.02
-y['meanshift_multvar'] = []
-gps = sample_gp(X, zeroy, sigma, numf*4)
-f['meanshift_multvar'] = np.reshape(gps, [numf, 4, gps.shape[1]])
-for i in range(numf):
-    defect, _, _ = sample_interval(n, defect_minlen, defect_maxlen)
-    y['meanshift_multvar'].append(defect)
-    f['meanshift_multvar'][i,0,defect] -= np.random.rand()*1.0 + 3.0 # easy
-    #f['meanshift'][i,0,defect] -= np.random.rand()*0.5 + 0.5 # hard
-#    plt.plot(X.T, f['meanshift'][i])
-#plt.show()
-
-y['amplitude_change'] = []
-f['amplitude_change'] = np.zeros([numf, 1, n])
-for i in range(numf):
-    defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
-    y['amplitude_change'].append(defect)
-    func = sample_gp(X, zeroy, sigma, 1)
-    sigmaw = (b-a)/4.0
-    mu = (a+b)/2.0
-    gauss = np.array([ np.exp(-(xp-mu)**2/(2*sigmaw*sigmaw)) for xp in range(n) ])
-    gauss[gauss>0.2] = 0.2
-    func = func * (2.0*gauss/np.max(gauss)+1)
-    f['amplitude_change'][i, 0] = func
-#    plt.plot(X.T, func[0])
-#plt.show()
- 
-y['amplitude_change_multvar'] = []
-f['amplitude_change_multvar'] = np.zeros([numf, 4, n])
-for i in range(numf):
-    defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
-    y['amplitude_change_multvar'].append(defect)
-    func = sample_gp(X, zeroy, sigma, 4)
-    sigmaw = (b-a)/4.0
-    mu = (a+b)/2.0
-    gauss = np.array([ np.exp(-(xp-mu)**2/(2*sigmaw*sigmaw)) for xp in range(n) ])
-    gauss[gauss>0.2] = 0.2
-    func[0,:] = func[0,:] * (2.0*gauss/np.max(gauss)+1)
-    f['amplitude_change_multvar'][i, :] = func
-#    plt.plot(X.T, func[0])
-#plt.show()
-
-y['frequency_change'] = []
-f['frequency_change'] = np.zeros([numf, 1, n])
-for i in range(numf):
-    defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
-    y['frequency_change'].append(defect)
-    func = sample_gp_nonstat(X, zeroy, (1-defect)*0.01+0.0001, 1)
-    f['frequency_change'][i, 0] = func
-#    plt.plot(X.T, func[0])
-#plt.show()
-
-y['frequency_change_multvar'] = []
-f['frequency_change_multvar'] = np.zeros([numf, 5, n])
-for i in range(numf):
-    defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
-    y['frequency_change_multvar'].append(defect)
-    func_defect = sample_gp_nonstat(X, zeroy, (1-defect)*0.01+0.0001, 1)
-    func_ok = sample_gp(X, zeroy, sigma, 4)
-    f['frequency_change_multvar'][i] = np.vstack([func_defect, func_ok])
+def rand_sign():
+    return (np.random.randint(0, 2) * 2) - 1
 
 
-# Multiple extremes
-X = np.arange(0,1,0.001)
-X = np.reshape(X, [1, len(X)])
-n = X.shape[1]
-zeroy = np.zeros(X.shape[1])
-maxint = 5
+if __name__ == '__main__':
+    
+    if (len(sys.argv) < 2) or (sys.argv[1] not in ('large', 'small', 'nominal')):
+        print('Usage: {} <type = large|small|nominal>'.format(sys.argv[0]))
+    type = sys.argv[1]
 
-print ("Generating time series of length {} with multiple extremes".format(n))
-defect_maxlen = int(0.05*n)
-defect_minlen = int(0.02*n)
-print ("Minimal and maximal length of one extreme {} - {}".format(defect_minlen, defect_maxlen))
+    # ensure reproducable results
+    np.random.seed(0)
 
-sigma = 0.01
-y['meanshift5'] = []
-gps = sample_gp(X, zeroy, sigma, numf)
-f['meanshift5'] = np.reshape(gps, [gps.shape[0], 1, gps.shape[1]])
-for i in range(numf):
-    defect, regions = sample_multiple_intervals(n, defect_minlen, defect_maxlen, maxint)
-    y['meanshift5'].append(defect)
-    for a, b in regions:
-        f['meanshift5'][i,0,a:b] -= np.random.rand()*1.0 + 3.0
+    if type != 'nominal':
+    
+        X = np.arange(0,1, 0.004 if type == 'small' else 0.002)
+        X = np.reshape(X, [1, len(X)])
+        n = X.shape[1]
+        numf = 20 if type == 'small' else 100
+        sigma = 0.02 if type == 'small' else 0.01
 
-sigma = 0.01
-y['meanshift5_hard'] = []
-gps = sample_gp(X, zeroy, sigma, numf)
-f['meanshift5_hard'] = np.reshape(gps, [gps.shape[0], 1, gps.shape[1]])
-for i in range(numf):
-    defect, regions = sample_multiple_intervals(n, defect_minlen, defect_maxlen, maxint)
-    y['meanshift5_hard'].append(defect)
-    for a, b in regions:
-        f['meanshift5_hard'][i,0,a:b] -= np.random.rand()*0.5 + 0.5
+        print ("Generating time series of length {}".format(n))
+        defect_maxlen = int(0.2 * n)
+        defect_minlen = int(0.05 * n)
+        print ("Minimal and maximal length of one extreme {} - {}".format(defect_minlen, defect_maxlen))
+
+        y = {}
+        f = {}
+
+        # simple mean shift
+        zeroy = np.zeros(X.shape[1])
+        y['meanshift'] = []
+        gps = sample_gp(X, zeroy, sigma, numf)
+        f['meanshift'] = np.reshape(gps, [gps.shape[0], 1, gps.shape[1]])
+        for i in range(numf):
+            defect, _, _ = sample_interval(n, defect_minlen, defect_maxlen)
+            y['meanshift'].append(defect)
+            f['meanshift'][i,0,defect] += rand_sign() * (np.random.rand()*1.0 + 3.0)
+
+        y['meanshift_hard'] = []
+        gps = sample_gp(X, zeroy, sigma, numf)
+        f['meanshift_hard'] = np.reshape(gps, [gps.shape[0], 1, gps.shape[1]])
+        for i in range(numf):
+            defect, _, _ = sample_interval(n, defect_minlen, defect_maxlen)
+            y['meanshift_hard'].append(defect)
+            f['meanshift_hard'][i,0,defect] += rand_sign() * (np.random.rand()*0.5 + 0.5)
+
+        y['meanshift_multvar'] = []
+        gps = sample_gp(X, zeroy, sigma, numf*5)
+        f['meanshift_multvar'] = np.reshape(gps, [numf, 5, gps.shape[1]])
+        for i in range(numf):
+            defect, _, _ = sample_interval(n, defect_minlen, defect_maxlen)
+            y['meanshift_multvar'].append(defect)
+            f['meanshift_multvar'][i,0,defect] += rand_sign() * (np.random.rand()*1.0 + 3.0)
+
+        y['amplitude_change'] = []
+        f['amplitude_change'] = np.zeros([numf, 1, n])
+        for i in range(numf):
+            defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
+            y['amplitude_change'].append(defect)
+            func = sample_gp(X, zeroy, sigma, 1)
+            sigmaw = (b-a)/4.0
+            mu = (a+b)/2.0
+            gauss = np.array([ np.exp(-(xp-mu)**2/(2*sigmaw*sigmaw)) for xp in range(n) ])
+            gauss[gauss>0.2] = 0.2
+            func = func * (2.0*gauss/np.max(gauss)+1)
+            f['amplitude_change'][i, 0] = func
+         
+        y['amplitude_change_multvar'] = []
+        f['amplitude_change_multvar'] = np.zeros([numf, 5, n])
+        for i in range(numf):
+            defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
+            y['amplitude_change_multvar'].append(defect)
+            func = sample_gp(X, zeroy, sigma, 5)
+            sigmaw = (b-a)/4.0
+            mu = (a+b)/2.0
+            gauss = np.array([ np.exp(-(xp-mu)**2/(2*sigmaw*sigmaw)) for xp in range(n) ])
+            gauss[gauss>0.2] = 0.2
+            func[0,:] = func[0,:] * (2.0*gauss/np.max(gauss)+1)
+            f['amplitude_change_multvar'][i, :] = func
+
+        y['frequency_change'] = []
+        f['frequency_change'] = np.zeros([numf, 1, n])
+        for i in range(numf):
+            defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
+            y['frequency_change'].append(defect)
+            func = sample_gp_nonstat(X, zeroy, (1-defect)*0.01+0.0001, 1)
+            f['frequency_change'][i, 0] = func
+
+        y['frequency_change_multvar'] = []
+        f['frequency_change_multvar'] = np.zeros([numf, 5, n])
+        for i in range(numf):
+            defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
+            y['frequency_change_multvar'].append(defect)
+            func_defect = sample_gp_nonstat(X, zeroy, (1-defect)*0.01+0.0001, 1)
+            func_ok = sample_gp(X, zeroy, sigma, 4)
+            f['frequency_change_multvar'][i] = np.vstack([func_defect, func_ok])
+        
+        
+        # Anomalies generated by a "different mechanism"
+        fade_len = 10
+        fading = np.linspace(0, 1, fade_len, endpoint = False)
+        
+        gps_nominal = sample_gp(X, zeroy, sigma, numf, 0).reshape([numf, 1, X.shape[1]])
+        gps_anomalous = sample_gp(X, zeroy, sigma, numf, 0).reshape([numf, 1, X.shape[1]])
+        interpolation_mask = np.zeros((numf, 1, X.shape[1]))
+        y['mixed'] = []
+        for i in range(numf):
+            while True:
+                defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
+                if (a >= 50) and (b <= n - 50):
+                    break
+            interpolation_mask[i, :, (a - fade_len/2):(b + fade_len/2)] = np.concatenate([fading, np.ones(b - a - fade_len), fading[::-1]])
+            y['mixed'].append(defect)
+        f['mixed'] = gps_nominal + (gps_anomalous - gps_nominal) * interpolation_mask + 0.1 * np.random.randn(*gps_nominal.shape)
+        
+        gps_nominal = sample_gp(X, zeroy, sigma, numf * 5, 0).reshape([numf, 5, X.shape[1]])
+        gps_anomalous = sample_gp(X, zeroy, sigma, numf * 5, 0).reshape([numf, 5, X.shape[1]])
+        interpolation_mask = np.zeros((numf, 5, X.shape[1]))
+        y['mixed_multvar'] = []
+        for i in range(numf):
+            while True:
+                defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
+                if (a >= 50) and (b <= n - 50):
+                    break
+            interpolation_mask[i, :, (a - fade_len/2):(b + fade_len/2)] = np.concatenate([fading, np.ones(b - a - fade_len), fading[::-1]])
+            y['mixed_multvar'].append(defect)
+        f['mixed_multvar'] = gps_nominal + (gps_anomalous - gps_nominal) * interpolation_mask + 0.1 * np.random.randn(*gps_nominal.shape)
 
 
-# Some completely normal time series with more noise
-sigma = 0.1
-normal_funcs = {}
-gps = sample_gp(X, zeroy, sigma, numf)
-normal_funcs['normal_gp'] = np.reshape(gps, [gps.shape[0], 1, gps.shape[1]])
-gps = sample_gp(X, zeroy, sigma, 4 * numf)
-normal_funcs['normal_gp_multvar'] = np.reshape(gps, [numf, 4, gps.shape[1]])
+        # Multiple extremes
+        X = np.arange(0,1,0.001)
+        X = np.reshape(X, [1, len(X)])
+        n = X.shape[1]
+        zeroy = np.zeros(X.shape[1])
+        maxint = 5
+        sigma = 0.01
 
- 
-with open('testcube.pickle', 'wb') as fout:
-    pickle.dump({'f': f, 'y': y}, fout)
+        print ("Generating time series of length {} with multiple extremes".format(n))
+        defect_maxlen = int(0.05*n)
+        defect_minlen = int(0.02*n)
+        print ("Minimal and maximal length of one extreme {} - {}".format(defect_minlen, defect_maxlen))
 
-with open('testcube_normal.pickle', 'wb') as fout:
-    pickle.dump(normal_funcs, fout)
+        y['meanshift5'] = []
+        gps = sample_gp(X, zeroy, sigma, numf)
+        f['meanshift5'] = np.reshape(gps, [gps.shape[0], 1, gps.shape[1]])
+        for i in range(numf):
+            defect, regions = sample_multiple_intervals(n, defect_minlen, defect_maxlen, maxint)
+            y['meanshift5'].append(defect)
+            for a, b in regions:
+                f['meanshift5'][i,0,a:b] += rand_sign() * (np.random.rand()*1.0 + 3.0)
+
+        y['meanshift5_hard'] = []
+        gps = sample_gp(X, zeroy, sigma, numf)
+        f['meanshift5_hard'] = np.reshape(gps, [gps.shape[0], 1, gps.shape[1]])
+        for i in range(numf):
+            defect, regions = sample_multiple_intervals(n, defect_minlen, defect_maxlen, maxint)
+            y['meanshift5_hard'].append(defect)
+            for a, b in regions:
+                f['meanshift5_hard'][i,0,a:b] += rand_sign() * (np.random.rand()*0.5 + 0.5)
+        
+        with open('testcube_small.pickle' if type == 'small' else 'testcube.pickle', 'wb') as fout:
+            pickle.dump({'f': f, 'y': y}, fout)
+
+    else:
+    
+        # Some completely normal time series with more noise
+        X = np.arange(0,1,0.001)
+        X = np.reshape(X, [1, len(X)])
+        n = X.shape[1]
+        numf = 100
+        zeroy = np.zeros(X.shape[1])
+        sigma = 0.1
+        
+        normal_funcs = {}
+        gps = sample_gp(X, zeroy, sigma, numf)
+        normal_funcs['normal_gp'] = np.reshape(gps, [gps.shape[0], 1, gps.shape[1]])
+        gps = sample_gp(X, zeroy, sigma, 5 * numf)
+        normal_funcs['normal_gp_multvar'] = np.reshape(gps, [numf, 5, gps.shape[1]])
+
+        with open('testcube_normal.pickle', 'wb') as fout:
+            pickle.dump(normal_funcs, fout)

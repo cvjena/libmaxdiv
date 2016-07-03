@@ -51,6 +51,8 @@ def loadDatasets(datasets = None, types = None):
     for ds in datasets:
         if (ds == 'synthetic') and ('interval' in types):
             data.update(loadSyntheticTestbench())
+        elif (ds == 'synthetic_small') and ('interval' in types):
+            data.update(loadSyntheticTestbench(BASEPATH + '/testcube_small.pickle'))
         elif ds == 'synthetic_normal':
             data.update(loadSyntheticNormalTestbench())
         elif ds.startswith('nab_'):

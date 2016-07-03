@@ -12,7 +12,7 @@ def calc_distance_matrix(X, metric='sqeuclidean'):
     """ Compute pairwise distances between columns in X """
     # results from pdist are usually not stored as a symmetric matrix,
     # therefore, we use squareform to convert it
-    D = scipy.spatial.distance.squareform(scipy.spatial.distance.pdist(X.T, 'sqeuclidean'))
+    D = scipy.spatial.distance.squareform(scipy.spatial.distance.pdist(X.T, metric))
     return D
 
 
