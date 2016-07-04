@@ -1,4 +1,5 @@
 import numpy as np
+from sklearn.mixture import GMM
 from .eval import pointwiseLabelsToIntervals
 from .maxdiv_util import calc_gaussian_kernel, IoU
 
@@ -30,6 +31,20 @@ def pointwiseKDE(X, kernel_sigma_sq = 1.0):
     K = calc_gaussian_kernel(X, kernel_sigma_sq, False)
     # Score points by their unlikelihood
     return (1.0 - K.mean(axis = 0))
+
+
+def gmm_scores(X, n_components = 2):
+    """ Fits a Gaussian Mixture Model to the data and detects anomalies based on that model.
+    
+    The component with the highest weight will be considered the model for the nominal part of
+    the time-series. If the a-priori score for a point under any other component is higher, it
+    will be considered anomalous.
+    """
+    
+    gmm = GMM(n_components, 'full', n_init = 10)
+    gmm.fit(X.T)
+    nominal_component = gmm.weights_.argmax()
+    return (1.0 - gmm.score_samples(X.T)[1][:, nominal_component])
 
 
 def pointwiseScoresToIntervals(scores, min_length = 0):

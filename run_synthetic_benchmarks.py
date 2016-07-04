@@ -16,6 +16,8 @@ parser.add_argument('--extremetypes', help='types of extremes to be tested', nar
 parser.add_argument('--kernel_sigma_sq', help='kernel sigma square hyperparameter for Parzen estimation', type=float, default=1.0)
 parser.add_argument('--extint_min_len', help='minimum length of the extreme interval', default=20, type=int)
 parser.add_argument('--extint_max_len', help='maximum length of the extreme interval', default=100, type=int)
+parser.add_argument('--td_dim', help='Time-Delay Embedding Dimension', default=6, type=int)
+parser.add_argument('--td_lag', help='Time-Lag for Time-Delay Embedding', default=2, type=int)
 parser.add_argument('--alpha', help='Hyperparameter for the KL divergence', type=float, default=1.0)
 parser.add_argument('--num_intervals', help='number of intervals to be retrieved (0 = all)', default=0, type=int)
 parser.add_argument('--csv', help='Format output as CSV instead of tables.', action='store_true')
@@ -66,7 +68,7 @@ for fi, ftype in enumerate(extremetypes):
                     aps[id] = {}
                     all_gt[id] = []
                     all_regions[id] = []
-                    labels[id] = '{}, {}, td = {}'.format(method, mode, 3 if preproc is not None else 1)
+                    labels[id] = '{}, {}, {}'.format(method, mode, 'td = ({}, {})'.format(args.td_dim, args.td_lag) if preproc is not None else 'no preproc.')
                 
                 sys.stderr.write('- {} -\n'.format(labels[id]))
             
@@ -78,6 +80,7 @@ for fi, ftype in enumerate(extremetypes):
                     time_start = time.time()
                     regions.append(maxdiv.maxdiv(func['ts'], useLibMaxDiv = True,
                                                  method = method, preproc = preproc, mode = mode,
+                                                 td_dim = args.td_dim if preproc is not None else 1, td_lag = args.td_lag,
                                                  kernelparameters={'kernel_sigma_sq': args.kernel_sigma_sq}, **parameters))
                     time_stop = time.time()
                     

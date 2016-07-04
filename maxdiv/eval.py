@@ -99,14 +99,14 @@ def recall_precision(ygt, regions, overlap = 0.5, th = None, multiAsFP = True):
     `multiAsFP` controls whether subsequent detections of the same region will be ignored (`False`) or counted
     as false positives (`True`).
     
-    Returns: a `(recall, precision)` tuple or, where `recall` and `precision` are floats or arrays of floats
+    Returns: a `(recall, precision)` tuple, where `recall` and `precision` are floats or arrays of floats if
              `th` is set to `'all'`. In the latter case, the lists will be sorted in ascending order by recall.
     """
     
     # Wrap ygt and regions in a lists if there is only one time series
-    if not (isinstance(ygt[0], list) and (isinstance(ygt[0][0], list) or isinstance(ygt[0][0], tuple))):
+    if not (isinstance(ygt[0], list) and ((len(ygt[0]) == 0) or isinstance(ygt[0][0], list) or isinstance(ygt[0][0], tuple))):
         ygt = [ygt]
-    if not (isinstance(regions[0], list) and (isinstance(regions[0][0], list) or isinstance(regions[0][0], tuple))):
+    if not (isinstance(regions[0], list) and ((len(regions[0]) == 0) or isinstance(regions[0][0], list) or isinstance(regions[0][0], tuple))):
         regions = [regions]
     if len(ygt) != len(regions):
         raise ValueError('Different number of time series for ground-truth and detections.')

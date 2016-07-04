@@ -12,9 +12,10 @@ import datasets
 # Parameters
 method = sys.argv[1] if len(sys.argv) > 1 else 'gaussian_cov'
 extremetype = sys.argv[2] if len(sys.argv) > 2 else None
+td_lag = int(sys.argv[3]) if len(sys.argv) > 3 else 1
 
 if method == 'help':
-    print('{} <method = gaussian_cov> [<extremetype>]'.format(sys.argv[0]))
+    print('{} <method = gaussian_cov> [ <extremetype> [ <td-lag = 1> ] ]'.format(sys.argv[0]))
     exit()
 
 # Load data
@@ -39,8 +40,9 @@ for ftype in ftypes:
         k_best, ap_best, auc_best = 0, 0.0, 0.0
         regions_best = []
         for k in range(3, 13):
-            detections = maxdiv.maxdiv(preproc.td(func['ts'], k), method = method, mode = 'I_OMEGA',
-                                       extint_min_len = 10, extint_max_len = 50, num_intervals = None)
+            detections = maxdiv.maxdiv(func['ts'], method = method, mode = 'I_OMEGA',
+                                       extint_min_len = 20, extint_max_len = 100, num_intervals = None,
+                                       td_dim = k, td_lag = td_lag)
             cur_ap = eval.average_precision([func['gt']], [detections])
             cur_auc = eval.auc(func['gt'], detections, func['ts'].shape[1])
             if (k_best == 0) or (cur_ap > ap_best) or ((cur_ap == ap_best) and (cur_auc > auc_best)):

@@ -10,7 +10,7 @@ from maxdiv.baselines_noninterval import *
 import maxdiv_tools, datasets
 
 
-METHODS = { 'hotellings_t' : hotellings_t, 'kde' : pointwiseKDE }
+METHODS = { 'hotellings_t' : hotellings_t, 'kde' : pointwiseKDE, 'gmm' : gmm_scores }
 
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -19,8 +19,9 @@ parser.add_argument('--novis', action='store_true', help='skip the visualization
 parser.add_argument('--datasets', help='datasets to be loaded', nargs='+', default=datasets.DATASETS)
 parser.add_argument('--subsets', help='subsets of the datasets to be tested', nargs='+',default=[])
 parser.add_argument('--extremetypes', help='types of extremes to be tested', nargs='+',default=datasets.TYPES)
-parser.add_argument('--preproc', help='preprocessing method', choices=[None,'td'],default=None)
-parser.add_argument('--extint_min_len', help='minimum length of the extreme interval', default=10, type=int)
+parser.add_argument('--td_dim', help='Time-Delay Embedding Dimension', default=1, type=int)
+parser.add_argument('--td_lag', help='Time-Lag for Time-Delay Embedding', default=1, type=int)
+parser.add_argument('--extint_min_len', help='minimum length of the extreme interval', default=20, type=int)
 
 args = parser.parse_args()
 
@@ -40,8 +41,8 @@ for ftype in data:
     regions = []
     aucs[ftype] = []
     for func in data[ftype]:
-        if args.preproc == 'td':
-            pfunc = preproc.td(func['ts'])
+        if (args.td_dim > 1) and (args.td_lag > 0):
+            pfunc = preproc.td(func['ts'], args.td_dim, args.td_lag)
         else:
             pfunc = func['ts']
         
