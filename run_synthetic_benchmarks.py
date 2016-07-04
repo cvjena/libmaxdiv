@@ -26,7 +26,7 @@ args = parser.parse_args()
 
 # Prepare parameters for calling maxdiv
 args_dict = vars(args)
-parameters = {parameter_name: args_dict[parameter_name] for parameter_name in maxdiv_tools.get_algorithm_parameters() if parameter_name in args_dict}
+parameters = {parameter_name: args_dict[parameter_name] for parameter_name in maxdiv_tools.get_algorithm_parameters() if (parameter_name in args_dict) and (parameter_name != 'td_dim')}
 if ('num_intervals' in parameters) and (parameters['num_intervals'] <= 0):
     parameters['num_intervals'] = None
 
@@ -71,6 +71,7 @@ for fi, ftype in enumerate(extremetypes):
                     labels[id] = '{}, {}, {}'.format(method, mode, 'td = ({}, {})'.format(args.td_dim, args.td_lag) if preproc is not None else 'no preproc.')
                 
                 sys.stderr.write('- {} -\n'.format(labels[id]))
+                sys.stderr.flush()
             
                 aucs = []
                 regions = []
@@ -80,7 +81,7 @@ for fi, ftype in enumerate(extremetypes):
                     time_start = time.time()
                     regions.append(maxdiv.maxdiv(func['ts'], useLibMaxDiv = True,
                                                  method = method, preproc = preproc, mode = mode,
-                                                 td_dim = args.td_dim if preproc is not None else 1, td_lag = args.td_lag,
+                                                 td_dim = args.td_dim if preproc is not None else 1,
                                                  kernelparameters={'kernel_sigma_sq': args.kernel_sigma_sq}, **parameters))
                     time_stop = time.time()
                     
