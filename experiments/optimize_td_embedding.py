@@ -37,9 +37,11 @@ for ftype in ftypes:
     best_k[ftype] = Counter()
     for i, func in enumerate(data[ftype]):
         ygts.append(func['gt'])
+        
+        # Find embedding dimension which maximizes AP
         k_best, ap_best, auc_best = 0, 0.0, 0.0
         regions_best = []
-        for k in range(3, 13):
+        for k in range(3, 21):
             detections = maxdiv.maxdiv(func['ts'], method = method, mode = 'I_OMEGA',
                                        extint_min_len = 20, extint_max_len = 100, num_intervals = None,
                                        td_dim = k, td_lag = td_lag)
@@ -47,8 +49,12 @@ for ftype in ftypes:
             cur_auc = eval.auc(func['gt'], detections, func['ts'].shape[1])
             if (k_best == 0) or (cur_ap > ap_best) or ((cur_ap == ap_best) and (cur_auc > auc_best)):
                 k_best, ap_best, auc_best, regions_best = k, cur_ap, cur_auc, detections
-        for r in range(len(regions_best) - 1, -1, -1):
-            regions_best[r] = (regions_best[r][0], regions_best[r][1], regions_best[r][2] / regions_best[0][2])
+        
+        # Divide scores by maximum score since their range differs widely depending on the dimensionality
+        if method not in ('gaussian_cov_ts', 'gaussian_ts'):
+            for r in range(len(regions_best) - 1, -1, -1):
+                regions_best[r] = (regions_best[r][0], regions_best[r][1], regions_best[r][2] / regions_best[0][2])
+        
         regions.append(regions_best)
         aucs[ftype].append(auc_best)
         best_k[ftype][k_best] += 1
@@ -57,7 +63,7 @@ for ftype in ftypes:
     aps[ftype] = eval.average_precision(ygts, regions)
     print ("AP: {}".format(aps[ftype]))
     
-    plt.bar(np.asarray(best_k[ftype].keys()) - 0.5, best_k[ftype].values(), 1)
+    plt.bar(np.array(list(best_k[ftype].keys())) - 0.5, list(best_k[ftype].values()), 1)
     plt.title(ftype)
     plt.show()
     
