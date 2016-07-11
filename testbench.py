@@ -72,14 +72,15 @@ def rand_sign():
 
 if __name__ == '__main__':
     
-    if (len(sys.argv) < 2) or (sys.argv[1] not in ('large', 'small', 'nominal')):
-        print('Usage: {} <type = large|small|nominal>'.format(sys.argv[0]))
+    if (len(sys.argv) < 2) or (sys.argv[1] not in ('large', 'small', 'seasonal', 'nominal')):
+        print('Usage: {} <type = large|small|seasonal|nominal>'.format(sys.argv[0]))
+        exit()
     type = sys.argv[1]
 
     # ensure reproducable results
     np.random.seed(0)
 
-    if type != 'nominal':
+    if type in ('large', 'small'):
     
         X = np.arange(0,1, 0.004 if type == 'small' else 0.002)
         X = np.reshape(X, [1, len(X)])
@@ -229,8 +230,91 @@ if __name__ == '__main__':
         
         with open('testcube_small.pickle' if type == 'small' else 'testcube.pickle', 'wb') as fout:
             pickle.dump({'f': f, 'y': y}, fout)
+    
+    elif type == 'seasonal':
+    
+        X = np.arange(0,1, 0.002)
+        X = np.reshape(X, [1, len(X)])
+        n = X.shape[1]
+        numf = 100
+        sigma = 0.1
 
-    else:
+        print ("Generating time series of length {}".format(n))
+        defect_maxlen = int(0.2 * n)
+        defect_minlen = int(0.05 * n)
+        print ("Minimal and maximal length of one extreme {} - {}".format(defect_minlen, defect_maxlen))
+
+        y = {}
+        f = {}
+        
+        # Diurnal seasonality with amplitude change anomalies
+        y['diurnal'] = []
+        f['diurnal'] = np.zeros([numf, 1, n])
+        for i in range(numf):
+            season_amp = np.random.uniform(0.5, 3.0) * np.ones(n)
+            phase_shift = np.random.rand()
+            seasonality = np.sin(np.pi * (np.arange(0, n) / 24.0 + phase_shift)) ** 2
+            
+            defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
+            y['diurnal'].append(defect)
+            sigmaw = (b-a)/4.0
+            mu = (a+b)/2.0
+            gauss = np.array([ np.exp(-(xp-mu)**2/(2*sigmaw*sigmaw)) for xp in range(n) ])
+            gauss[gauss>0.2] = 0.2
+            amp_change = np.random.uniform(2.0, 4.0)
+            seasonality *= season_amp + amp_change * gauss/np.max(gauss)
+            
+            f['diurnal'][i, 0] = sample_gp(X, seasonality, sigma, 1, 0.01)
+        
+        # Multivariate Diurnal seasonality with amplitude change anomalies
+        y['diurnal_multvar'] = []
+        f['diurnal_multvar'] = np.zeros([numf, 5, n])
+        for i in range(numf):
+            for j in range(5):
+                season_amp = np.random.uniform(0.5, 3.0) * np.ones(n)
+                phase_shift = np.random.rand()
+                seasonality = np.sin(np.pi * (np.arange(0, n) / 24.0 + phase_shift)) ** 2
+                
+                if j == 0:
+                    defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
+                    y['diurnal_multvar'].append(defect)
+                    sigmaw = (b-a)/4.0
+                    mu = (a+b)/2.0
+                    gauss = np.array([ np.exp(-(xp-mu)**2/(2*sigmaw*sigmaw)) for xp in range(n) ])
+                    gauss[gauss>0.2] = 0.2
+                    amp_change = np.random.uniform(2.0, 4.0)
+                    season_amp += amp_change * gauss / np.max(gauss)
+                
+                f['diurnal_multvar'][i, j] = sample_gp(X, seasonality * season_amp, sigma, 1, 0.01)
+        
+        # Diurnal and weekly seasonality with amplitude change anomalies
+        X = np.arange(0,1, 0.001)
+        X = np.reshape(X, [1, len(X)])
+        n = X.shape[1]
+        y['diurnal_weekly'] = []
+        f['diurnal_weekly'] = np.zeros([numf, 1, n])
+        for i in range(numf):
+            season_amp = np.random.uniform(0.5, 3.0) * np.ones(n)
+            phase_shift = np.random.rand()
+            diurnal_seasonality = np.sin(np.pi * (np.arange(0, n) / 24.0 + phase_shift)) ** 2
+            phase_shift = 2.0 * np.random.rand()
+            weekly_seasonality = np.random.uniform(0.5, 3.0) * np.sin(np.pi * (np.arange(0, n) / (7.0 * 24.0) + phase_shift))
+            
+            defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
+            y['diurnal_weekly'].append(defect)
+            sigmaw = (b-a)/4.0
+            mu = (a+b)/2.0
+            gauss = np.array([ np.exp(-(xp-mu)**2/(2*sigmaw*sigmaw)) for xp in range(n) ])
+            gauss[gauss>0.2] = 0.2
+            amp_change = np.random.uniform(2.0, 4.0)
+            diurnal_seasonality += amp_change * gauss / np.max(gauss)
+            
+            f['diurnal_weekly'][i, 0] = sample_gp(X, diurnal_seasonality + weekly_seasonality, sigma, 1, 0.01)
+        
+        with open('testcube_seasonal.pickle', 'wb') as fout:
+            pickle.dump({'f': f, 'y': y}, fout)
+    
+    elif type == 'nominal':
     
         # Some completely normal time series with more noise
         X = np.arange(0,1,0.001)
