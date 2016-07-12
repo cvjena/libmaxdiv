@@ -29,6 +29,35 @@ def find_best_k(func, method, td_lag):
     return regions_best, k_best
 
 
+def td_from_mi(func, method, td_lag):
+    
+    # Determine Time Lag with minimum Mutual Information
+    k = min(range(2, int(0.05 * func['ts'].shape[1])), key = lambda k: mutual_information(func['ts'], 2, k - 1)) // td_lag
+    # Detect regions
+    detections = maxdiv.maxdiv(func['ts'], method = method, mode = 'I_OMEGA',
+                               extint_min_len = 20, extint_max_len = 100, num_intervals = None,
+                               td_dim = k, td_lag = td_lag)
+    return detections, k
+
+
+def td_from_relative_mi(func, method, td_lag, th = 0.0002):
+    
+    th *= func['ts'].shape[0]
+    # Determine Time Lag based on the ratio of Mutual Information and Entropy
+    entropy = mutual_information(func['ts'], 1)
+    rmi = np.array([mutual_information(func['ts'], 2, d) / entropy for d in range(1, int(0.05 * func['ts'].shape[1]))])
+    drmi = np.convolve(rmi, [-1, 0, 1], 'valid')
+    if np.any(drmi <= th):
+        k = (np.where(drmi <= th)[0][0] + 3) // td_lag
+    else:
+        k = (drmi.argmin() + 3) // td_lag
+    # Detect regions
+    detections = maxdiv.maxdiv(func['ts'], method = method, mode = 'I_OMEGA',
+                               extint_min_len = 20, extint_max_len = 100, num_intervals = None,
+                               td_dim = k, td_lag = td_lag)
+    return detections, k
+
+
 def td_from_length_scale(func, method, td_lag):
     
     # Determine Length Scale of Gaussian Process
@@ -40,6 +69,31 @@ def td_from_length_scale(func, method, td_lag):
                                extint_min_len = 20, extint_max_len = 100, num_intervals = None,
                                td_dim = k, td_lag = td_lag)
     return detections, k
+
+
+def mutual_information(ts, k, T = 1):
+    
+    d, n = ts.shape
+    
+    if (k < 2) or (T < 1):
+        # Entropy as a special case of MI
+        cov = np.cov(ts)
+        if d > 1:
+            return (n * (np.log(2 * np.pi) + 1) + np.linalg.slogdet(cov)[1]) / 2
+        else:
+            return (n * (np.log(2 * np.pi) + 1) + np.log(cov)) / 2
+    
+    # Time-Delay Embedding with the given embedding dimension and time lag
+    embed_func = np.vstack([ts[:, ((k - i - 1) * T):(n - i * T)] for i in range(k)])
+    
+    # Compute parameters of the joint and the marginal distributions assuming a normal distribution
+    cov = np.cov(embed_func)
+    cov_indep = cov.copy()
+    cov_indep[:d, d:] = 0
+    cov_indep[d:, :d] = 0
+    
+    # Compute KL divergence between p(x_t, x_(t-T), ..., x_(t - (k-1)*T)) and p(x_t)*p(x_(t-L), ..., x_(t - (k-1)*T))
+    return (np.linalg.inv(cov_indep).dot(cov).trace() + np.linalg.slogdet(cov_indep)[1] - np.linalg.slogdet(cov)[1] - embed_func.shape[0]) / 2
 
 
 def length_scale(ts):
@@ -57,7 +111,7 @@ def length_scale(ts):
 
 
 # Constants
-optimizers = { 'best_k' : find_best_k, 'gp_ls' : td_from_length_scale }
+optimizers = { 'best_k' : find_best_k, 'mi' : td_from_mi, 'rmi' : td_from_relative_mi, 'gp_ls' : td_from_length_scale }
 
 # Parameters
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)

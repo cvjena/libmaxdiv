@@ -8,11 +8,17 @@ import datasets
 
 def mutual_information(func, k, T = 1):
     
+    d, n = func.shape
+    
     if (k < 2) or (T < 1):
-        return 0.0
+        # Entropy as a special case of MI
+        cov = np.cov(func)
+        if d > 1:
+            return (n * (np.log(2 * np.pi) + 1) + np.linalg.slogdet(cov)[1]) / 2
+        else:
+            return (n * (np.log(2 * np.pi) + 1) + np.log(cov)) / 2
     
     # Time-Delay Embedding with the given embedding dimension and time lag
-    d, n = func.shape
     embed_func = np.vstack([func[:, ((k - i - 1) * T):(n - i * T)] for i in range(k)])
     
     # Compute parameters of the joint and the marginal distributions assuming a normal distribution
@@ -45,19 +51,22 @@ if __name__ == '__main__':
     else:
         data = sum(datasets.loadSyntheticTestbench().values(), [])
 
-    # Compute mutual information for various time lags and all functions in the data set
+    # Compute mutual information (normalized by entropy) for various time lags and all functions in the data set
     lags = np.arange(1, 61)
-    mi = np.array([[mutual_information(func['ts'], 2, lag) for func in data] for lag in lags])
+    mi = np.array([[mutual_information(func['ts'], 2, lag) / mutual_information(func['ts'], 1) for func in data] for lag in lags])
     
-    # Plot average mutual information for each time lag
+    # Plot average mutual information and its gradient for each time lag
     mi_mean = np.mean(mi, axis = 1)
     mi_sd = np.std(mi, axis = 1)
     min_lag = np.argmin(mi_mean)
     mi_th = mi_mean[min_lag] + mi_sd[min_lag]
     print('Time-Lag with minimal Mutual Information: {}'.format(lags[min_lag]))
     print('First lag below min_lag + sd: {}'.format(lags[(mi_mean <= mi_th).nonzero()[0][0]]))
+    plt.figure()
     plt.errorbar(lags, mi_mean, yerr = mi_sd, fmt = '-')
     plt.plot(lags, [mi_th] * len(lags), '--', color = 'gray')
+    plt.figure()
+    plt.plot(lags[1:-1], np.convolve(mi_mean, [1, 0, -1], 'valid'), '-r')
     plt.show()
     
     # Compute mutual information for various embedding dimensions and all functions in the data set
