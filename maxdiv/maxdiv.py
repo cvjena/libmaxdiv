@@ -453,14 +453,19 @@ def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', u
         }
         for prep in preprocs:
             if (prep is not None) and (prep in preprocMethods):
-                if (prep != 'td') or ('td_dim' not in kwargs) or (kwargs['td_dim'] is None):
+                if (prep != 'td') or ('td_dim' not in kwargs) or (kwargs['td_dim'] == 1):
                     X = preprocMethods[prep](X)
             elif prep is not None:
                 raise Exception("Unknown preprocessing method {}".format(prep))
         del kwargs['preproc']
     
-    if ('td_dim' in kwargs) and (kwargs['td_dim'] is not None) and (kwargs['td_dim'] > 1):
-        X = preproc.td(X, kwargs['td_dim'], kwargs['td_lag'] if ('td_lag' in kwargs) and (kwargs['td_lag'] is not None) and (kwargs['td_lag'] >= 1) else 1)
+    if ('td_dim' in kwargs) and (kwargs['td_dim'] != 1):
+        td_dim = kwargs['td_dim'] if (kwargs['td_dim'] is not None) and (kwargs['td_dim'] > 0) else None
+        if 'td_lag' in kwargs:
+            td_lag = kwargs['td_lag'] if (kwargs['td_lag'] is not None) and (kwargs['td_lag'] > 0) else None
+        else:
+            td_lag = 1
+        X = preproc.td(X, td_dim, td_lag)
     
     if 'proposalparameters' in kwargs:
         proposalParameters = kwargs['proposalparameters']

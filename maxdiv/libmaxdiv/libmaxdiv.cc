@@ -38,7 +38,7 @@ void maxdiv_init_params(maxdiv_params_t * params)
     
     // Preprocessing Parameters
     params->preproc.normalization = MAXDIV_NORMALIZE_NONE;
-    params->preproc.embedding.kt = 3;
+    params->preproc.embedding.kt = 0;
     params->preproc.embedding.kx = 1;
     params->preproc.embedding.ky = 1;
     params->preproc.embedding.kz = 1;
@@ -170,7 +170,7 @@ unsigned int maxdiv_compile_pipeline(const maxdiv_params_t * params)
             return 0;
     }
     
-    if (params->preproc.embedding.kt > 1 && params->preproc.embedding.dt > 0)
+    if (params->preproc.embedding.kt != 1)
     {
         preproc->push_back(std::make_shared<TimeDelayEmbedding>(
             params->preproc.embedding.kt, params->preproc.embedding.dt, static_cast<BorderPolicy>(params->preproc.embedding.temporal_borders)

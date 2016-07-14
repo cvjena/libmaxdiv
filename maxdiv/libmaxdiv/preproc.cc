@@ -1,4 +1,6 @@
 #include "preproc.h"
+#include "math_utils.h"
+#include <algorithm>
 #include <chrono>
 #include <Eigen/QR>
 #include <Eigen/Cholesky>
@@ -34,6 +36,7 @@ ReflessIndexVector PreprocessingPipeline::borderSize(const DataTensor & data) co
     return borderSize;
 }
 
+
 void PreprocessingPipeline::enableProfiling(bool enabled)
 {
     if (enabled)
@@ -41,6 +44,171 @@ void PreprocessingPipeline::enableProfiling(bool enabled)
     else
         this->m_timing.clear();
 }
+
+
+DataTensor & TimeDelayEmbedding::operator()(const DataTensor & dataIn, DataTensor & dataOut) const
+{
+    std::pair<int, int> params = this->getEmbeddingParams(dataIn);
+    return (dataOut = time_delay_embedding(dataIn, params.first, params.second, this->borderPolicy));
+};
+
+ReflessIndexVector TimeDelayEmbedding::borderSize(const DataTensor & data) const
+{
+    ReflessIndexVector bs;
+    if (this->borderPolicy == BorderPolicy::AUTO || this->borderPolicy == BorderPolicy::VALID)
+    {
+        std::pair<int, int> params = this->getEmbeddingParams(data);
+        bs.t = (params.first - 1) * params.second;
+        if (bs.t >= data.length() || (this->borderPolicy == BorderPolicy::AUTO && bs.t * 20 > data.length()))
+            bs.t = 0;
+    }
+    return bs;
+};
+
+std::pair<int, int> TimeDelayEmbedding::getEmbeddingParams(const DataTensor & data) const
+{
+    int k = this->k;
+    int T = this->T;
+    if (k < 1 || T < 1)
+    {
+        if (k == 1)
+            return std::make_pair(k, 1);
+        int contextSize = this->determineContextWindowSize(data);
+        if (k < 1 && T < 1)
+            T = contextSize / 50 + 1;
+        if (k < 1)
+            k = std::max(1, static_cast<int>(static_cast<float>(contextSize) / T + 0.5));
+        else
+            T = std::max(1, static_cast<int>(static_cast<float>(contextSize) / k + 0.5));
+    }
+    return std::make_pair(k, T);
+};
+
+int TimeDelayEmbedding::determineContextWindowSize(const DataTensor & data) const
+{
+    // Adjust threshold based on the number of attributes
+    DataTensor::Index na = data.numAttrib();
+    Scalar opt_th = this->opt_th * na;
+    
+    // Compute sum along time dimension
+    ReflessIndexVector flatShape = data.shape();
+    flatShape.t = 1;
+    DataTensor sum(flatShape);
+    sum.asTemporalMatrix() = data.asTemporalMatrix().colwise().sum();
+    
+    // Tensor containing mutual information for each location and various distances
+    flatShape.d = std::min(data.length() / 20, this->maxContextWindowSize);
+    DataTensor mi(flatShape);
+    
+    // Compute entropy
+    Sample mean(na), centered(na);
+    ScalarMatrix cov(na, na);
+    Eigen::Map<const Sample> covVec(cov.data(), na * na);
+    Scalar entropySummand = data.length() * (std::log(2 * M_PI) + 1);
+    Scalar covLogDet, indepCovLogDet;
+    for (IndexVector loc = mi.makeIndexVector(); loc.t < loc.shape.t; loc += loc.shape.d)
+    {
+        mean = sum(0, loc.x, loc.y, loc.z) / data.length();
+        cov.setZero();
+        for (DataTensor::Index t = 0; t < data.length(); ++t)
+        {
+            centered = data(t, loc.x, loc.y, loc.z) - mean;
+            cov.noalias() += centered * centered.transpose();
+        }
+        cov /= data.length() - 1;
+        if (na > 1)
+            cholesky(cov, NULL, &covLogDet);
+        else
+            covLogDet = std::log(cov(0, 0));
+        mi(loc) = (entropySummand + covLogDet) / 2;
+    }
+    assert((mi.channel(0).array() >= 0).all());
+    
+    // Compute relative mutual information for each location and various distances
+    Sample sumLeft(na), sumRight(na);
+    mean.resize(2 * na);
+    centered.resize(2 * na);
+    cov.resize(2 * na, 2 * na);
+    ScalarMatrix indepCov = ScalarMatrix::Zero(cov.rows(), cov.cols());
+    Eigen::LLT<ScalarMatrix> indepCovChol;
+    for (IndexVector loc = mi.makeIndexVector(); loc.t < loc.shape.t; ++loc)
+        if (loc.d == 0)
+        {
+            sumLeft.setZero();
+            sumRight.setZero();
+        }
+        else
+        {
+            // Sum up samples in cropped regions
+            sumLeft += data(loc.d - 1, loc.x, loc.y, loc.z);
+            sumRight += data(data.length() - loc.d, loc.x, loc.y, loc.z);
+            
+            // Compute mean and covariance of joint distribution
+            DataTensor::Index validLength = data.length() - loc.d;
+            mean.head(na) = (sum(0, loc.x, loc.y, loc.z) - sumLeft) / validLength;
+            mean.tail(na) = (sum(0, loc.x, loc.y, loc.z) - sumRight) / validLength;
+            cov.setZero();
+            for (DataTensor::Index t = loc.d; t < data.length(); ++t)
+            {
+                centered.head(na) = data(t, loc.x, loc.y, loc.z);
+                centered.tail(na) = data(t - loc.d, loc.x, loc.y, loc.z);
+                centered -= mean;
+                cov.noalias() += centered * centered.transpose();
+            }
+            cov /= validLength - 1;
+            
+            // Set up covariance of independent distribution
+            indepCov.block(0, 0, na, na) = cov.block(0, 0, na, na);
+            indepCov.block(na, na, na, na) = cov.block(na, na, na, na);
+            
+            // Compute KL divergence between p(x_t, x_(t-d)) and p(x_t)*p(x_(t-d))
+            cholesky(cov, NULL, &covLogDet);
+            cholesky(indepCov, &indepCovChol, &indepCovLogDet);
+            mi(loc) = (indepCovChol.solve(cov).trace() + indepCovLogDet - covLogDet - 2 * na) / (2 * mi({ loc.t, loc.x, loc.y, loc.z, 0 }));
+        }
+    mi.channel(0).setConstant(1);
+    assert((mi.data().array() >= 0).all());
+    
+    // Compute negative gradient of relative mutual information
+    ScalarMatrix tmpChannel1 = ScalarMatrix::Constant(1, mi.numSamples(), 1);
+    ScalarMatrix tmpChannel2(1, mi.numSamples());
+    for (DataTensor::Index d = 1; d < mi.numAttrib() - 1; ++d)
+    {
+        tmpChannel2 = tmpChannel1 - mi.channel(d+1);
+        tmpChannel1 = mi.channel(d);
+        mi.channel(d) = tmpChannel2;
+    }
+    
+    // Select first context window size below threshold for each location
+    std::vector<int> cws;
+    cws.reserve(mi.numSamples());
+    for (DataTensor::Index loc = 0; loc < mi.numSamples(); ++loc)
+    {
+        const auto sample = mi.sample(loc);
+        DataTensor::Index minInd = 0, d;
+        for (d = 1; d < mi.numAttrib() - 1; ++d)
+        {
+            if (sample(d) <= opt_th)
+            {
+                cws.push_back(d + 1);
+                break;
+            }
+            if (sample(d) < sample(minInd))
+                minInd = d;
+        }
+        if (d >= mi.numAttrib() - 1)
+            cws.push_back(minInd + 1);
+    }
+    
+    // Return median context window size
+    if (cws.size() == 1)
+        return cws[0];
+    else
+    {
+        std::nth_element(cws.begin(), cws.begin() + cws.size() / 2, cws.end());
+        return cws[cws.size() / 2];
+    }
+};
 
 
 Normalizer::Normalizer() : scaleBySD(false) {};

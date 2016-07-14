@@ -306,7 +306,7 @@ def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', *
                 if prep == 'normalize':
                     params.preproc.normalization = enums['MAXDIV_NORMALIZE_MAX']
                 elif prep == 'td':
-                    params.preproc.embedding.kt = 3
+                    params.preproc.embedding.kt = 0
                 elif prep == 'local_linear':
                     if isSpatioTemporal:
                         raise RuntimeError('Local linear regression is not available for spatio-temporal data.')
@@ -327,10 +327,10 @@ def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', *
                         params.preproc.detrending.method = enums['MAXDIV_DETREND_LINEAR']
                 else:
                     raise ValueError("Unknown preprocessing method {}".format(prep))
-    if ('td_dim' in kwargs) and (kwargs['td_dim'] is not None) and (kwargs['td_dim'] > 0):
-        params.preproc.embedding.kt = kwargs['td_dim']
-    if ('td_lag' in kwargs) and (kwargs['td_lag'] is not None) and (kwargs['td_lag'] > 0):
-        params.preproc.embedding.dt = kwargs['td_lag']
+    if ('td_dim' in kwargs) and (kwargs['td_dim'] != 1):
+        params.preproc.embedding.kt = kwargs['td_dim'] if (kwargs['td_dim'] is not None) and (kwargs['td_dim'] > 0) else 0
+    if 'td_lag' in kwargs:
+        params.preproc.embedding.dt = kwargs['td_lag'] if (kwargs['td_lag'] is not None) and (kwargs['td_lag'] > 0) else 0
     
     return maxdiv_exec(X, params, num_intervals)
 

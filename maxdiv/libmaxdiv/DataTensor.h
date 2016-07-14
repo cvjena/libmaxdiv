@@ -570,6 +570,44 @@ public:
     };
     
     /**
+    * Provides a view on the data for a single attribute in this tensor.
+    *
+    * @param[in] d The index of the attribute.
+    *
+    * @return Returns an `Eigen::Map` object where each row corresponds to a time step
+    * and contains `width * height * depth` columns, one for each spatial location.
+    */
+    ScalarMatrixMap channel(Index d)
+    {
+        assert(this->m_data_p != NULL);
+        assert(d >= 0 && d < this->m_shape.d);
+        return ScalarMatrixMap(
+            this->m_data_p + d,
+            this->m_shape.t, this->m_shape.prod(1, 3),
+            Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(this->m_shape.prod(1), this->m_shape.d)
+        );
+    };
+    
+    /**
+    * Provides a view on the data for a single attribute in this tensor.
+    *
+    * @param[in] d The index of the attribute.
+    *
+    * @return Returns a constant `Eigen::Map` object where each row corresponds to a time step
+    * and contains `width * height * depth` columns, one for each spatial location.
+    */
+    ConstScalarMatrixMap channel(Index d) const
+    {
+        assert(this->m_data_p != NULL);
+        assert(d >= 0 && d < this->m_shape.d);
+        return ConstScalarMatrixMap(
+            this->m_data_p + d,
+            this->m_shape.t, this->m_shape.prod(1, 3),
+            Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(this->m_shape.prod(1), this->m_shape.d)
+        );
+    };
+    
+    /**
     * Adds a constant feature vector to all samples in this DataTensor and
     * returns the result.
     *

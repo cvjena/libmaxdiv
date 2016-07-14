@@ -121,11 +121,11 @@ typedef struct {
         
         struct
         {
-            unsigned int kt; /**< Time-Delay Embedding Dimension */
+            unsigned int kt; /**< Time-Delay Embedding Dimension (1 = no TD embedding, 0 = automatic determination) */
             unsigned int kx; /**< Spatial Embedding Dimension along the first spatial axis */
             unsigned int ky; /**< Spatial Embedding Dimension along the second spatial axis */
             unsigned int kz; /**< Spatial Embedding Dimension along the third spatial axis */
-            unsigned int dt; /**< Time-Lag */
+            unsigned int dt; /**< Time-Lag (0 = automatic determination) */
             unsigned int dx; /**< Spacing between neighbours along the first spatial axis */
             unsigned int dy; /**< Spacing between neighbours along the second spatial axis */
             unsigned int dz; /**< Spacing between neighbours along the third spatial axis */

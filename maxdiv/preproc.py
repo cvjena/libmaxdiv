@@ -32,10 +32,43 @@ def local_linear_regression(X, window_size=5):
     return params
 
 
-def td(X, m = 3, T = 1):
-    """ time-delay transformation """
+def td(X, k = None, T = 1, opt_th = 0.0002):
+    """ Time-Delay Embedding transformation
+    
+    X - The time-series to be transformed
+    k - Embedding dimension (the number of time steps to integrate into one)
+    T - Time Lag (the gap between two consecutive time steps)
+    opt_th - Both, k and T, may be `None` to determine appropriate parameters automatically
+             based on the ratio of Mutual Information and Entropy. This parameter sets a
+             threshold on the gradient of that ratio. If the ratio drops slowlier than this
+             threshold, the respective context window size will be chosen.
+    """
+    
+    if (k is None) or (T is None):
+        # Adjust threshold based on the number of attributes
+        opt_th *= X.shape[0]
+        # Compute entropy
+        entropy = maxdiv_util.td_mutual_information(X, 1)
+        # Compute ratio of mutual information and entropy for different context window sizes
+        rmi = np.array([maxdiv_util.td_mutual_information(X, 2, d) / entropy for d in range(1, min(200, int(0.05 * X.shape[1])))])
+        # Compute gradient of relative mutual information
+        drmi = np.convolve(rmi, [-1, 0, 1], 'valid')
+        # Select first context window size below threshold
+        if np.any(drmi <= opt_th):
+            context_size = np.where(drmi <= opt_th)[0][0] + 3
+        else:
+            context_size = drmi.argmin() + 3
+        # Set parameters for Time-Delay embedding
+        if (k is None) and (T is None):
+            T = int(context_size // 50) + 1
+        if k is None:
+            k = max(1, int(round(context_size / T)))
+        else:
+            T = max(1, int(round(context_size / k)))
+    
+    # Time-Delay Embedding
     newX = np.copy(X)
-    for i in range(1, m):
+    for i in range(1, k):
         shift = np.arange(-i * T, X.shape[1] - (i * T), 1)
         shift[shift<0] = 0
         newX = np.vstack([newX, X[:, shift]])

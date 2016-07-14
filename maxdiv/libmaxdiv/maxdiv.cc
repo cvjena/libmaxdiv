@@ -111,7 +111,7 @@ DetectionList apply_maxdiv(const std::shared_ptr<DataTensor> & data,
     else if (linear_trend)
         preproc->push_back(std::make_shared<LinearDetrending>());
     
-    if (td_embed > 1 && td_lag > 0)
+    if (td_embed != 1)
         preproc->push_back(std::make_shared<TimeDelayEmbedding>(td_embed, td_lag, borders));
     
     // Put everything together and construct the SearchStrategy
@@ -319,11 +319,11 @@ int main(int argc, char * argv[])
                     }
                 }
                 else
-                    td_embed = 3;
+                    td_embed = 0;
                 break;
             case 'l':
-                td_lag = strtoul(optarg, NULL, 10);
-                if (td_lag == 0)
+                td_lag = strtoul(optarg, &conv_end, 10);
+                if (conv_end == NULL || *conv_end != '\0')
                 {
                     cerr << "Invalid value specified for option --td_lag" << endl;
                     return 1;
@@ -505,10 +505,11 @@ void printHelp(const char * progName)
          << endl
          << "    --td [<int>], -t [<int>]" << endl
          << "        Apply time-delay embedding to the time-series with the given embedding dimension." << endl
-         << "        If no argument is given, the embedding dimension defaults to 3." << endl
+         << "        If no argument is given, an embedding dimension will be determined automatically." << endl
          << endl
          << "    --td_lag <int>, -l <int> (default: 1)" << endl
-         << "        Distance between time steps for time-delay embedding." << endl
+         << "        Distance between time steps for time-delay embedding. May be set to 0 for automatic" << endl
+         << "        determination." << endl
          << endl
          << "    --borders <str>, -x <str> (default: AUTO)" << endl
          << "        Policy to be applied at the beginning of the time-series when performing time-delay" << endl

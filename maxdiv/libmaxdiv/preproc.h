@@ -340,8 +340,10 @@ protected:
 /**
 * @brief Time Delay Embedding pre-processor
 *
-* This is just a wrapper around time_delay_embedding().
+* This is mainly a wrapper around time_delay_embedding().
 * Refer to that function's documentation for details.
+*
+* In addition, this class can automatically determine appropriate parameters for Time-Delay embedding.
 *
 * @author Bjoern Barz <bjoern.barz@uni-jena.de>
 */
@@ -349,17 +351,17 @@ class TimeDelayEmbedding : public Preprocessor
 {
 public:
 
-    int k; /**< Embedding Dimension */
-    int T; /**< Time Delay */
+    int k; /**< Embedding Dimension (may be 0 for automatic determination) */
+    int T; /**< Time Delay (may be 0 for automatic determination) */
     BorderPolicy borderPolicy; /**< How to handle the start of the time series */
+    Scalar opt_th; /**< Threshold for automatic parameter determination. See `getContextWindowSize()`. */
+    DataTensor::Index maxContextWindowSize; /**< Maximum size of context windows for automatic parameter determination. */
 
-    TimeDelayEmbedding() : k(3), T(1), borderPolicy(BorderPolicy::AUTO) {};
-    TimeDelayEmbedding(int k, int T = 1, BorderPolicy borders = BorderPolicy::AUTO) : k(k), T(T), borderPolicy(borders) {};
+    TimeDelayEmbedding() : k(0), T(1), borderPolicy(BorderPolicy::AUTO), opt_th(0.0002), maxContextWindowSize(200) {};
+    TimeDelayEmbedding(int k, int T = 1, BorderPolicy borders = BorderPolicy::AUTO)
+    : k(k), T(T), borderPolicy(borders), opt_th(0.0002), maxContextWindowSize(200) {};
     
-    virtual DataTensor & operator()(const DataTensor & dataIn, DataTensor & dataOut) const override
-    {
-        return (dataOut = time_delay_embedding(dataIn, this->k, this->T, this->borderPolicy));
-    };
+    virtual DataTensor & operator()(const DataTensor & dataIn, DataTensor & dataOut) const override;
     
     /**
     * This method specifies the size of the border that would be cut off at the beginning of the given time series
@@ -368,17 +370,39 @@ public:
     * @return Returns the size of the border that is cut off at the beginning of each dimension.
     * A vector of zeroes will be returned if no cropping is performed by this pre-processor.
     */
-    virtual ReflessIndexVector borderSize(const DataTensor & data) const
-    {
-        ReflessIndexVector bs;
-        if (this->borderPolicy == BorderPolicy::AUTO || this->borderPolicy == BorderPolicy::VALID)
-        {
-            bs.t = (this->k - 1) * this->T;
-            if (bs.t >= data.length() || (this->borderPolicy == BorderPolicy::AUTO && bs.t * 20 > data.length()))
-                bs.t = 0;
-        }
-        return bs;
-    };
+    virtual ReflessIndexVector borderSize(const DataTensor & data) const;
+    
+    /**
+    * Determines the parameters to be used for time-delay embedding.
+    *
+    * If both the `k` and the `T` attribute of this object are set to a value greater than 0,
+    * this method will just return those values.
+    *
+    * Otherwise, it will determine appropriate values automatically based on the ratio of
+    * Mutual Information and Entropy.
+    *
+    * @param[in] data The data tensor to perform time-delay embedding on.
+    *
+    * @return Returns a pair with the values of the parameters `k` and `T` to be used for
+    * the time-delay embedding of the given data.
+    */
+    virtual std::pair<int, int> getEmbeddingParams(const DataTensor & data) const;
+    
+    /**
+    * Determines the size of the relevant context window for a given time-series @p data.
+    *
+    * The size of this window is determined based on the ratio of the mutual information between
+    * two points in the time-series with varying distance and the entropy of the time-series.
+    * The `opt_th` attribute sets a threshold on the gradient of that ratio. If the ratio drops
+    * slowlier than this threshold, the respective context window size will be chosen.
+    *
+    * For spatio-temporal data, this will be done for each location separately and the median context
+    * window size will be returned.
+    *
+    * @return Returns the number of timesteps contained in the context for a sample in the time-series
+    * (including that sample itself).
+    */
+    virtual int determineContextWindowSize(const DataTensor & data) const;
 
 };
 

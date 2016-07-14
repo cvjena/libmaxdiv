@@ -48,6 +48,39 @@ def IoU(start1, len1, start2, len2):
     return float(intersection) / (len1 + len2 - intersection)
 
 
+def td_mutual_information(ts, k, T = 1):
+    """ Computes mutual information between each time-step and some number of previous time steps.
+    
+    ts - The time-series.
+    k - Total number of time steps to be taken into account. This may be set to 1 to compute entropy.
+    T - Distance between two consecutive time steps.
+    
+    A multivariate normal distribution is assumed to mode the distribution of the data.
+    """
+    
+    d, n = ts.shape
+    
+    if (k < 2) or (T < 1):
+        # Entropy as a special case of MI
+        cov = np.cov(ts)
+        if d > 1:
+            return (n * (np.log(2 * np.pi) + 1) + np.linalg.slogdet(cov)[1]) / 2
+        else:
+            return (n * (np.log(2 * np.pi) + 1) + np.log(cov)) / 2
+    
+    # Time-Delay Embedding with the given embedding dimension and time lag
+    embed_func = np.vstack([ts[:, ((k - i - 1) * T):(n - i * T)] for i in range(k)])
+    
+    # Compute parameters of the joint and the marginal distributions assuming a normal distribution
+    cov = np.cov(embed_func)
+    cov_indep = cov.copy()
+    cov_indep[:d, d:] = 0
+    cov_indep[d:, :d] = 0
+    
+    # Compute KL divergence between p(x_t, x_(t-T), ..., x_(t - (k-1)*T)) and p(x_t)*p(x_(t-L), ..., x_(t - (k-1)*T))
+    return (np.linalg.inv(cov_indep).dot(cov).trace() + np.linalg.slogdet(cov_indep)[1] - np.linalg.slogdet(cov)[1] - embed_func.shape[0]) / 2
+
+
 def m_estimation(A, b, k = 1.345):
     """ Robust M-Estimation with Huber's function.
     
