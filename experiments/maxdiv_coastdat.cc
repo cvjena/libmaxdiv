@@ -1,11 +1,13 @@
-// g++ --std=c++11 -O3 -Wall -I../maxdiv/libmaxdiv -I/home/barz/lib/eigen-3.2.8 -I/home/barz/lib/anaconda3/include -L/home/barz/lib/anaconda3/lib -L../maxdiv/libmaxdiv/bin -Wl,-rpath,/home/barz/lib/anaconda3/lib,-rpath,/home/barz/anomaly-detection/extreme-interval-detection/maxdiv/libmaxdiv/bin -shared -o maxdiv_coastdat.so maxdiv_coastdat.cc -lmaxdiv -lnetcdf -fopenmp`
+// g++ --std=c++11 -O3 -Wall -I../maxdiv/libmaxdiv -I/home/barz/lib/eigen-3.2.8 -I/home/barz/lib/anaconda3/include -L/home/barz/lib/anaconda3/lib -L../maxdiv/libmaxdiv/bin -Wl,-rpath,/home/barz/lib/anaconda3/lib,-rpath,/home/barz/anomaly-detection/extreme-interval-detection/maxdiv/libmaxdiv/bin -shared -fPIC -o maxdiv_coastdat.so maxdiv_coastdat.cc -lmaxdiv -lnetcdf -fopenmp
 
 #include <iostream>
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <netcdf.h>
 #include "libmaxdiv.h"
 #include "DataTensor.h"
+#include "preproc.h"
 #include "utils.h"
 using MaxDiv::DataTensor;
 using MaxDiv::ReflessIndexVector;
@@ -80,7 +82,7 @@ int read_coastdat(const coastdat_params_t * data_params, DataTensor & coastData)
     if (data_params == NULL || data_params->spatialPoolingSize < 1)
         return 1;
     std::vector<std::string> variables;
-    if (splitString(strtolower(data_params->variables), ",; ", variables) < 1)
+    if (MaxDiv::splitString(MaxDiv::strtolower(data_params->variables), ",; ", variables) < 1)
         return 1;
     unsigned int firstYear = (data_params->firstYear >= COASTDAT_FIRST_YEAR) ? data_params->firstYear - COASTDAT_FIRST_YEAR + 1 : data_params->firstYear;
     unsigned int lastYear = (data_params->lastYear >= COASTDAT_FIRST_YEAR) ? data_params->lastYear - COASTDAT_FIRST_YEAR + 1 : data_params->lastYear;
@@ -91,7 +93,7 @@ int read_coastdat(const coastdat_params_t * data_params, DataTensor & coastData)
     std::size_t dim_len;
     ReflessIndexVector shape;
     shape.t = 0;
-    shape.x = ceil(data_params->lastLon - data_params->firstLon + 1) / static_cast<float>(data_params->spatialPoolingSize));;
+    shape.x = ceil((data_params->lastLon - data_params->firstLon + 1) / static_cast<float>(data_params->spatialPoolingSize));;
     shape.y = ceil((data_params->lastLat - data_params->firstLat + 1) / static_cast<float>(data_params->spatialPoolingSize));
     shape.z = 1;
     shape.d = variables.size();
@@ -103,7 +105,7 @@ int read_coastdat(const coastdat_params_t * data_params, DataTensor & coastData)
         if (status != NC_NOERR) return status;
         
         // Get handle to variable
-        status = nc_inq_varid(ncid, variables[0], &var_id);
+        status = nc_inq_varid(ncid, variables[0].c_str(), &var_id);
         if (status != NC_NOERR) return status;
         
         // Query length of time dimension
@@ -116,18 +118,18 @@ int read_coastdat(const coastdat_params_t * data_params, DataTensor & coastData)
         nc_close(ncid);
     }
     
-    std::cerr << "Data shape: " << shape.t << << " x " << shape.x << " x " << shape.y << " x " << shape.z << " x " << shape.d << std::endl;
+    std::cerr << "Data shape: " << shape.t << " x " << shape.x << " x " << shape.y << " x " << shape.z << " x " << shape.d << std::endl;
     std::cerr << "Memory usage: " << static_cast<float>(shape.prod() * sizeof(MaxDiv::Scalar)) / (1 << 30) << " GiB" << std::endl;
     
     // Read data
-    coastData.resize(shape)
+    coastData.resize(shape);
     DataTensor buffer;
     std::size_t dataStart[] = { 0, data_params->firstLat, data_params->firstLon };
     std::size_t dataLength[] = { 0, data_params->lastLat - data_params->firstLat + 1, data_params->lastLon - data_params->firstLon + 1 };
-    std::size_t timeOffset = 0;
+    DataTensor::Index timeOffset = 0;
     for (unsigned int year = firstYear; year <= lastYear; ++year)
     {
-        for (std::size_t d = 0; d < variables.size(); ++d)
+        for (DataTensor::Index d = 0; d < variables.size(); ++d)
         {
             // Open NetCDF file
             sprintf(filename, COASTDAT_PATH "%s/coastDat-1_Waves_%s_%03u.nc", variables[d].c_str(), variables[d].c_str(), year);
@@ -136,7 +138,7 @@ int read_coastdat(const coastdat_params_t * data_params, DataTensor & coastData)
             if (status != NC_NOERR) return status;
             
             // Get handle to variable
-            status = nc_inq_varid(ncid, variables[d], &var_id);
+            status = nc_inq_varid(ncid, variables[d].c_str(), &var_id);
             if (status != NC_NOERR) return status;
             
             // Query length of time dimension
@@ -147,7 +149,7 @@ int read_coastdat(const coastdat_params_t * data_params, DataTensor & coastData)
             dataLength[0] = dim_len;
             
             // Read block from NetCDF file
-            buffer.resize({ dara_length[0], dataLength[1], dataLength[2], 1, 1 });
+            buffer.resize({ dataLength[0], dataLength[1], dataLength[2], 1, 1 });
             #ifdef MAXDIV_FLOAT
             status = nc_get_vara_float(ncid, var_id, dataStart, dataLength, buffer.raw());
             #else
@@ -158,7 +160,7 @@ int read_coastdat(const coastdat_params_t * data_params, DataTensor & coastData)
             nc_close(ncid);
             
             // Average Pooling (and swapping of Lat/Lon)
-            for (std::size_t t = 0; t < dim_len; ++t)
+            for (DataTensor::Index t = 0; t < dim_len; ++t)
             {
                 DataTensor::ConstScalarMatrixMap timestep(buffer.raw(), buffer.width(), buffer.height(), Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(buffer.height(), 1));
                 for (DataTensor::Index x = 0; x < shape.x; ++x)
@@ -166,11 +168,13 @@ int read_coastdat(const coastdat_params_t * data_params, DataTensor & coastData)
                     {
                         // Note that latitude is mapped to the y-axis in `coastData`,
                         // but to the x-axis in `buffer`.
+                        DataTensor::Index firstX = y * data_params->spatialPoolingSize;
+                        DataTensor::Index firstY = x * data_params->spatialPoolingSize;
                         coastData({ timeOffset + t, x, y, 0, d }) = timestep.block(
-                            y * data_params->spatialPoolingSize,
-                            x * data_params->spatialPoolingSize,
-                            std::min(data_params->spatialPoolingSize, buffer.width() - y * data_params->spatialPoolingSize),
-                            std::min(data_params->spatialPoolingSize, buffer.height() - x * data_params->spatialPoolingSize)
+                            firstX,
+                            firstY,
+                            std::min(static_cast<DataTensor::Index>(data_params->spatialPoolingSize), buffer.width() - firstX),
+                            std::min(static_cast<DataTensor::Index>(data_params->spatialPoolingSize), buffer.height() - firstY)
                         ).mean();
                     }
             }
@@ -195,8 +199,11 @@ int maxdiv_coastdat(const maxdiv_params_t * params, const coastdat_params_t * da
     if (status != 0) return status;
     
     // Apply MaxDiv algorithm
+    unsigned int shape[MAXDIV_INDEX_DIMENSION];
+    for (int d = 0; d < MAXDIV_INDEX_DIMENSION; ++d)
+        shape[d] = coastData.shape().ind[d];
     auto start = std::chrono::high_resolution_clock::now();
-    maxdiv(params, coastData.raw(), shape.ind, detection_buf, detection_buf_size, false);
+    maxdiv(params, coastData.raw(), shape, detection_buf, detection_buf_size, false);
     auto stop = std::chrono::high_resolution_clock::now();
     std::cerr << "MaxDiv algorithm took "
               << std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count() / 1000.0f
