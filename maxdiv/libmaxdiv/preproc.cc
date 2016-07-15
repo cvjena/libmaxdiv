@@ -117,7 +117,7 @@ int TimeDelayEmbedding::determineContextWindowSize(const DataTensor & data) cons
         }
         cov /= data.length() - 1;
         if (na > 1)
-            cholesky(cov, NULL, &covLogDet);
+            cholesky(cov, static_cast<Eigen::LLT<ScalarMatrix>*>(nullptr), &covLogDet);
         else
             covLogDet = std::log(cov(0, 0));
         mi(loc) = (entropySummand + covLogDet) / 2;
@@ -162,7 +162,7 @@ int TimeDelayEmbedding::determineContextWindowSize(const DataTensor & data) cons
             indepCov.block(na, na, na, na) = cov.block(na, na, na, na);
             
             // Compute KL divergence between p(x_t, x_(t-d)) and p(x_t)*p(x_(t-d))
-            cholesky(cov, NULL, &covLogDet);
+            cholesky(cov, static_cast<Eigen::LLT<ScalarMatrix>*>(nullptr), &covLogDet);
             cholesky(indepCov, &indepCovChol, &indepCovLogDet);
             mi(loc) = (indepCovChol.solve(cov).trace() + indepCovLogDet - covLogDet - 2 * na) / (2 * mi({ loc.t, loc.x, loc.y, loc.z, 0 }));
         }
