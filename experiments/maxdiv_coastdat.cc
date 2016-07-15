@@ -156,13 +156,13 @@ int read_coastdat(const coastdat_params_t * data_params, DataTensor & coastData)
             status = nc_get_vara_double(ncid, var_id, dataStart, dataLength, buffer.raw());
             #endif
             if (status != NC_NOERR) return status;
-            
+
             nc_close(ncid);
-            
+
             // Average Pooling (and swapping of Lat/Lon)
             for (DataTensor::Index t = 0; t < dim_len; ++t)
             {
-                DataTensor::ConstScalarMatrixMap timestep(buffer.raw(), buffer.width(), buffer.height(), Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(buffer.height(), 1));
+                DataTensor::ConstScalarMatrixMap timestep(buffer.raw() + t * buffer.width() * buffer.height(), buffer.width(), buffer.height(), Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(buffer.height(), 1));
                 for (DataTensor::Index x = 0; x < shape.x; ++x)
                     for (DataTensor::Index y = 0; y < shape.y; ++y)
                     {
