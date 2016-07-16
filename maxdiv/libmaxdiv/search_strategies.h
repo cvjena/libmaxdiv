@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <vector>
+#include <list>
 #include "DataTensor.h"
 #include "proposals.h"
 #include "divergences.h"
@@ -35,6 +36,75 @@ struct Detection : public IndexRange
 };
 
 typedef std::vector<Detection> DetectionList;
+
+
+/**
+* @brief A sorted list of detections which applies non-maximum suppression on insertion.
+*
+* The detections in this list are sorted in descending order by their score. Whenever a new
+* detection is to be inserted, its size will be compared to all detections before and after
+* the position of the new one: If there is an overlapping detection with a higher score, the
+* new one won't be inserted at all. Otherwise, all overlapping detections with a lower score
+* will be removed from the list.
+*
+* @author Bjoern Barz <bjoern.barz@uni-jena.de>
+*/
+class MaximumDetectionList
+{
+public:
+
+    typedef std::list<Detection>::iterator iterator;
+    typedef std::list<Detection>::const_iterator const_iterator;
+
+    MaximumDetectionList();
+    MaximumDetectionList(unsigned int maxDetections);
+    MaximumDetectionList(Scalar overlap_th);
+    MaximumDetectionList(unsigned int maxDetections, Scalar overlap_th);
+    MaximumDetectionList(const MaximumDetectionList & other);
+    MaximumDetectionList(MaximumDetectionList && other);
+    
+    virtual ~MaximumDetectionList() {};
+    
+    MaximumDetectionList & operator=(const MaximumDetectionList & other);
+    MaximumDetectionList & operator=(MaximumDetectionList && other);
+    
+    virtual bool insert(const Detection & detection);
+    virtual bool insert(Detection && detection);
+    
+    virtual const_iterator erase(const_iterator pos);
+    
+    virtual void merge(MaximumDetectionList & other);
+    virtual void merge(MaximumDetectionList && other);
+    virtual void merge(std::vector<MaximumDetectionList>::iterator first, std::vector<MaximumDetectionList>::iterator last);
+    
+    const_iterator begin() const;
+    const_iterator end() const;
+    
+    std::size_t size() const { return this->m_detections.size(); };
+    bool empty() const { return this->m_detections.empty(); };
+    
+    /**
+    * @return Returns the maximum number of detections maintained in this list.
+    * A value of 0 indicates that there isn't any limit.
+    */
+    unsigned int getMaxSize() const { return this->m_maxDetections; };
+    
+    /**
+    * @return Returns the current overlap threshold used for non-maximum suppression:
+    * Intervals with an Intersection over Union (IoU) greater than this threshold will be considered overlapping.
+    */
+    Scalar getOverlapTh() const { return this->m_overlap_th; };
+
+
+protected:
+
+    std::list<Detection> m_detections;
+    unsigned int m_maxDetections;
+    Scalar m_overlap_th;
+    
+    virtual void nonMaximumSuppression();
+
+};
 
 
 /**
@@ -83,7 +153,7 @@ public:
     *
     * @return Returns a list of detected ranges, sorted by detection score in decreasing order.
     */
-    virtual DetectionList operator()(const std::shared_ptr<DataTensor> & data, unsigned int numDetections = 0) =0;
+    virtual DetectionList operator()(const std::shared_ptr<DataTensor> & data, unsigned int numDetections = 0);
     
     /**
     * Searches for anomalous sub-blocks in a given DataTensor.
@@ -94,7 +164,7 @@ public:
     *
     * @return Returns a list of detected ranges, sorted by detection score in decreasing order.
     */
-    virtual DetectionList operator()(const std::shared_ptr<const DataTensor> & data, unsigned int numDetections = 0) =0;
+    virtual DetectionList operator()(const std::shared_ptr<const DataTensor> & data, unsigned int numDetections = 0);
     
     /**
     * @return Returns a pointer to the divergence measure used by this strategy to compare a sub-block of data with the remaining data.
@@ -140,6 +210,19 @@ protected:
     std::shared_ptr<Divergence> m_divergence; /**< The divergence measure used to compare a sub-block of the data with the remaining data. */
     std::shared_ptr<const PreprocessingPipeline> m_preproc; /**< The pre-processing pipeline to be applied to the data before searching for anomalous sub-blocks. */
     Scalar m_overlap_th; /**< Overlap threshold for non-maximum suppression: Intervals with a greater IoU will be considered overlapping. */
+    
+    /**
+    * Searches for anomalous sub-blocks in a given pre-processed DataTensor.
+    *
+    * This function will be called by `operator()` after pre-processing to perform the actual detection.
+    *
+    * @param[in] data The pre-processed spatio-temporal data.
+    *
+    * @param[in] numDetections Maximum number of detections to return. Set this to `0` to retrieve all detections.
+    *
+    * @return Returns a list of detected ranges, sorted by detection score in decreasing order.
+    */
+    virtual DetectionList detect(const std::shared_ptr<const DataTensor> & data, unsigned int numDetections = 0) =0;
 
 };
 
@@ -190,29 +273,6 @@ public:
     ProposalSearch(const std::shared_ptr<Divergence> & divergence,
                    const std::shared_ptr<ProposalGenerator> & generator,
                    const std::shared_ptr<const PreprocessingPipeline> & preprocessing);
-   
-   /**
-    * Searches for anomalous sub-blocks in a given DataTensor.
-    *
-    * @param[in] data The spatio-temporal data. This function may modify the given data (e.g. during pre-processing,
-    * but there also is a const version).
-    *
-    * @param[in] numDetections Maximum number of detections to return. Set this to `0` to retrieve all detections.
-    *
-    * @return Returns a list of detected ranges, sorted by detection score in decreasing order.
-    */
-    virtual DetectionList operator()(const std::shared_ptr<DataTensor> & data, unsigned int numDetections = 0) override;
-    
-    /**
-    * Searches for anomalous sub-blocks in a given DataTensor.
-    *
-    * @param[in] data The spatio-temporal data.
-    *
-    * @param[in] numDetections Maximum number of detections to return. Set this to `0` to retrieve all detections.
-    *
-    * @return Returns a list of detected ranges, sorted by detection score in decreasing order.
-    */
-    virtual DetectionList operator()(const std::shared_ptr<const DataTensor> & data, unsigned int numDetections = 0) override;
     
     /**
     * @return Returns a pointer to the proposal generator.
@@ -230,6 +290,19 @@ public:
 protected:
 
     std::shared_ptr<ProposalGenerator> m_proposals; /**< The proposal generator to be used to retrieve a list of possibly anomalous ranges. */
+    
+    /**
+    * Searches for anomalous sub-blocks in a given pre-processed DataTensor.
+    *
+    * This function will be called by `operator()` after pre-processing to perform the actual detection.
+    *
+    * @param[in] data The pre-processed spatio-temporal data.
+    *
+    * @param[in] numDetections Maximum number of detections to return. Set this to `0` to retrieve all detections.
+    *
+    * @return Returns a list of detected ranges, sorted by detection score in decreasing order.
+    */
+    virtual DetectionList detect(const std::shared_ptr<const DataTensor> & data, unsigned int numDetections = 0) override;
 
 };
 
