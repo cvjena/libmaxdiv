@@ -73,7 +73,7 @@ DetectionList SearchStrategy::operator()(const std::shared_ptr<const DataTensor>
             modData = data;
         
         // Detect anomalous intervals
-        detections = this->detect(data, numDetections);
+        detections = this->detect(modData, numDetections);
         
         // Add offset to the detected ranges if a border has been cut off from the original data
         if (borderSize != 0)
