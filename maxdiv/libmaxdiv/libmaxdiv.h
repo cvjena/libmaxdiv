@@ -158,7 +158,7 @@ void maxdiv_init_params(maxdiv_params_t * params);
 /**
 * Builds a processing pipeline from a set of parameters used by `maxdiv_exec()`.
 *
-* @param[in] Pointer to a structure with the parameters for the MDI algorithm. It must have been initialized
+* @param[in] params Pointer to a structure with the parameters for the MDI algorithm. It must have been initialized
 * by calling `maxdiv_init_params()`.
 *
 * @return Returns an internal handle to the pipeline which can be passed to `maxdiv_exec()`. `0` will be returned

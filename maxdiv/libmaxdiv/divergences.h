@@ -58,7 +58,7 @@ public:
 * The Kullback-Leibler Divergence is defined as:
 *
 * \f[
-*     \text{KL}(p_I, p_\Omega) = \integral p_I(x_t) \cdot \log \left ( \frac{p_I(x_t)}{p_\Omega(x_t)} \right ) dx_t
+*     \text{KL}(p_I, p_\Omega) = \int p_I(x_t) \cdot \log \left ( \frac{p_I(x_t)}{p_\Omega(x_t)} \right ) dx_t
 * \f]
 *
 * @author Bjoern Barz <bjoern.barz@uni-jena.de>
@@ -160,6 +160,7 @@ public:
     * - For `I_OMEGA` mode: \f$KL_{I,\Omega} = \frac{1}{\left | I \right |}\sum_{t \in I} \left ( \log \left ( p_I(x_t) \right ) - \log \left ( p_\Omega(x_t) \right ) \right )\f$
     * - For `OMEGA_I` mode: \f$KL_{\Omega,I} = \frac{1}{\left | \Omega \right |}\sum_{t \in \Omega} \left ( \log \left ( p_\Omega(x_t) \right ) - \log \left ( p_I(x_t) \right ) \right )\f$
     * - For `SYM` mode: \f$KL_{\text{SYM}} = KL_{I,\Omega} + KL_{\Omega,I}\f$
+    * - For `UNBIASED` mode: \f$KL_{\text{TS}} = \left | I \right | \cdot KL_{I,\Omega}\f$
     *
     * `init()` has to be called before this can be used.
     *

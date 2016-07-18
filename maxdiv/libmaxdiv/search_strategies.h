@@ -425,7 +425,7 @@ protected:
 /**
 * Orders a list of detected ranges by their score in decreasing order and removes overlapping intervals with lower scores (non-maxima).
 *
-* @param[in,out] The list of detected ranges. Will be modified in-place.
+* @param[in,out] detections The list of detected ranges. Will be modified in-place.
 *
 * @param[in] numDetections The maximum number of detections to keep. `detections` will have at most this number of
 * elements after applying this function. Set this to `0` to keep all maximum detections.

@@ -675,7 +675,7 @@ public:
     ZScoreDeseasonalization() = delete;
     
     /**
-    * @param[iin] period_len The number of seasonal groups (e.g. `24` for hourly sampled data and diurnal seasonality).
+    * @param[in] period_len The number of seasonal groups (e.g. `24` for hourly sampled data and diurnal seasonality).
     */
     ZScoreDeseasonalization(unsigned int period_len);
     
