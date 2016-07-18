@@ -49,6 +49,8 @@ coastdat_maxdiv_dump = CFUNCTYPE(c_int, maxdiv_params_p, c_char_p, detection_p, 
 
 coastdat_context_window_size = CFUNCTYPE(c_int, coastdat_params_p)(('coastdat_context_window_size', libcoastdat), ((1, 'data_params'),))
 
+coastdat_context_window_size_dump = CFUNCTYPE(c_int, c_char_p, c_int)(('coastdat_context_window_size_dump', libcoastdat), ((1, 'dump_file'), (1, 'deseasonalization', COASTDAT_DESEAS_NONE)))
+
 
 def ind2latlon(ind_y, ind_x, data_params = None):
     if data_params is not None:

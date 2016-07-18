@@ -112,7 +112,51 @@ int coastdat_maxdiv_dump(const maxdiv_params_t * params, const char * dump_file,
 */
 int coastdat_context_window_size(const coastdat_params_t * data_params);
 
+/**
+* Determines the size of window of relevant context for a given portion of the CoastDat data set
+* read from a dump.
+*
+* @param[in] dump_file Path to the dump of the data created by `coastdat_dump()`.
+*
+* @param[in] deseasonalization Deseasonalization method to be applied to the data.
+*
+* @return Returns the context window size
+*
+* @see MaxDiv::TimeDelayEmbedding::determineContextWindowSize
+*/
+int coastdat_context_window_size_dump(const char * dump_file, coastdat_deseasonalization_method_t deseasonalization = COASTDAT_DESEAS_NONE);
+
 };
+
+
+void coastdat_deseasonalize(DataTensor & coastData, coastdat_deseasonalization_method_t method)
+{
+    if (method != COASTDAT_DESEAS_NONE)
+    {
+        auto start = std::chrono::high_resolution_clock::now();
+        switch (method)
+        {
+            case COASTDAT_DESEAS_OLS_DAY:
+                MaxDiv::OLSDetrending(24, false)(coastData, coastData);
+                break;
+            case COASTDAT_DESEAS_OLS_YEAR:
+                MaxDiv::OLSDetrending(MaxDiv::OLSDetrending::PeriodVector{ {24, 1}, {365, 24} }, false)(coastData, coastData);
+                break;
+            case COASTDAT_DESEAS_ZSCORE_DAY:
+                MaxDiv::ZScoreDeseasonalization(24)(coastData);
+                break;
+            case COASTDAT_DESEAS_ZSCORE_YEAR:
+                MaxDiv::ZScoreDeseasonalization(24*365)(coastData);
+                break;
+            default:
+                break;
+        }
+        auto stop = std::chrono::high_resolution_clock::now();
+        std::cerr << "Deseasonalization took "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count() / 1000.0f
+                  << " s." << std::endl;
+    }
+}
 
 
 int read_coastdat(const coastdat_params_t * data_params, DataTensor & coastData)
@@ -226,29 +270,7 @@ int read_coastdat(const coastdat_params_t * data_params, DataTensor & coastData)
     buffer.release();
     
     // Deseasonalization
-    if (data_params->deseasonalization != COASTDAT_DESEAS_NONE)
-    {
-        auto start = std::chrono::high_resolution_clock::now();
-        switch (data_params->deseasonalization)
-        {
-            case COASTDAT_DESEAS_OLS_DAY:
-                MaxDiv::OLSDetrending(24, false)(coastData, coastData);
-                break;
-            case COASTDAT_DESEAS_OLS_YEAR:
-                MaxDiv::OLSDetrending(MaxDiv::OLSDetrending::PeriodVector{ {24, 1}, {365, 24} }, false)(coastData, coastData);
-                break;
-            case COASTDAT_DESEAS_ZSCORE_DAY:
-                MaxDiv::ZScoreDeseasonalization(24)(coastData);
-                break;
-            case COASTDAT_DESEAS_ZSCORE_YEAR:
-                MaxDiv::ZScoreDeseasonalization(24*365)(coastData);
-                break;
-        }
-        auto stop = std::chrono::high_resolution_clock::now();
-        std::cerr << "Deseasonalization took "
-                  << std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count() / 1000.0f
-                  << " s." << std::endl;
-    }
+    coastdat_deseasonalize(coastData, data_params->deseasonalization);
     
     return 0;
 }
@@ -374,6 +396,17 @@ int coastdat_context_window_size(const coastdat_params_t * data_params)
     DataTensor coastData;
     if (read_coastdat(data_params, coastData) != 0)
         return 0;
+    
+    return MaxDiv::TimeDelayEmbedding().determineContextWindowSize(coastData);
+}
+
+int coastdat_context_window_size_dump(const char * dump_file, coastdat_deseasonalization_method_t deseasonalization)
+{
+    DataTensor coastData;
+    if (!read_coastdat_dump(dump_file, coastData))
+        return 0;
+
+    coastdat_deseasonalize(coastData, deseasonalization);
     
     return MaxDiv::TimeDelayEmbedding().determineContextWindowSize(coastData);
 }
