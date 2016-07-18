@@ -312,7 +312,14 @@ bool MaximumDetectionList::insert(Detection && detection)
 
 MaximumDetectionList::const_iterator MaximumDetectionList::erase(const_iterator pos)
 {
+#if defined(__GNUC__) && (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ <= 8))
+    // gcc <= 4.8 does not support erasure of const_iterator
+    iterator it = this->m_detections.begin();
+    std::advance(it, std::distance(this->m_detections.cbegin(), pos));
+    return this->m_detections.erase(it);
+#else
     return this->m_detections.erase(pos);
+#endif
 }
 
 void MaximumDetectionList::merge(MaximumDetectionList & other)
