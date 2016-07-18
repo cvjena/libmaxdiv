@@ -1,4 +1,5 @@
 #include "search_strategies.h"
+#include "config.h"
 #include <algorithm>
 #include <utility>
 #include <stdexcept>
@@ -119,27 +120,54 @@ DetectionList ProposalSearch::detect(const std::shared_ptr<const DataTensor> & d
         this->m_proposals->init(*data);
         
         // Score every proposed range
-        #ifdef _OPENMP
-        std::vector<MaximumDetectionList> detectionLists(omp_get_max_threads(), MaximumDetectionList(numDetections, this->m_overlap_th));
-        Eigen::setNbThreads(1);
-        #pragma omp parallel
+        if (data->numSamples() <= MAXDIV_NMP_LIMIT)
         {
-            std::shared_ptr<Divergence> divergence = this->m_divergence->clone();
-            MaximumDetectionList & localDetections = detectionLists[omp_get_thread_num()];
-            for (ProposalIterator range = this->m_proposals->iteratePartial(omp_get_num_threads(), omp_get_thread_num()); range != this->m_proposals->end(); ++range)
-                localDetections.insert(Detection(*range, (*divergence)(*range)));
+            // Offline non-maximum suppression: Collect all scores first, then apply non-maximum suppression
+            #ifdef _OPENMP
+            Eigen::setNbThreads(1);
+            #pragma omp parallel
+            {
+                std::shared_ptr<Divergence> divergence = this->m_divergence->clone();
+                DetectionList localDetections;
+                for (ProposalIterator range = this->m_proposals->iteratePartial(omp_get_num_threads(), omp_get_thread_num()); range != this->m_proposals->end(); ++range)
+                    localDetections.push_back(Detection(*range, (*divergence)(*range)));
+                #pragma omp critical
+                detections.insert(detections.end(), localDetections.begin(), localDetections.end());
+            }
+            Eigen::setNbThreads(0);
+            #else
+            for (const IndexRange & range : *(this->m_proposals))
+                detections.push_back(Detection(range, (*(this->m_divergence))(range)));
+            #endif
+            
+            // Non-maximum suppression
+            nonMaximumSuppression(detections, numDetections, this->m_overlap_th);
         }
-        Eigen::setNbThreads(0);
-        #else
-        std::vector<MaximumDetectionList> detectionLists(1, MaximumDetectionList(numDetections, this->m_overlap_th));
-        for (const IndexRange & range : *(this->m_proposals))
-            detectionLists[0].insert(Detection(range, (*(this->m_divergence))(range)));
-        #endif
-        
-        // Merge results from different threads
-        if (detectionLists.size() > 1)
-            detectionLists[0].merge(detectionLists.begin() + 1, detectionLists.end());
-        detections.insert(detections.begin(), detectionLists[0].begin(), detectionLists[0].end());
+        else
+        {
+            // Online non-maximum suppression: Apply non-maximum suppression concurrently while retrieving scores
+            #ifdef _OPENMP
+            std::vector<MaximumDetectionList> detectionLists(omp_get_max_threads(), MaximumDetectionList(numDetections, this->m_overlap_th));
+            Eigen::setNbThreads(1);
+            #pragma omp parallel
+            {
+                std::shared_ptr<Divergence> divergence = this->m_divergence->clone();
+                MaximumDetectionList & localDetections = detectionLists[omp_get_thread_num()];
+                for (ProposalIterator range = this->m_proposals->iteratePartial(omp_get_num_threads(), omp_get_thread_num()); range != this->m_proposals->end(); ++range)
+                    localDetections.insert(Detection(*range, (*divergence)(*range)));
+            }
+            Eigen::setNbThreads(0);
+            #else
+            std::vector<MaximumDetectionList> detectionLists(1, MaximumDetectionList(numDetections, this->m_overlap_th));
+            for (const IndexRange & range : *(this->m_proposals))
+                detectionLists[0].insert(Detection(range, (*(this->m_divergence))(range)));
+            #endif
+            
+            // Merge results from different threads
+            if (detectionLists.size() > 1)
+                detectionLists[0].merge(detectionLists.begin() + 1, detectionLists.end());
+            detections.insert(detections.begin(), detectionLists[0].begin(), detectionLists[0].end());
+        }
         
         // Release memory
         if (this->autoReset)
@@ -147,9 +175,6 @@ DetectionList ProposalSearch::detect(const std::shared_ptr<const DataTensor> & d
             this->m_divergence->reset();
             this->m_proposals->reset();
         }
-        
-        // Non-maximum suppression
-        //nonMaximumSuppression(detections, numDetections, this->m_overlap_th);
     }
     return detections;
 }

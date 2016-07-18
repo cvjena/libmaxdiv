@@ -30,4 +30,18 @@ typedef double MaxDivScalar;
 #define MAXDIV_KDE_CUMULATIVE_SIZE_LIMIT 20000
 #endif
 
+#ifndef MAXDIV_NMP_LIMIT
+/**
+* For offline non-maximum suppression, the scores of all sub-blocks in the data have to be
+* retrieved and stored first. Since the number of sub-blocks grows quadratically with the
+* data size, those scores may consume a lot of memory. In this case, an online non-maximum
+* suppression algorithm would be much more efficient regarding space and time, but its output
+* will depend on the order which the scores are retrieved in.
+*
+* This constant sets a limit on the number of samples which offline non-maximum suppression
+* is feasible for. Online non-maximum suppression will be used for data sets with more samples.
+*/
+#define MAXDIV_NMP_LIMIT 10000
+#endif
+
 #endif

@@ -14,11 +14,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #### Build options ####
 OPTION(MAXDIV_FLOAT "Use single precision." OFF)
 SET(MAXDIV_KDE_CUMULATIVE_SIZE_LIMIT 20000 CACHE STRING "Limit on the number of samples which cumulative sums will be used for during in Kernel Density Estimation.")
+SET(MAXDIV_NMP_LIMIT 10000 CACHE STRING "Limit on the number of samples which offline non-maximum suppression will be used for.")
 
 IF(MAXDIV_FLOAT)
   ADD_DEFINITIONS(-DMAXDIV_FLOAT)
 ENDIF()
 ADD_DEFINITIONS(-DMAXDIV_KDE_CUMULATIVE_SIZE_LIMIT=${MAXDIV_KDE_CUMULATIVE_SIZE_LIMIT})
+ADD_DEFINITIONS(-DMAXDIV_NMP_LIMIT=${MAXDIV_NMP_LIMIT})
 
 # Select a default build configuration if none was chosen
 IF(NOT CMAKE_BUILD_TYPE)
