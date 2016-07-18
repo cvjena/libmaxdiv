@@ -1,6 +1,7 @@
 // g++ --std=c++11 -O3 -Wall -I../maxdiv/libmaxdiv -I/home/barz/lib/eigen-3.2.8 -I/home/barz/lib/anaconda3/include -L/home/barz/lib/anaconda3/lib -L../maxdiv/libmaxdiv/bin -Wl,-rpath,/home/barz/lib/anaconda3/lib,-rpath,/home/barz/anomaly-detection/extreme-interval-detection/maxdiv/libmaxdiv/bin -shared -fPIC -o maxdiv_coastdat.so maxdiv_coastdat.cc -lmaxdiv -lnetcdf -fopenmp
 
 #include <iostream>
+#include <fstream>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -21,6 +22,15 @@ using MaxDiv::ReflessIndexVector;
 extern "C"
 {
 
+enum coastdat_deseasonalization_method_t
+{
+    COASTDAT_DESEAS_NONE,       /**< No deseasonalization. */
+    COASTDAT_DESEAS_OLS_DAY,    /**< OLS deseasonalization with a period of 24 hours. */
+    COASTDAT_DESEAS_OLS_YEAR,   /**< OLS deseasonalization with a period of 24 hours and 365 days. */
+    COASTDAT_DESEAS_ZSCORE_DAY, /**< Z Score deseasonalization with a period of 24 hours. */
+    COASTDAT_DESEAS_ZSCORE_YEAR /**< Z Score deseasonalization with a period of 24 * 365 hours. */
+};
+
 typedef struct {
     const char * variables; /**< Comma-separated list of the variables to be read. Available variables are: dd, ds, ff, hs, mp, tm1, tm2, tp, wd */
     unsigned int firstYear; /**< First year to include in the data (ranging from 1958 to 2007 or from 1 to 50). */
@@ -30,7 +40,29 @@ typedef struct {
     unsigned int firstLon; /**< Index of the first longitude to include in the data. */
     unsigned int lastLon; /**< Index of the last longitude to include in the data. */
     unsigned int spatialPoolingSize; /**< Number of spatial cells to be aggregated. */
+    coastdat_deseasonalization_method_t deseasonalization; /**< Deseasonalization method to be applied after loading the data. */
 } coastdat_params_t;
+
+/**
+* Initializes a given `coastdat_params_t` structure with the default parameters.
+*
+* @param[out] data_params Pointer to the parameter structure to be set to the default parameters.
+*/
+void coastdat_default_params(coastdat_params_t * data_params);
+
+/**
+* Loads data from the CoastDat data set and dumps it into a binary file, which can be used for
+* faster re-loading of the data than from the NetCDF files.
+*
+* @param[in] data_params Pointer to a structure specifying the portion of the data set to be read.
+* The default parameters can be retrieved by calling `maxdiv_coastdat_default_params()`.
+*
+* @param[in] dump_file Path of the file to write the data to.
+*
+* @return Returns 0 on success, a negative error code obtained from libnetcdf if the data could not be read
+* or a positive error code if the dump could not be created.
+*/
+int coastdat_dump(const coastdat_params_t * data_params, const char * dump_file);
 
 /**
 * Loads data from the CoastDat data set and applies the MaxDiv anomaly detection algorithm to it.
@@ -48,8 +80,25 @@ typedef struct {
 * @return Returns 0 on success, a negative error code obtained from libnetcdf if the data could not be read
 * or a positive error code if an internal error occurred.
 */
-int maxdiv_coastdat(const maxdiv_params_t * params, const coastdat_params_t * data_params,
+int coastdat_maxdiv(const maxdiv_params_t * params, const coastdat_params_t * data_params,
                     detection_t * detection_buf, unsigned int * detection_buf_size);
+
+/**
+* Loads a binary dump of the CoastDat data set and applies the MaxDiv anomaly detection algorithm to it.
+*
+* @param[in] params Pointer to a structure with the parameters for the algorithm.
+*
+* @param[in] dump_file Path to the dump of the data created by `coastdat_dump()`.
+*
+* @param[out] detection_buf Pointer to a buffer where the detected sub-blocks will be stored.
+*
+* @param[in,out] detection_buf_size Pointer to the number of elements allocated for `detection_buf`. The integer
+* pointed to will be set to the actual number of elements written to the buffer.
+*
+* @return Returns 0 on success, -1 if the dump could not be read or a positive error code if an internal error occurred.
+*/
+int coastdat_maxdiv_dump(const maxdiv_params_t * params, const char * dump_file,
+                         detection_t * detection_buf, unsigned int * detection_buf_size);
 
 /**
 * Determines the size of window of relevant context for a given portion of the CoastDat data set.
@@ -61,14 +110,7 @@ int maxdiv_coastdat(const maxdiv_params_t * params, const coastdat_params_t * da
 *
 * @see MaxDiv::TimeDelayEmbedding::determineContextWindowSize
 */
-int maxdiv_coastdat_context_window_size(const coastdat_params_t * data_params);
-
-/**
-* Initializes a given `coastdat_params_t` structure with the default parameters.
-*
-* @param[out] data_params Pointer to the parameter structure to be set to the default parameters.
-*/
-void maxdiv_coastdat_default_params(coastdat_params_t * data_params);
+int coastdat_context_window_size(const coastdat_params_t * data_params);
 
 };
 
@@ -183,11 +225,99 @@ int read_coastdat(const coastdat_params_t * data_params, DataTensor & coastData)
     }
     buffer.release();
     
+    // Deseasonalization
+    if (data_params->deseasonalization != COASTDAT_DESEAS_NONE)
+    {
+        auto start = std::chrono::high_resolution_clock::now();
+        switch (data_params->deseasonalization)
+        {
+            case COASTDAT_DESEAS_OLS_DAY:
+                MaxDiv::OLSDetrending(24, false)(coastData, coastData);
+                break;
+            case COASTDAT_DESEAS_OLS_YEAR:
+                MaxDiv::OLSDetrending(MaxDiv::OLSDetrending::PeriodVector{ {24, 1}, {365, 24} }, false)(coastData, coastData);
+                break;
+            case COASTDAT_DESEAS_ZSCORE_DAY:
+                MaxDiv::ZScoreDeseasonalization(24)(coastData);
+                break;
+            case COASTDAT_DESEAS_ZSCORE_YEAR:
+                MaxDiv::ZScoreDeseasonalization(24*365)(coastData);
+                break;
+        }
+        auto stop = std::chrono::high_resolution_clock::now();
+        std::cerr << "Deseasonalization took "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count() / 1000.0f
+                  << " s." << std::endl;
+    }
+    
     return 0;
 }
 
 
-int maxdiv_coastdat(const maxdiv_params_t * params, const coastdat_params_t * data_params,
+void coastdat_default_params(coastdat_params_t * data_params)
+{
+    if (data_params == NULL)
+        return;
+    
+    data_params->variables = "ff,hs,tp";
+    data_params->firstYear = 1;
+    data_params->lastYear = 50;
+    data_params->firstLat = 53;
+    data_params->lastLat = 100;
+    data_params->firstLon = 30;
+    data_params->lastLon = 98;
+    data_params->spatialPoolingSize = 4;
+    data_params->deseasonalization = COASTDAT_DESEAS_NONE;
+}
+
+
+int coastdat_dump(const coastdat_params_t * data_params, const char * dump_file)
+{
+    // Load data
+    DataTensor coastData;
+    int status = read_coastdat(data_params, coastData);
+    if (status != 0) return status;
+    
+    // Open dump file
+    std::ofstream dump(dump_file, std::ios_base::out | std::ios_base::trunc | std::ios_base::binary);
+    if (!dump.is_open())
+        return 2;
+    
+    // Write shape of the data tensor
+    dump.write(reinterpret_cast<const char*>(coastData.shape().ind), sizeof(DataTensor::Index) * MAXDIV_INDEX_DIMENSION);
+    
+    // Write data
+    dump.write(reinterpret_cast<const char*>(coastData.raw()), sizeof(MaxDiv::Scalar) * coastData.numEl());
+    
+    // Clean up
+    status = (dump.good()) ? 0 : 3;
+    dump.close();
+    return status;
+}
+
+
+bool read_coastdat_dump(const char * dump_file, DataTensor & coastData)
+{
+    // Open dump file
+    std::ifstream dump(dump_file, std::ios_base::in | std::ios_base::binary);
+    if (!dump.is_open())
+        return false;
+    
+    // Read shape of the data
+    MaxDiv::ReflessIndexVector shape;
+    dump.read(reinterpret_cast<char*>(shape.ind), sizeof(DataTensor::Index) * MAXDIV_INDEX_DIMENSION);
+    coastData.resize(shape);
+    
+    // Read data
+    dump.read(reinterpret_cast<char*>(coastData.raw()), sizeof(MaxDiv::Scalar) * coastData.numEl());
+    
+    bool status = !dump.fail();
+    dump.close();
+    return status;
+}
+
+
+int coastdat_maxdiv(const maxdiv_params_t * params, const coastdat_params_t * data_params,
                     detection_t * detection_buf, unsigned int * detection_buf_size)
 {
     if (params == NULL)
@@ -213,27 +343,37 @@ int maxdiv_coastdat(const maxdiv_params_t * params, const coastdat_params_t * da
 }
 
 
-int maxdiv_coastdat_context_window_size(const coastdat_params_t * data_params)
+int coastdat_maxdiv_dump(const maxdiv_params_t * params, const char * dump_file,
+                         detection_t * detection_buf, unsigned int * detection_buf_size)
+{
+    if (params == NULL)
+        return 1;
+    
+    // Read dataset
+    DataTensor coastData;
+    if (!read_coastdat_dump(dump_file, coastData))
+        return -1;
+    
+    // Apply MaxDiv algorithm
+    unsigned int shape[MAXDIV_INDEX_DIMENSION];
+    for (int d = 0; d < MAXDIV_INDEX_DIMENSION; ++d)
+        shape[d] = coastData.shape().ind[d];
+    auto start = std::chrono::high_resolution_clock::now();
+    maxdiv(params, coastData.raw(), shape, detection_buf, detection_buf_size, false);
+    auto stop = std::chrono::high_resolution_clock::now();
+    std::cerr << "MaxDiv algorithm took "
+              << std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count() / 1000.0f
+              << " s." << std::endl;
+    
+    return 0;
+}
+
+
+int coastdat_context_window_size(const coastdat_params_t * data_params)
 {
     DataTensor coastData;
     if (read_coastdat(data_params, coastData) != 0)
         return 0;
     
     return MaxDiv::TimeDelayEmbedding().determineContextWindowSize(coastData);
-}
-
-
-void maxdiv_coastdat_default_params(coastdat_params_t * data_params)
-{
-    if (data_params == NULL)
-        return;
-    
-    data_params->variables = "ff,hs,tp";
-    data_params->firstYear = 1;
-    data_params->lastYear = 50;
-    data_params->firstLat = 53;
-    data_params->lastLat = 100;
-    data_params->firstLon = 30;
-    data_params->lastLon = 98;
-    data_params->spatialPoolingSize = 4;
 }

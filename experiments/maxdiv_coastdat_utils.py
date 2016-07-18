@@ -13,6 +13,13 @@ LON_STEP = 0.1
 YEAR_OFFS = 1958
 
 
+COASTDAT_DESEAS_NONE        = 0
+COASTDAT_DESEAS_OLS_DAY     = 1
+COASTDAT_DESEAS_OLS_YEAR    = 2    
+COASTDAT_DESEAS_ZSCORE_DAY  = 3
+COASTDAT_DESEAS_ZSCORE_YEAR = 4
+
+
 class coastdat_params_t(Structure):
     _fields_ = [('variables', c_char_p),
                 ('firstYear', c_uint),
@@ -21,7 +28,8 @@ class coastdat_params_t(Structure):
                 ('lastLat', c_uint),
                 ('firstLon', c_uint),
                 ('lastLon', c_uint),
-                ('spatialPoolingSize', c_uint)]
+                ('spatialPoolingSize', c_uint),
+                ('deseasonalization', c_int)]
 
 coastdat_params_p = POINTER(coastdat_params_t)
 c_uint_p = POINTER(c_uint)
@@ -29,12 +37,17 @@ c_uint_p = POINTER(c_uint)
 
 libcoastdat = CDLL('./maxdiv_coastdat.so')
 
-maxdiv_coastdat = CFUNCTYPE(c_int, maxdiv_params_p, coastdat_params_p, detection_p, c_uint_p)(
-                            ('maxdiv_coastdat', libcoastdat), ((1, 'params'), (1, 'data_params'), (1, 'detection_buf'), (1, 'detection_buf_size')))
+coastdat_default_params = CFUNCTYPE(c_void_p, coastdat_params_p)(('coastdat_default_params', libcoastdat), ((1, 'data_params'),))
 
-maxdiv_coastdat_context_window_size = CFUNCTYPE(c_int, coastdat_params_p)(('maxdiv_coastdat_context_window_size', libcoastdat), ((1, 'data_params'),))
+coastdat_dump = CFUNCTYPE(c_int, coastdat_params_p, c_char_p)(('coastdat_dump', libcoastdat), ((1, 'data_params'), (1, 'dump_file')))
 
-maxdiv_coastdat_default_params = CFUNCTYPE(c_void_p, coastdat_params_p)(('maxdiv_coastdat_default_params', libcoastdat), ((1, 'data_params'),))
+coastdat_maxdiv = CFUNCTYPE(c_int, maxdiv_params_p, coastdat_params_p, detection_p, c_uint_p)(
+                            ('coastdat_maxdiv', libcoastdat), ((1, 'params'), (1, 'data_params'), (1, 'detection_buf'), (1, 'detection_buf_size')))
+
+coastdat_maxdiv_dump = CFUNCTYPE(c_int, maxdiv_params_p, c_char_p, detection_p, c_uint_p)(
+                                ('coastdat_maxdiv_dump', libcoastdat), ((1, 'params'), (1, 'dump_file'), (1, 'detection_buf'), (1, 'detection_buf_size')))
+
+coastdat_context_window_size = CFUNCTYPE(c_int, coastdat_params_p)(('coastdat_context_window_size', libcoastdat), ((1, 'data_params'),))
 
 
 def ind2latlon(ind_y, ind_x, data_params = None):
