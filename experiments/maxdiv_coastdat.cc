@@ -228,7 +228,7 @@ void maxdiv_coastdat_default_params(coastdat_params_t * data_params)
     if (data_params == NULL)
         return;
     
-    data_params->variables = "ff,hs,mp";
+    data_params->variables = "ff,hs,tp";
     data_params->firstYear = 1;
     data_params->lastYear = 50;
     data_params->firstLat = 53;
