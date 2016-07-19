@@ -85,7 +85,7 @@ def time2ind(time, data_params = None):
 
 def printCoastDatDetection(detection, data_params):
     print('TIMEFRAME: {} - {}'.format(ind2time(detection.range_start[0], data_params), ind2time(detection.range_end[0] - 1, data_params)))
-    print('LOCATION:  {start.lat:.2f} N, {start.lon:.2f} E - {end.lat:.2f} N, {end.lon:.2f} E'.format(
+    print('LOCATION:  {start[0]:.2f} N, {start[1]:.2f} E - {end[0]:.2f} N, {end[1]:.2f} E'.format(
         start = ind2latlon(detection.range_start[2], detection.range_start[1], data_params),
         end   = ind2latlon(detection.range_end[2] - 1, detection.range_end[1] - 1, data_params)
     ))
