@@ -58,6 +58,23 @@ def td_from_relative_mi(func, method, td_lag, th = 0.0002):
     return detections, k
 
 
+def td_from_mi_gradient(func, method, td_lag, th = 0.15):
+    
+    th *= func['ts'].shape[0]
+    # Determine Time Lag based on the steepness of decrease of mutual information
+    mi = np.array([mutual_information(func['ts'], 2, d) for d in range(1, int(0.05 * func['ts'].shape[1]))])
+    dmi = np.convolve(mi, [-1, 0, 1], 'valid')
+    if np.any(dmi <= th):
+        k = (np.where(dmi <= th)[0][0] + 3) // td_lag
+    else:
+        k = (dmi.argmin() + 3) // td_lag
+    # Detect regions
+    detections = maxdiv.maxdiv(func['ts'], method = method, mode = 'I_OMEGA',
+                               extint_min_len = 20, extint_max_len = 100, num_intervals = None,
+                               td_dim = k, td_lag = td_lag)
+    return detections, k
+
+
 def td_from_length_scale(func, method, td_lag):
     
     # Determine Length Scale of Gaussian Process
@@ -111,7 +128,7 @@ def length_scale(ts):
 
 
 # Constants
-optimizers = { 'best_k' : find_best_k, 'mi' : td_from_mi, 'rmi' : td_from_relative_mi, 'gp_ls' : td_from_length_scale }
+optimizers = { 'best_k' : find_best_k, 'mi' : td_from_mi, 'rmi' : td_from_relative_mi, 'dmi' : td_from_mi_gradient, 'gp_ls' : td_from_length_scale }
 
 # Parameters
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
