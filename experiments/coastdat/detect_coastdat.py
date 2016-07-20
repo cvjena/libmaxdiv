@@ -2,7 +2,8 @@ import os.path
 from maxdiv_coastdat_utils import *
 from maxdiv.libmaxdiv_wrapper import *
 
-dump_file = '../../coastDat_ff-hs-mp_aggregated_ols.dat'
+dump_file = '../../../coastDat_ff-hs-mp_aggregated.dat'
+#dump_file = '../../../coastDat_ff-hs-mp_aggregated_ols.dat'
 #dump_file = ''
 
 data_params = coastdat_params_t()
@@ -11,7 +12,7 @@ coastdat_default_params(data_params)
 #data_params.firstLon = data_params.lastLon = 70
 #data_params.spatialPoolingSize = 1
 data_params.spatialPoolingSize = 100
-data_params.deseasonalization = COASTDAT_DESEAS_OLS_YEAR
+#data_params.deseasonalization = COASTDAT_DESEAS_OLS_YEAR
 
 if (dump_file != '') and (not os.path.exists(dump_file)):
     coastdat_dump(data_params, dump_file.encode())
@@ -33,6 +34,4 @@ if dump_file != '':
 else:
     coastdat_maxdiv(params, data_params, detections, num_det)
 
-for i in range(num_det.value):
-    printCoastDatDetection(detections[i], data_params)
-    print()
+printCoastDatDetections(detections[:num_det.value], data_params)

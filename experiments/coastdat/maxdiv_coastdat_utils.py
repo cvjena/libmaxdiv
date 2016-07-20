@@ -1,10 +1,13 @@
-import sys
-sys.path.append('..')
+import sys, os.path
+sys.path.append(os.path.join('..', '..'))
 
 from ctypes import *
-import datetime
+import datetime, csv
 from maxdiv.libmaxdiv_wrapper import maxdiv_params_t, maxdiv_params_p, detection_t, detection_p
+from maxdiv.maxdiv_util import IoU
 
+
+# Wrapper around coastdat C++ library
 
 LAT_OFFS = 51.0
 LAT_STEP = 0.05
@@ -52,6 +55,44 @@ coastdat_context_window_size = CFUNCTYPE(c_int, coastdat_params_p)(('coastdat_co
 coastdat_context_window_size_dump = CFUNCTYPE(c_int, c_char_p, c_int)(('coastdat_context_window_size_dump', libcoastdat), ((1, 'dump_file'), (1, 'deseasonalization', COASTDAT_DESEAS_NONE)))
 
 
+# Historic storm data
+
+def loadHistoricStorms(filename = 'historic_storms.csv'):
+    with open(filename) as stormfile:
+        storms = list(csv.DictReader(stormfile, delimiter = '\t'))
+    for storm in storms:
+        storm['START_DATE'] = datetime.datetime.strptime(storm['START_DATE'], '%Y-%m-%d')
+        storm['END_DATE'] = datetime.datetime.strptime(storm['END_DATE'], '%Y-%m-%d')
+    return storms
+
+historic_storms = loadHistoricStorms()
+
+def matchDetectionWithStorm(detection, data_params):
+    detStart = ind2time(detection.range_start[0], data_params)
+    detEnd = ind2time(detection.range_end[0], data_params)
+    maxOverlapStorm = max((storm, IoU(
+                            int(storm['START_DATE'].timestamp()),
+                            int((storm['END_DATE'] - storm['START_DATE']).total_seconds()),
+                            int(detStart.timestamp()),
+                            int((detEnd - detStart).total_seconds())
+                        )) for storm in historic_storms, key = lambda x: x[1])
+    return maxOverlapStorm[0] if maxOverlapStorm[1] > 0.0 else None
+
+def matchDetectionsWithStorms(detections, data_params):
+    matchedDetections = [(detection, matchDetectionWithStorm(detection, data_params)) for detection in detections]
+    
+    matched = { storm['NAME'] : False for storm in historic_storms }
+    totalMatches = 0
+    for _, storm in matchedDetections:
+        if storm is not None:
+            matched[storm['NAME']] = True
+            totalMatches += 1
+
+    return (matchedDetections, totalMatches, sum(int(m) for m in matched.values()))
+
+
+# Helper functions for indexing and formatting
+
 def ind2latlon(ind_y, ind_x, data_params = None):
     if data_params is not None:
         if data_params.spatialPoolingSize > 1:
@@ -90,3 +131,13 @@ def printCoastDatDetection(detection, data_params):
         end   = ind2latlon(detection.range_end[2] - 1, detection.range_end[1] - 1, data_params)
     ))
     print('SCORE:     {}'.format(detection.score))
+
+def printCoastDatDetections(detections, data_params):
+    matchedDetections, totalMatches, uniqueMatches = matchDetectionsWithStorms(detections, data_params)
+    for detection, storm in matchedDetections:
+        printCoastDatDetection(detection, data_params)
+        if storm is not None:
+            print('IDENT:     {} ({} - {})'.format(storm['NAME'], storm['START_DATE'].date(), strom['END_DATE'].date()))
+        print()
+    print('MATCHED DETECTIONS: {:3d}/{}'.format(totalMatches, len(detections)))
+    print('UNIQUE MATCHES:     {:3d}/{}'.format(uniqueMatches, len(detections)))
