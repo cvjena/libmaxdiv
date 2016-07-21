@@ -347,6 +347,8 @@ def maxdiv_exec(X, params, num_intervals = 1):
     
     Returns: a list of `(a, b, score)` tuples, where `a` is the first point within a detected interval,
              `b` is the first point right after the interval and `score` is the detection score.
+             For non-spatial data, `a` and `b` will be scalars, while they will be lists of indices for
+             spatio-temporal data.
     """
     
     if libmaxdiv is None:
@@ -384,7 +386,10 @@ def maxdiv_exec(X, params, num_intervals = 1):
         libmaxdiv.maxdiv_exec(params, X.ctypes.data_as(maxdiv_scalar_p), shape, det_buf, pointer(det_buf_size), True)
     
     # Convert detections to tuples
-    return [(det_buf[i].range_start[0], det_buf[i].range_end[0], det_buf[i].score) for i in range(det_buf_size.value)]
+    if isSpatioTemporal:
+        return [(det_buf[i].range_start[:4], det_buf[i].range_end[:4], det_buf[i].score) for i in range(det_buf_size.value)]
+    else:
+        return [(det_buf[i].range_start[0], det_buf[i].range_end[0], det_buf[i].score) for i in range(det_buf_size.value)]
 
 
 
