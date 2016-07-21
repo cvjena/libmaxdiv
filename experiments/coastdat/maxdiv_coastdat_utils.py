@@ -70,12 +70,12 @@ historic_storms = loadHistoricStorms()
 def matchDetectionWithStorm(detection, data_params):
     detStart = ind2time(detection.range_start[0], data_params)
     detEnd = ind2time(detection.range_end[0], data_params)
-    maxOverlapStorm = max((storm, IoU(
+    maxOverlapStorm = max(((storm, IoU(
                             int(storm['START_DATE'].timestamp()),
                             int((storm['END_DATE'] - storm['START_DATE']).total_seconds()),
                             int(detStart.timestamp()),
                             int((detEnd - detStart).total_seconds())
-                        )) for storm in historic_storms, key = lambda x: x[1])
+                        )) for storm in historic_storms), key = lambda x: x[1])
     return maxOverlapStorm[0] if maxOverlapStorm[1] > 0.0 else None
 
 def matchDetectionsWithStorms(detections, data_params):
@@ -93,13 +93,19 @@ def matchDetectionsWithStorms(detections, data_params):
 
 # Helper functions for indexing and formatting
 
-def ind2latlon(ind_y, ind_x, data_params = None):
+def ind2latlon(ind_y, ind_x, data_params = None, anchor = 'center'):
     if data_params is not None:
         if data_params.spatialPoolingSize > 1:
-            ind_y *= data_params.spatialPoolingSize + 0.5
-            ind_x *= data_params.spatialPoolingSize + 0.5
-        ind_y += data_params.firstLat
-        ind_x += data_params.firstLon
+            if anchor == 'topleft':
+                poolOffs = 0.0
+            elif anchor == 'bottomright':
+                poolOffs = 1.0
+            else:
+                poolOffs = 0.5
+            ind_y = data_params.spatialPoolingSize * (ind_y + poolOffs)
+            ind_x = data_params.spatialPoolingSize * (ind_x + poolOffs)
+        ind_y = min(ind_y + data_params.firstLat, data_params.lastLat)
+        ind_x = min(ind_x + data_params.firstLon, data_params.lastLon)
     return (LAT_OFFS + ind_y * LAT_STEP, LON_OFFS + ind_x * LON_STEP)
 
 def latlon2ind(lat, lon, data_params = None):
@@ -116,19 +122,29 @@ def ind2time(t, data_params = None):
     start_year = data_params.firstYear if data_params is not None else YEAR_OFFS
     if start_year < YEAR_OFFS:
         start_year += YEAR_OFFS - 1
-    return datetime.datetime(start_year, 1, 1) + datetime.timedelta(seconds = t * 3600)
+    return datetime.datetime(start_year, 1, 1, 1) + datetime.timedelta(seconds = t * 3600)
 
 def time2ind(time, data_params = None):
     start_year = data_params.firstYear if data_params is not None else YEAR_OFFS
     if start_year < YEAR_OFFS:
         start_year += YEAR_OFFS - 1
-    return round((time - datetime.datetime(start_year, 1, 1)).total_seconds() / 3600)
+    return round((time - datetime.datetime(start_year, 1, 1, 1)).total_seconds() / 3600)
+
+def storm2str(storm):
+    startDate, endDate = storm['START_DATE'].date(), storm['END_DATE'].date()
+    if startDate == endDate:
+        datestr = startDate.strftime('%b %d')
+    elif startDate.month == endDate.month:
+        datestr = '{}-{}'.format(startDate.strftime('%b %d'), endDate.strftime('%d'))
+    else:
+        datestr = '{} - {}'.format(startDate.strftime('%b %d'), endDate.strftime('%b %d'))
+    return '{} ({})'.format(storm['NAME'], datestr)
 
 def printCoastDatDetection(detection, data_params):
     print('TIMEFRAME: {} - {}'.format(ind2time(detection.range_start[0], data_params), ind2time(detection.range_end[0] - 1, data_params)))
     print('LOCATION:  {start[0]:.2f} N, {start[1]:.2f} E - {end[0]:.2f} N, {end[1]:.2f} E'.format(
-        start = ind2latlon(detection.range_start[2], detection.range_start[1], data_params),
-        end   = ind2latlon(detection.range_end[2] - 1, detection.range_end[1] - 1, data_params)
+        start = ind2latlon(detection.range_start[2], detection.range_start[1], data_params, 'topleft'),
+        end   = ind2latlon(detection.range_end[2] - 1, detection.range_end[1] - 1, data_params, 'bottomright')
     ))
     print('SCORE:     {}'.format(detection.score))
 
@@ -137,7 +153,8 @@ def printCoastDatDetections(detections, data_params):
     for detection, storm in matchedDetections:
         printCoastDatDetection(detection, data_params)
         if storm is not None:
-            print('IDENT:     {} ({} - {})'.format(storm['NAME'], storm['START_DATE'].date(), strom['END_DATE'].date()))
+            print('IDENT:     {}'.format(storm2str(storm)))
         print()
     print('MATCHED DETECTIONS: {:3d}/{}'.format(totalMatches, len(detections)))
     print('UNIQUE MATCHES:     {:3d}/{}'.format(uniqueMatches, len(detections)))
+    print('TOP-10 DETECTIONS:  {:3d}'.format(sum(1 if storm is not None else 0 for _, storm in matchedDetections[:10])))
