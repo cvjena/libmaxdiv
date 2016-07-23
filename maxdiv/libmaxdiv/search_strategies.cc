@@ -390,21 +390,30 @@ void MaxDiv::nonMaximumSuppression(DetectionList & detections, unsigned int numD
         // Sort detections by score in descending order
         std::sort(detections.begin(), detections.end());
         
-        // Non-maximum suppression
-        unsigned int i, j;
-        std::vector<bool> include(detections.size(), true); // suppressed intervals will be set to False
-        DetectionList newDetections;
-        for (i = 0; i < detections.size() && (numDetections == 0 || newDetections.size() < numDetections); ++i)
-            if (include[i])
-            {
-                newDetections.push_back(detections[i]);
-                
-                // Exclude intervals with a lower score overlapping this one
-                for (j = i + 1; j < detections.size(); ++j)
-                    if (include[j] && (detections[j].score < 1e-8 || detections[i].IoU(detections[j]) > overlap_th))
-                        include[j] = false;
-            }
-        
-        detections = newDetections;
+        if (overlap_th < 1.0)
+        {
+            // Non-maximum suppression
+            unsigned int i, j;
+            std::vector<bool> include(detections.size(), true); // suppressed intervals will be set to False
+            DetectionList newDetections;
+            for (i = 0; i < detections.size() && (numDetections == 0 || newDetections.size() < numDetections); ++i)
+                if (include[i])
+                {
+                    newDetections.push_back(detections[i]);
+                    
+                    // Exclude intervals with a lower score overlapping this one
+                    for (j = i + 1; j < detections.size(); ++j)
+                        if (include[j] && (detections[j].score < 1e-8 || detections[i].IoU(detections[j]) > overlap_th))
+                            include[j] = false;
+                }
+            
+            detections = newDetections;
+        }
+        else if (numDetections > 0)
+        {
+            // If overlap_th is at least 1.0, non-maximum suppression is not needed.
+            // Instead, we can just truncate the detection vector to the requested size.
+            detections.resize(numDetections);
+        }
     }
 }
