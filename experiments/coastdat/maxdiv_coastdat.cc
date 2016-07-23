@@ -131,22 +131,30 @@ int read_coastdat(const coastdat_params_t * data_params, DataTensor & coastData)
             nc_close(ncid);
 
             // Average Pooling (and swapping of Lat/Lon)
+            Scalar sum;
+            DataTensor::Index numSamples;
             for (DataTensor::Index t = 0; t < dim_len; ++t)
             {
                 DataTensor::ConstScalarMatrixMap timestep(buffer.raw() + t * buffer.width() * buffer.height(), buffer.width(), buffer.height(), Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(buffer.height(), 1));
                 for (DataTensor::Index x = 0; x < shape.x; ++x)
                     for (DataTensor::Index y = 0; y < shape.y; ++y)
                     {
+                        sum = 0;
+                        numSamples = 0;
                         // Note that latitude is mapped to the y-axis in `coastData`,
                         // but to the x-axis in `buffer`.
-                        DataTensor::Index firstX = y * data_params->spatialPoolingSize;
-                        DataTensor::Index firstY = x * data_params->spatialPoolingSize;
-                        coastData({ timeOffset + t, x, y, 0, d }) = timestep.block(
-                            firstX,
-                            firstY,
-                            std::min(static_cast<DataTensor::Index>(data_params->spatialPoolingSize), buffer.width() - firstX),
-                            std::min(static_cast<DataTensor::Index>(data_params->spatialPoolingSize), buffer.height() - firstY)
-                        ).mean();
+                        DataTensor::Index firstX = y * data_params->spatialPoolingSize,
+                                          firstY = x * data_params->spatialPoolingSize,
+                                          lastX = std::min(buffer.width(), firstX + data_params->spatialPoolingSize),
+                                          lastY = std::min(buffer.height(), firstY + data_params->spatialPoolingSize);
+                        for (DataTensor::Index bx = firstX; bx < lastX; ++bx)
+                            for (DataTensor::Index by = firstY; by < lastY; ++by)
+                                if (timestep(bx, by) < 9e8)
+                                {
+                                    sum += timestep(bx, by);
+                                    ++numSamples;
+                                }
+                        coastData({ timeOffset + t, x, y, 0, d }) = sum / numSamples;
                     }
             }
         }
