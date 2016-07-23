@@ -131,7 +131,7 @@ int read_coastdat(const coastdat_params_t * data_params, DataTensor & coastData)
             nc_close(ncid);
 
             // Average Pooling (and swapping of Lat/Lon)
-            Scalar sum;
+            MaxDiv::Scalar sum;
             DataTensor::Index numSamples;
             for (DataTensor::Index t = 0; t < dim_len; ++t)
             {

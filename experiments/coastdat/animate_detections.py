@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from mpl_toolkits.basemap import Basemap
 from netCDF4 import Dataset
-from datetime import datetime
+from datetime import datetime, timedelta
 import sys, os.path, re
 
 
@@ -16,8 +16,9 @@ def coastDatDetectionAnimation(time_start, time_end, detection, ani_file):
         raise ValueError('Beginning and end of the detection must be in the same year.')
 
     year = time_start.year
-    time_start = int((time_start - datetime(year, 1, 1, 1)).total_seconds() / 3600)
-    time_end = int((time_end - datetime(year, 1, 1, 1)).total_seconds() / 3600)
+    base_time = datetime(year, 1, 1, 1)
+    time_start = int((time_start - base_time).total_seconds() / 3600)
+    time_end = int((time_end - base_time).total_seconds() / 3600)
     year -= 1957
 
     # Create figure
@@ -58,6 +59,9 @@ def coastDatDetectionAnimation(time_start, time_end, detection, ani_file):
     def animate(t):
     
         for i in range(len(ax)):
+            
+            # Time
+            fig.suptitle(str(base_time + timedelta(seconds = (timestep_first + t) * 3600)))
             
             # Data heatmap
             if im[i] is not None:

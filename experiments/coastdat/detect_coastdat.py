@@ -2,16 +2,20 @@ import os.path
 from maxdiv_coastdat_utils import *
 from maxdiv.libmaxdiv_wrapper import *
 
-#dump_file = '../../../coastDat_ff-hs-mp_aggregated.dat'
-dump_file = '../../../coastDat_ff-hs-mp_1990.dat'
+#dump_file = '../../../coastDat_ff-hs-mp_all-aggregated.dat'
+dump_file = '../../../coastDat_ff-hs-mp_aggregated.dat'
+#dump_file = '../../../coastDat_ff-hs-mp_1990.dat'
 #dump_file = ''
 
 data_params = coastdat_params_t()
 coastdat_default_params(data_params)
-data_params.firstYear = data_params.lastYear = 1990
+#data_params.firstYear = data_params.lastYear = 1990
 #data_params.firstLat = data_params.lastLat = 80
 #data_params.firstLon = data_params.lastLon = 70
-data_params.spatialPoolingSize = 8
+#data_params.firstLat = data_params.firstLon = 0
+#data_params.lastLat = 100
+#data_params.lastLon = 135
+data_params.spatialPoolingSize = 200
 #data_params.deseasonalization = COASTDAT_DESEAS_OLS_YEAR
 
 if (dump_file != '') and (not os.path.exists(dump_file)):
@@ -20,12 +24,12 @@ if (dump_file != '') and (not os.path.exists(dump_file)):
 params = maxdiv_params_t()
 libmaxdiv.maxdiv_init_params(params)
 params.min_size[0] = 12
-params.min_size[1] = params.min_size[2] = 2
+#params.min_size[1] = params.min_size[2] = 2
 params.max_size[0] = 72
 params.kl_mode = enums['MAXDIV_KL_UNBIASED']
-params.proposal_generator = enums['MAXDIV_POINTWISE_PROPOSALS_HOTELLINGST']
-params.preproc.embedding.kt = 1
-params.preproc.embedding.kx = params.preproc.embedding.ky = 2
+#params.proposal_generator = enums['MAXDIV_POINTWISE_PROPOSALS_HOTELLINGST']
+params.preproc.embedding.kt = 3
+params.preproc.embedding.kx = params.preproc.embedding.ky = 1
 params.preproc.normalization = enums['MAXDIV_NORMALIZE_MAX']
 #params.preproc.detrending.method = enums['MAXDIV_DETREND_ZSCORE']
 #params.preproc.detrending.z_period_len = 24

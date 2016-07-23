@@ -150,7 +150,8 @@ def printCoastDatDetection(detection, data_params):
 
 def printCoastDatDetections(detections, data_params):
     matchedDetections, totalMatches, uniqueMatches = matchDetectionsWithStorms(detections, data_params)
-    for detection, storm in matchedDetections:
+    for i, (detection, storm) in enumerate(matchedDetections):
+        print('#{}'.format(i))
         printCoastDatDetection(detection, data_params)
         if storm is not None:
             print('IDENT:     {}'.format(storm2str(storm)))
