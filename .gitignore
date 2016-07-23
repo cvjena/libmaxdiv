@@ -1,3 +1,4 @@
 *.pyc
 *.pickle
+*.so
 /maxdiv/libmaxdiv/docs

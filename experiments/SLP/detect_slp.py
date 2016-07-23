@@ -13,6 +13,6 @@ params.preproc.embedding.kt = 3
 params.preproc.embedding.kx = params.preproc.embedding.ky = 1
 params.preproc.normalization = enums['MAXDIV_NORMALIZE_MAX']
 
-detections = maxdiv_exec(loadSLP(), params, 10)
+detections = maxdiv_exec(loadSLP(), params, 20)
 
 printDetections(detections)

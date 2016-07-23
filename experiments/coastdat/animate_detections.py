@@ -1,8 +1,11 @@
-from mpl_toolkits.basemap import Basemap
-from netCDF4 import Dataset
+import matplotlib
+matplotlib.use('Agg') # non-interactive backend for terminal sessions
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from mpl_toolkits.basemap import Basemap
+from netCDF4 import Dataset
 from datetime import datetime
 import sys, os.path, re
 
@@ -39,8 +42,8 @@ def coastDatDetectionAnimation(time_start, time_end, detection, ani_file):
             lons = dataset.variables['lon'][:]
         
         data.append(dataset.variables[v][timestep_first:(timestep_last+1), :])
-        vmin.append(dataset.variables[v].min())
-        vmax.append(dataset.variables[v].max())
+        vmin.append(dataset.variables[v][:].min())
+        vmax.append(dataset.variables[v][:].max())
 
         # Create map
         m.append(Basemap(llcrnrlat = lats[0], llcrnrlon = lons[0], urcrnrlat = lats[-1], urcrnrlon = lons[-1], resolution = None, ax = ax[i]))
@@ -60,7 +63,7 @@ def coastDatDetectionAnimation(time_start, time_end, detection, ani_file):
             if im[i] is not None:
                 im[i].remove()
                 im[i] = None
-            im[i] = m[i].pcolormesh(lons, lats, data[t,:,:].squeeze(), shading = 'flat', cmap = plt.cm.jet, vmin = vmin[i], vmax = vmax[i], latlon = True)
+            im[i] = m[i].pcolormesh(lons, lats, data[i][t,:,:].squeeze(), shading = 'flat', cmap = plt.cm.jet, vmin = vmin[i], vmax = vmax[i], latlon = True)
             
             # Color bar
             if (cb[i] is None) and (im[i] is not None):
@@ -78,7 +81,7 @@ def coastDatDetectionAnimation(time_start, time_end, detection, ani_file):
                 bbox[i] = None
     
     # Save animation
-    animation.FuncAnimation(fig, animate, rane(data[0].shape), interval = 100, repeat = False, blit = False).save(ani_file, dpi = 60, bitrate = 1200)
+    animation.FuncAnimation(fig, animate, range(data[0].shape[0]), interval = 100, repeat = False, blit = False).save(ani_file, dpi = 60, bitrate = 1200)
     plt.close(fig)
 
 
