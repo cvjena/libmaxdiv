@@ -75,12 +75,12 @@ def td_from_mi_gradient(func, method, td_lag, th = 0.15):
     return detections, k
 
 
-def td_from_length_scale(func, method, td_lag):
+def td_from_length_scale(func, method, td_lag, factor = 0.3):
     
     # Determine Length Scale of Gaussian Process
     ls = length_scale(func['ts'])
     # Set Embedding Dimension
-    k = int(max(1, min(0.05 * func['ts'].shape[1], round(ls / td_lag))))
+    k = int(max(1, min(0.05 * func['ts'].shape[1], round(factor * ls / td_lag))))
     # Detect regions
     detections = maxdiv.maxdiv(func['ts'], method = method, mode = 'I_OMEGA',
                                extint_min_len = 20, extint_max_len = 100, num_intervals = None,
@@ -115,16 +115,10 @@ def mutual_information(ts, k, T = 1):
 
 def length_scale(ts):
     
-    scales = []
-    
-    X = np.arange(0, ts.shape[1]).reshape((ts.shape[1], 1))
-    GP = GaussianProcess(thetaL = 0.1, thetaU = 100, nugget = 1e-8)
-    for d in range(ts.shape[0]):
-        GP.fit(X, ts[d, :].T)
-        scales.append((GP.theta_, np.exp(GP.reduced_likelihood_function_value_)))
-    
-    norm = np.sum([w for s, w in scales])
-    return np.sum([s * w / norm for s, w in scales])
+    X = np.linspace(0, 1, ts.shape[1], endpoint = True).reshape(ts.shape[1], 1)
+    GP = GaussianProcess(thetaL = 0.1, thetaU = 1000, nugget = 1e-8, normalize = False)
+    GP.fit(X, ts.T)
+    return np.sqrt(0.5 / GP.theta_[0,0]) * ts.shape[1]
 
 
 # Constants
