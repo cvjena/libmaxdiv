@@ -524,6 +524,28 @@ public:
     };
     
     /**
+    * Returns an `Eigen::Map<Sample>` object wrapping a single sample in this tensor.
+    *
+    * @param[in] index The index vector with the coordinates of the sample.
+    * The attribute dimension will be ignored.
+    */
+    Eigen::Map<Sample> sample(const ReflessIndexVector & index)
+    {
+        return (*this)(index.t, index.x, index.y, index.z);
+    };
+    
+    /**
+    * Returns a constant `Eigen::Map<Sample>` object wrapping a single sample in this tensor.
+    *
+    * @param[in] index The index vector with the coordinates of the sample.
+    * The attribute dimension will be ignored.
+    */
+    Eigen::Map<const Sample> sample(const ReflessIndexVector & index) const
+    {
+        return (*this)(index.t, index.x, index.y, index.z);
+    };
+    
+    /**
     * Provides a view on the time series for a single location in this tensor.
     *
     * @param[in] x The index of the location along the 1st spatial dimension.

@@ -30,6 +30,25 @@ typedef double MaxDivScalar;
 #define MAXDIV_KDE_CUMULATIVE_SIZE_LIMIT 20000
 #endif
 
+#ifndef MAXDIV_GAUSSIAN_CUMULATIVE_SIZE_LIMIT
+/**
+* Usually, the estimation of the parameters of a Gaussian distribution can be sped up by using
+* tensors with cumulative sums of the samples and cumulative sums of their outer products to avoid
+* redundant summations. But since those matrices, especially the matrix of outer product sums,
+* consume a lot of memory, that approach may be unfeasible for a large number of samples and attributes.
+* 
+* This constant sets a limit on the size of the tensor with cumulative sums of outer products in bytes.
+* If the size of the entire tensor would exceed this limit, it will be split up into partial cumulative sums
+* which will be computed piecewise.  
+* Note that if multiple processors are available to process the data in parallel, each thread will allocate
+* a tensor with size up to this limit.
+*
+* You may want to adjust this limit in case you have more or less memory available. The default
+* value limits the size of the tensor of cumulative outer products to 2 GiB.
+*/
+#define MAXDIV_GAUSSIAN_CUMULATIVE_SIZE_LIMIT 2147483648
+#endif
+
 #ifndef MAXDIV_NMP_LIMIT
 /**
 * For offline non-maximum suppression, the scores of all sub-blocks in the data have to be

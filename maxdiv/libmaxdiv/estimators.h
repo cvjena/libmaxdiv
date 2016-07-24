@@ -495,10 +495,13 @@ protected:
     CovMode m_covMode; /**< Specifies how the covariance matrix should be estimated. */
     std::shared_ptr<DataTensor> m_cumsum; /**< Cumulative sum of the data passed to `init()`. */
     std::shared_ptr<DataTensor> m_cumOuter; /**< Cumulative sum of the outer products of the samples passed to `init()`. */
+    DataTensor::Index m_cumOuter_offset; /**< Offset of the first time step in `m_cumOuter` from the first time step in the data (used for partial cumulative sums). */
+    DataTensor::Index m_cumOuter_maxLen; /**< Maximum number of time steps covered by `m_cumOuter` for memory's sake (used for partial cumulative sums). */
     Sample m_innerMean; /**< Mean of the inner or the shared distribution. */
     Sample m_outerMean; /**< Mean of the outer distribution. */
     ScalarMatrix m_innerCov; /**< Covariance matrix of the inner or the shared distribution. */
     ScalarMatrix m_outerCov; /**< Covariance matrix of the outer distribution. */
+    ScalarMatrix m_outerProdSum; /**< Sum of outer products of the samples in the data tensor passed to `init()`. */
     Eigen::LLT<ScalarMatrix> m_innerCovChol; /**< Cholesky decomposition of the covariance matrix of the inner or the shared distribution. */
     Eigen::LLT<ScalarMatrix> m_outerCovChol; /**< Cholesky decomposition of the covariance matrix of the outer distribution. */
     Scalar m_innerCovLogDet; /**< Natural logarithm of the determinant of the covariance matrix of the inner or the shared distribution. */
@@ -508,10 +511,23 @@ protected:
     Scalar m_outerNormalizer; /**< `(2 * pi)^(-D/2) * sqrt(this->m_outerCovLogDet)` */
     
     /**
-    * Computes the cumulative sum of the outer products of the samples in @p data to speed up
-    * computation of covariance matrices later on. The result will be stored in `m_cumOuter`.
+    * Computes the cumulative sum of the outer products of the samples in the data tensor passed to `init()`
+    * to speed up computation of covariance matrices later on. The result will be stored in `m_cumOuter`.
+    *
+    * The number of timesteps which the cumulative sums are computed for is limited by `m_cumOuter_maxLen`.
+    * The @p offset parameter specifies the time step to start summation with.
     */
-    void computeCumOuter(const DataTensor & data);
+    void computeCumOuter(DataTensor::Index offset = 0);
+    
+    /**
+    * Explicitely computes the sum of the outer products of the samples in a given @p range in the data tensor
+    * passed to `init()`. This function will *not* use the cumulative sums of outer products in `m_cumOuter`,
+    * but compute the sum explicitely. It is intended to be used when cumulative sums can't be used due to
+    * high-dimensional data.
+    *
+    * @return Returns a square matrix with the sum of the outer products of the samples in the given range.
+    */
+    ScalarMatrix computeOuterSum(const IndexRange & range);
     
 
 };
