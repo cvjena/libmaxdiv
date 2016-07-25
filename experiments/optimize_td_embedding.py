@@ -118,7 +118,7 @@ def length_scale(ts):
     X = np.linspace(0, 1, ts.shape[1], endpoint = True).reshape(ts.shape[1], 1)
     GP = GaussianProcess(thetaL = 0.1, thetaU = 1000, nugget = 1e-8, normalize = False)
     GP.fit(X, ts.T)
-    return np.sqrt(0.5 / GP.theta_[0,0]) * ts.shape[1]
+    return np.sqrt(0.5 / GP.theta_.flat[0]) * ts.shape[1]
 
 
 # Constants
