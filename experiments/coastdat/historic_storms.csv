@@ -27,17 +27,28 @@ START_DATE	END_DATE	NAME	COMMENTS	REFERENCE
 1976-01-21	1976-01-21	Storm 1976/Jan (2)	german and danish coast	https://de.wikipedia.org/wiki/Liste_der_Sturmfluten_an_der_Nordsee#Ab_1800
 1978-01-11	1978-01-12	1978 North Sea storm surge	Areas affacted: UK, Belgium, France, Netherlands	https://en.wikipedia.org/wiki/1978_North_Sea_storm_surge
 1979-02-14	1979-02-16	Storm 1979/Feb		http://projects.knmi.nl/hydra/stormcatalogus/
+1981-11-02	1981-11-03	Storm 1981/Nov (1)	Affected countries: Denmark, Poland	http://www.europeanwindstorms.org/cgi-bin/storms/storms.cgi?storm1=u19811102
 1981-11-24	1981-11-24	North Frisian Flood	severe surge with dike breaches in Denmark	https://en.wikipedia.org/wiki/Storm_tides_of_the_North_Sea
+1983-01-17	1983-01-20	Storm 1983/Jan	Affected countries: Denmark, Poland, Sweden	http://www.europeanwindstorms.org/cgi-bin/storms/storms.cgi?storm1=u19830118
 1983-02-01	1983-02-02	Storm 1983/Feb		http://projects.knmi.nl/hydra/stormcatalogus/
 1983-05-12	1983-05-12	Storm 1983/May		http://projects.knmi.nl/hydra/cgi-bin/storm_list.cgi
 1983-11-27	1983-11-27	Storm 1983/Nov		http://projects.knmi.nl/hydra/stormcatalogus/
 1984-01-14	1984-01-14	Storm 1984/Jan		http://projects.knmi.nl/hydra/stormcatalogus/
+1986-01-18	1986-01-23	Storm 1986/Jan	Affected countries: Denmark, Germany	http://www.europeanwindstorms.org/cgi-bin/storms/storms.cgi?storm1=u19860120
+1986-03-24	1986-03-25	Storm 1986/Mar	Affected countries: Netherlands	http://www.europeanwindstorms.org/cgi-bin/storms/storms.cgi?storm1=u19860325
+1986-10-19	1986-10-23	Storm 1986/Oct	Affected countries: Germany, Netherlands, Poland	http://www.europeanwindstorms.org/cgi-bin/storms/storms.cgi?storm1=u19861020
 1986-12-14	1986-12-15	Storm 1986/Dec		http://aonbenfield.de/sturmhistorie/sturmhistorie.pdf
 1987-10-15	1987-10-16	Great Storm of 1987	Areas affected: UK, France, Belgium, Spain, Norway	https://en.wikipedia.org/wiki/Great_Storm_of_1987
+1988-02-09	1988-02-11	Storm 1988/Feb	Affected countries: Ireland, UK	http://www.europeanwindstorms.org/cgi-bin/storms/storms.cgi?storm1=u19880209
+1988-11-28	1988-12-01	Storm 1988/Nov	Affected countries: Belarus, Lithuania, Poland	http://www.europeanwindstorms.org/cgi-bin/storms/storms.cgi?storm1=u19881129
 1989-02-14	1989-02-14	Storm 1989/Feb		http://projects.knmi.nl/hydra/stormcatalogus/
 1990-01-25	1990-01-26	Storm Daria	Areas affected: UK, Belgium, Netherlands, France, Germany	https://de.wikipedia.org/wiki/Orkan_Daria
-1990-02-25	1990-02-27	Storm Vivian		https://de.wikipedia.org/wiki/Orkan_Vivian
-1990-02-28	1990-03-01	Storm Wiebke		https://de.wikipedia.org/wiki/Orkan_Wiebke
+1990-02-01	1990-02-05	Storm Herta	Areas affected: UK, Belgium, Netherlands, France, Germany	http://www.europeanwindstorms.org/cgi-bin/storms/storms.cgi?storm1=Herta
+1990-02-07	1990-02-08	Storm Judith	Areas affected: Denmark, France, UK	http://www.europeanwindstorms.org/cgi-bin/storms/storms.cgi?storm1=u19900208
+1990-02-11	1990-02-12	Storm 1990/Feb (3)	Areas affected: France, UK	http://www.europeanwindstorms.org/cgi-bin/storms/storms.cgi?storm1=u19900211
+1990-02-14	1990-02-14	Storm Polly		http://imkbemu.physik.uni-karlsruhe.de/~starkwind/Sturmrisiko/archiv_1971_2002.html
+1990-02-25	1990-02-27	Storm Vivian	Areas affected: UK, Belgium, Netherlands, France, Germany	https://de.wikipedia.org/wiki/Orkan_Vivian
+1990-02-28	1990-03-01	Storm Wiebke	Areas affected: UK, Belgium, Netherlands, France, Germany, Switzerland	https://de.wikipedia.org/wiki/Orkan_Wiebke
 1990-12-12	1990-12-12	Storm 1990/Dec		http://projects.knmi.nl/hydra/stormcatalogus/
 1991-01-02	1991-01-09	Storm Undine		http://www.storm-surge.info/sears-sev-list?aoi=/sears/AOI/AOI_010
 1992-11-26	1992-11-26	Cyclone Ismene		http://aonbenfield.de/sturmhistorie/sturmhistorie.pdf
@@ -48,13 +59,19 @@ START_DATE	END_DATE	NAME	COMMENTS	REFERENCE
 1993-12-09	1993-12-09	Storm 1993/Dec		http://projects.knmi.nl/hydra/cgi-bin/storm_list.cgi
 1994-01-27	1994-01-28	Cyclone Lore	german coast	http://aonbenfield.de/sturmhistorie/sturmhistorie.pdf
 1994-04-01	1994-04-01	Storm 1994/Apr		http://projects.knmi.nl/hydra/cgi-bin/storm_list.cgi
-1995-01-10	1994-01-10	Storm 1995/Jan		https://de.wikipedia.org/wiki/Liste_der_Sturmfluten_an_der_Nordsee#Ab_1800
+1995-01-10	1994-01-10	Storm 1995/Jan (1)		https://de.wikipedia.org/wiki/Liste_der_Sturmfluten_an_der_Nordsee#Ab_1800
+1995-01-22	1995-01-22	Storm 1995/Jan (2)	Affected countries: France	http://www.europeanwindstorms.org/cgi-bin/storms/storms.cgi?storm1=u19950122
 1995-03-03	1995-03-03	Storm 1995/Mar		http://projects.knmi.nl/hydra/cgi-bin/storm_list.cgi
-1996-02-18	1996-02-20	Storm 1996/Feb		http://projects.knmi.nl/hydra/stormcatalogus/
+1996-02-06	1996-02-08	Storm 1996/Feb (1)	Affected countries: France	http://www.europeanwindstorms.org/cgi-bin/storms/storms.cgi?storm1=u19960207
+1996-02-18	1996-02-20	Storm 1996/Feb (2)		http://projects.knmi.nl/hydra/stormcatalogus/
+1996-10-28	1996-10-29	Storm 1996/Oct	Affected countries: Denmark, Ireland, Norway, UK	http://www.europeanwindstorms.org/cgi-bin/storms/storms.cgi?storm1=u19961028
+1996-11-05	1996-11-07	Storm 1996/Nov	Affected countries: Denmark, UK	http://www.europeanwindstorms.org/cgi-bin/storms/storms.cgi?storm1=u19961106
 1997-03-27	1997-03-28	Cyclone Sonja		http://aonbenfield.de/sturmhistorie/sturmhistorie.pdf
-1998-01-04	1998-01-04	Storm 1998/Jan		http://projects.knmi.nl/hydra/cgi-bin/storm_list.cgi
+1997-12-24	1997-12-25	Cyclone Yuma	Affected countries: UK	http://www.europeanwindstorms.org/cgi-bin/storms/storms.cgi?storm1=Yuma
+1998-01-03	1998-01-05	Cyclone Fanny	Affected countries: UK	http://www.europeanwindstorms.org/cgi-bin/storms/storms.cgi?storm1=Fanny
 1998-03-04	1998-03-05	Cyclones Elvira & Farah		http://aonbenfield.de/sturmhistorie/sturmhistorie.pdf
 1998-10-27	1998-10-28	Cyclone Xylia		http://aonbenfield.de/sturmhistorie/sturmhistorie.pdf
+1998-12-26	1998-12-27	Cyclone Stephen	Affected countries: Ireland, UK	http://www.europeanwindstorms.org/cgi-bin/storms/storms.cgi?storm1=Stephen
 1999-02-05	1999-02-05	Storm 1999/Feb		https://de.wikipedia.org/wiki/Liste_der_Sturmfluten_an_der_Nordsee#Ab_1800
 1999-12-02	1999-12-04	Cyclone Anatol		https://de.wikipedia.org/wiki/Orkan_Anatol
 1999-12-25	1999-12-26	Cyclone Lothar		http://aonbenfield.de/sturmhistorie/sturmhistorie.pdf
@@ -72,7 +89,8 @@ START_DATE	END_DATE	NAME	COMMENTS	REFERENCE
 2004-02-01	2004-02-01	Cyclone Queenie		http://aonbenfield.de/sturmhistorie/sturmhistorie.pdf
 2004-02-07	2004-02-08	Cyclone Ursula		http://aonbenfield.de/sturmhistorie/sturmhistorie.pdf
 2004-03-20	2004-03-21	Cyclone Oralie		http://aonbenfield.de/sturmhistorie/sturmhistorie.pdf
-2005-01-07	2005-01-10	Cyclone Gudrun	Areas affected: UK, Ireland, Norway, Denmark, Sweden, Estonia	https://en.wikipedia.org/wiki/Cyclone_Gudrun	https://de.wikipedia.org/wiki/Liste_der_Sturmfluten_an_der_Nordsee#Ab_1800
+2005-01-07	2005-01-10	Cyclone Gudrun	Areas affected: UK, Ireland, Norway, Denmark, Sweden, Estonia	https://en.wikipedia.org/wiki/Cyclone_Gudrun
+2005-01-11	2005-01-12	Cyclone Gero	Affected countries: UK, Ireland	http://www.europeanwindstorms.org/cgi-bin/storms/storms.cgi?storm1=Gero
 2005-02-02	2005-02-02	Cyclone Ulf		http://aonbenfield.de/sturmhistorie/sturmhistorie.pdf
 2005-12-16	2005-12-16	Cyclone Dorian		http://aonbenfield.de/sturmhistorie/sturmhistorie.pdf
 2006-01-10	2006-01-10	Cyclone Doris		http://aonbenfield.de/sturmhistorie/sturmhistorie.pdf
@@ -86,7 +104,7 @@ START_DATE	END_DATE	NAME	COMMENTS	REFERENCE
 2008-01-26	2008-01-26	Cyclone Paula		http://aonbenfield.de/sturmhistorie/sturmhistorie.pdf
 2008-01-31	2008-01-31	Cyclone Resi		http://aonbenfield.de/sturmhistorie/sturmhistorie.pdf
 2008-02-22	2008-02-22	Cyclone Annette	small size; scandinavian and german coast	http://aonbenfield.de/sturmhistorie/sturmhistorie.pdf
-2008-03-01	2008-03-01	Cyclone Emma		http://aonbenfield.de/sturmhistorie/sturmhistorie.pdf
+2008-02-29	2008-03-01	Cyclone Emma		http://www.europeanwindstorms.org/cgi-bin/storms/storms.cgi?storm1=Emma
 2008-03-09	2008-03-10	Cyclone Johanna		http://aonbenfield.de/sturmhistorie/sturmhistorie.pdf
 2008-03-12	2008-03-12	Cyclone Kirsten		http://aonbenfield.de/sturmhistorie/sturmhistorie.pdf
 2008-10-23	2008-10-24	Cyclone Wilhelmine		http://aonbenfield.de/sturmhistorie/sturmhistorie.pdf
