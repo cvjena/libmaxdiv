@@ -2,6 +2,7 @@
 #include "config.h"
 #include <cassert>
 #include <cmath>
+#include <algorithm>
 #include <limits>
 using namespace MaxDiv;
 
@@ -128,22 +129,22 @@ static Sample sumFromCumsum(const DataTensor & cumsum, const IndexRange & range)
 // DensityEstimator //
 //------------------//
 
-DensityEstimator::DensityEstimator() : m_data(nullptr), m_singletonDim(-1) {}
+DensityEstimator::DensityEstimator() : m_data(nullptr), m_nonSingletonDim(-1) {}
 
-DensityEstimator::DensityEstimator(const DensityEstimator & other) : m_data(other.m_data), m_singletonDim(other.m_singletonDim) {}
+DensityEstimator::DensityEstimator(const DensityEstimator & other) : m_data(other.m_data), m_nonSingletonDim(other.m_nonSingletonDim) {}
 
 void DensityEstimator::init(const std::shared_ptr<const DataTensor> & data)
 {
     this->m_data = data;
-    this->m_singletonDim = -1;
+    this->m_nonSingletonDim = -1;
     for (int d = 0; d < MAXDIV_INDEX_DIMENSION - 1; ++d)
         if (data->shape().ind[d] > 1)
         {
-            if (this->m_singletonDim == -1)
-                this->m_singletonDim = d;
+            if (this->m_nonSingletonDim == -1)
+                this->m_nonSingletonDim = d;
             else
             {
-                this->m_singletonDim = -1;
+                this->m_nonSingletonDim = -1;
                 break;
             }
         }
@@ -307,7 +308,7 @@ KernelDensityEstimator::KernelDensityEstimator(const KernelDensityEstimator & ot
 KernelDensityEstimator & KernelDensityEstimator::operator=(const KernelDensityEstimator & other)
 {
     this->m_data = other.m_data;
-    this->m_singletonDim = other.m_singletonDim;
+    this->m_nonSingletonDim = other.m_nonSingletonDim;
     this->m_sigma_sq = other.m_sigma_sq;
     this->m_normed = other.m_normed;
     this->m_kernel = other.m_kernel;
@@ -379,12 +380,12 @@ std::pair<Scalar, Scalar> KernelDensityEstimator::pdf(const ReflessIndexVector &
         lastIndex.vec() -= 1;
         lastIndex.d = sampleIndex;
         
-        if (this->m_singletonDim >= 0)
+        if (this->m_nonSingletonDim >= 0)
         {
             // Shortcut for data with only one non-singleton dimension to avoid the rather expensive sumFromCumsum()
-            sum_extremes = this->m_cumKernel->data()(this->m_extremeRange.b.ind[this->m_singletonDim] - 1, sampleIndex);
-            if (this->m_extremeRange.a.ind[this->m_singletonDim] > 0)
-                sum_extremes -= this->m_cumKernel->data()(this->m_extremeRange.a.ind[this->m_singletonDim] - 1, sampleIndex);
+            sum_extremes = this->m_cumKernel->data()(this->m_extremeRange.b.ind[this->m_nonSingletonDim] - 1, sampleIndex);
+            if (this->m_extremeRange.a.ind[this->m_nonSingletonDim] > 0)
+                sum_extremes -= this->m_cumKernel->data()(this->m_extremeRange.a.ind[this->m_nonSingletonDim] - 1, sampleIndex);
         }
         else
             sum_extremes = sumFromCumsum(*(this->m_cumKernel), this->m_extremeRange, sampleIndex);
@@ -442,7 +443,7 @@ GaussianDensityEstimator::GaussianDensityEstimator(const GaussianDensityEstimato
 GaussianDensityEstimator & GaussianDensityEstimator::operator=(const GaussianDensityEstimator & other)
 {
     this->m_data = other.m_data;
-    this->m_singletonDim = other.m_singletonDim;
+    this->m_nonSingletonDim = other.m_nonSingletonDim;
     this->m_covMode = other.m_covMode;
     this->m_cumsum = other.m_cumsum;
     this->m_cumOuter = other.m_cumOuter;
@@ -545,14 +546,18 @@ void GaussianDensityEstimator::computeCumOuter(DataTensor::Index offset)
     assert(this->m_data && !this->m_data->empty());
     if (this->m_data)
     {
+        // Determine shape of tensor with cumulative sums of outer products for a sub-block of the data
         ReflessIndexVector outerShape = this->m_data->shape();
         outerShape.d *= outerShape.d;
         outerShape.t = (offset < outerShape.t) ? outerShape.t - offset : 0;
         if (outerShape.t > this->m_cumOuter_maxLen)
             outerShape.t = this->m_cumOuter_maxLen;
+        
+        // Create new tensor
         this->m_cumOuter.reset(new DataTensor(outerShape));
         this->m_cumOuter_offset = offset;
         
+        // Compute outer products of the samples in the given sub-block
         ScalarMatrix singleProd(this->m_data->numAttrib(), this->m_data->numAttrib());
         Eigen::Map<const Sample> singleProdVec(singleProd.data(), outerShape.d);
         for (DataTensor::Index cumSample = 0, sample = offset * this->m_data->shape().prod(1, 3); cumSample < this->m_cumOuter->numSamples(); ++cumSample, ++sample)
@@ -560,7 +565,8 @@ void GaussianDensityEstimator::computeCumOuter(DataTensor::Index offset)
             singleProd.noalias() = this->m_data->sample(sample) * this->m_data->sample(sample).transpose();
             this->m_cumOuter->sample(cumSample) = singleProdVec;
         }
-            
+        
+        // Compute cumulative sum of outer products
         this->m_cumOuter->cumsum(0, MAXDIV_INDEX_DIMENSION - 2);
     }
     else
@@ -596,12 +602,12 @@ void GaussianDensityEstimator::fit(const IndexRange & range)
     // Compute the mean of the samples inside and outside of the given range
     DataTensor::Index numExtremes = range.shape().prod(0, MAXDIV_INDEX_DIMENSION - 2);
     DataTensor::Index numNonExtremes = this->m_data->numSamples() - numExtremes;
-    if (this->m_singletonDim >= 0)
+    if (this->m_nonSingletonDim >= 0)
     {
         // Shortcut for data with only one non-singleton dimension to avoid the rather expensive sumFromCumsum()
-        this->m_innerMean = this->m_cumsum->sample(range.b.ind[this->m_singletonDim] - 1);
-        if (range.a.ind[this->m_singletonDim] > 0)
-            this->m_innerMean -= this->m_cumsum->sample(range.a.ind[this->m_singletonDim] - 1);
+        this->m_innerMean = this->m_cumsum->sample(range.b.ind[this->m_nonSingletonDim] - 1);
+        if (range.a.ind[this->m_nonSingletonDim] > 0)
+            this->m_innerMean -= this->m_cumsum->sample(range.a.ind[this->m_nonSingletonDim] - 1);
     }
     else
         this->m_innerMean = sumFromCumsum(*(this->m_cumsum), range);
@@ -613,27 +619,53 @@ void GaussianDensityEstimator::fit(const IndexRange & range)
     if (this->m_covMode == CovMode::FULL)
     {
         Scalar eps = std::numeric_limits<Scalar>::epsilon();
+        DataTensor::Index rangeLen = range.b.t - range.a.t, cumEnd = this->m_cumOuter_offset + this->m_cumOuter->length();
         
-        if (range.b.t - range.a.t > this->m_cumOuter_maxLen)
+        if (!this->m_cumOuter || this->m_cumOuter->empty() || (rangeLen > this->m_cumOuter_maxLen && (range.b.t <= this->m_cumOuter_offset || range.a.t >= cumEnd)))
             this->m_innerCov = this->computeOuterSum(range);
         else
         {
+            // Flat wrapper around m_innerCov
             Eigen::Map<Sample> innerCovVec(this->m_innerCov.data(), this->m_cumOuter->numAttrib(), 1);
-            if (this->m_cumOuter_offset > range.a.t || this->m_cumOuter_offset + this->m_cumOuter->length() < range.b.t)
+            
+            // Adjust range covered by partial cumulative sum if it could cover the requested range, but currently doesn't.
+            if (rangeLen <= this->m_cumOuter_maxLen && (this->m_cumOuter_offset > range.a.t || cumEnd < range.b.t))
+            {
                 this->computeCumOuter(range.a.t);
-            assert(this->m_cumOuter_offset <= range.a.t && this->m_cumOuter_offset + this->m_cumOuter->length() >= range.b.t);
-            IndexRange shiftedRange = range;
-            shiftedRange.a.t -= this->m_cumOuter_offset;
-            shiftedRange.b.t -= this->m_cumOuter_offset;
-            if (this->m_singletonDim >= 0)
+                cumEnd = this->m_cumOuter_offset + this->m_cumOuter->length();
+            }
+            
+            // Determine sub-range which overlaps with the partial cumulative sum
+            IndexRange cumRange = range;
+            cumRange.a.t = std::max(range.a.t, this->m_cumOuter_offset) - this->m_cumOuter_offset;
+            cumRange.b.t = std::min(range.b.t, cumEnd) - this->m_cumOuter_offset;
+            assert(range.b.t > this->m_cumOuter_offset);
+            assert(cumRange.b.t <= this->m_cumOuter->length());
+            
+            // Extract sum from the cumulative sum tensor
+            if (this->m_nonSingletonDim >= 0)
             {
                 // Shortcut for data with only one non-singleton dimension to avoid the rather expensive sumFromCumsum()
-                innerCovVec = this->m_cumOuter->sample(shiftedRange.b.ind[this->m_singletonDim] - 1);
-                if (shiftedRange.a.ind[this->m_singletonDim] > 0)
-                    innerCovVec -= this->m_cumOuter->sample(shiftedRange.a.ind[this->m_singletonDim] - 1);
+                innerCovVec = this->m_cumOuter->sample(cumRange.b.ind[this->m_nonSingletonDim] - 1);
+                if (cumRange.a.ind[this->m_nonSingletonDim] > 0)
+                    innerCovVec -= this->m_cumOuter->sample(cumRange.a.ind[this->m_nonSingletonDim] - 1);
             }
             else
-                innerCovVec = sumFromCumsum(*(this->m_cumOuter), shiftedRange);
+                innerCovVec = sumFromCumsum(*(this->m_cumOuter), cumRange);
+            
+            // Add sum over sub-range which is not covered by the cumulative sum
+            if (range.a.t < this->m_cumOuter_offset)
+            {
+                cumRange.a.t = range.a.t;
+                cumRange.b.t = this->m_cumOuter_offset;
+                this->m_innerCov += this->computeOuterSum(cumRange);
+            }
+            if (range.b.t > cumEnd)
+            {
+                cumRange.a.t = cumEnd;
+                cumRange.b.t = range.b.t;
+                this->m_innerCov += this->computeOuterSum(cumRange);
+            }
         }
         this->m_outerCov = this->m_outerProdSum - this->m_innerCov;
         

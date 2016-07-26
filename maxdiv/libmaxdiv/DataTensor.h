@@ -752,9 +752,8 @@ public:
     void cumsum(unsigned int dim)
     {
         assert(dim < MAXDIV_INDEX_DIMENSION);
-        assert(this->m_data_p != NULL);
         
-        if (this->m_shape.ind[dim] <= 1)
+        if (this->m_shape.ind[dim] <= 1 || this->empty())
             return;
         
         if (dim == 0)

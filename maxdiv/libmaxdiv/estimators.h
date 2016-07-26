@@ -149,7 +149,7 @@ public:
 protected:
 
     std::shared_ptr<const DataTensor> m_data; /**< Pointer to the DataTensor passed to `init()`. */
-    int m_singletonDim; /**< Index of the non-singleton dimension if there is only one in the data, otherwise -1. */
+    int m_nonSingletonDim; /**< Index of the non-singleton dimension if there is only one in the data, otherwise -1. */
 
 };
 
