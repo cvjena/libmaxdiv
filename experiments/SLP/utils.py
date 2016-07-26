@@ -1,7 +1,7 @@
 import sys, os.path
 sys.path.append(os.path.join('..', '..'))
 
-import datetime
+import datetime, csv
 import scipy.io
 from maxdiv.maxdiv_util import IoU
 
@@ -22,7 +22,7 @@ def loadSLP():
 
 # Historic storm data
 
-def loadHistoricStorms(filename = '../CoastDat/historic_storms.csv'):
+def loadHistoricStorms(filename = '../coastdat/historic_storms.csv'):
     with open(filename) as stormfile:
         storms = list(csv.DictReader(stormfile, delimiter = '\t'))
     for storm in storms:
@@ -38,7 +38,7 @@ def matchDetectionWithStorm(detection):
                             (storm['START_DATE'] - base_date).days,
                             (storm['END_DATE'] - storm['START_DATE']).days + 1,
                             detection.range_start[0],
-                            detection.range_end[0] - detection.range_start[0])
+                            detection.range_end[0] - detection.range_start[0]
                         )) for storm in historic_storms), key = lambda x: x[1])
     return maxOverlapStorm[0] if maxOverlapStorm[1] > 0.0 else None
 

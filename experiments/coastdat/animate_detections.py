@@ -105,8 +105,8 @@ if __name__ == '__main__':
         print('#{}'.format(i+1))
         time_start = datetime.strptime(match.group(1), '%Y-%m-%d %H:%M:%S')
         time_end = datetime.strptime(match.group(2), '%Y-%m-%d %H:%M:%S')
-        loc_start = (float(match.groups(3)), float(match.groups(4)))
-        loc_end = (float(match.groups(5)), float(match.groups(6)))
+        loc_start = (float(match.group(3)), float(match.group(4)))
+        loc_end = (float(match.group(5)), float(match.group(6)))
         storm_name = match.group(8)
         try:
             coastDatDetectionAnimation(time_start, time_end, [loc_start, loc_end], storm_name, '{}_{:02d}.gif'.format(os.path.splitext(sys.argv[1])[0], i))
