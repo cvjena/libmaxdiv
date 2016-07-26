@@ -30,19 +30,20 @@ if __name__ == '__main__':
         with open(sys.argv[1]) as f:
             detfile = f.read()
 
-        detRE = re.compile('TIMEFRAME:\\s+([0-9-]+) - ([0-9-]+)\\s+LOCATION:\\s+(-?[0-9.]+) N, (-?[0-9.]+) E - (-?[0-9.]+) N, (-?[0-9.]+) E')
+        detRE = re.compile('TIMEFRAME:\\s+([0-9-]+) - ([0-9-]+)\\s+LOCATION:\\s+(-?[0-9.]+) N, (-?[0-9.]+) E - (-?[0-9.]+) N, (-?[0-9.]+) E(\\s+SCORE:\\s+[0-9.-]+\\s+IDENT:\\s+([^(]+)\\s\\()?')
 
         for i, match in enumerate(detRE.finditer(detfile)):
-            date_start = datetime.datetime.strptime(match.groups()[0], '%Y-%m-%d')
-            date_end = datetime.datetime.strptime(match.groups()[1], '%Y-%m-%d')
+            date_start = datetime.datetime.strptime(match.group(1), '%Y-%m-%d')
+            date_end = datetime.datetime.strptime(match.group(2), '%Y-%m-%d')
             time_start = (date_start - base_date).days
             time_end = (date_end - base_date).days
             show[max(0, time_start - MARGIN):min(data.shape[0], time_end + 1 + MARGIN)] = True
             detections.append({
-                'time_start' : time_start,
-                'time_end' : time_end,
-                'loc_start' : (float(match.groups()[2]), float(match.groups()[3])),
-                'loc_end' : (float(match.groups()[4]), float(match.groups()[5]))
+                'time_start': time_start,
+                'time_end'  : time_end,
+                'loc_start' : (float(match.group(3)), float(match.group(4))),
+                'loc_end'   : (float(match.group(5)), float(match.group(6)))
+                'storm_name': match.group(8)
             })
             if (MAX_DET > 0) and (len(detections) >= MAX_DET):
                 break
@@ -80,7 +81,11 @@ if __name__ == '__main__':
         if t < 0:
             ax.set_title('Sea Level Pressure')
         else:
-            ax.set_title('Sea Level Pressure at {}'.format((base_date + datetime.timedelta(days = t)).date()))
+            date = (base_date + datetime.timedelta(days = t)).date()
+            if (len(detections) > 0) and (detections[0]['storm_name'] is not None) and (t >= detections[0]['time_start']) and (t <= detections[0]['time_end']):
+                ax.set_title('Sea Level Pressure at {} ({})'.format(date, detections[0]['storm_name']))
+            else:
+                ax.set_title('Sea Level Pressure at {}'.format(date))
         
         # Data heatmap
         if artists['im'] is not None:

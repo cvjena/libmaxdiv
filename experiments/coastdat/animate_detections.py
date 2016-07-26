@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 import sys, os.path, re
 
 
-def coastDatDetectionAnimation(time_start, time_end, detection, ani_file):
+def coastDatDetectionAnimation(time_start, time_end, detection, storm_name, ani_file):
 
     if time_start.year != time_end.year:
         raise ValueError('Beginning and end of the detection must be in the same year.')
@@ -61,7 +61,8 @@ def coastDatDetectionAnimation(time_start, time_end, detection, ani_file):
         for i in range(len(ax)):
             
             # Time
-            fig.suptitle(str(base_time + timedelta(seconds = (timestep_first + t) * 3600)))
+            dateline = str(base_time + timedelta(seconds = (timestep_first + t) * 3600))
+            fig.suptitle('{} ({})'.format(dateline, storm_name) if storm_name else dateline)
             
             # Data heatmap
             if im[i] is not None:
@@ -98,15 +99,16 @@ if __name__ == '__main__':
     with open(sys.argv[1]) as f:
         detfile = f.read()
 
-    detRE = re.compile('TIMEFRAME:\\s+([0-9-]+ [0-9:]+) - ([0-9-]+ [0-9:]+)\\s+LOCATION:\\s+(-?[0-9.]+) N, (-?[0-9.]+) E - (-?[0-9.]+) N, (-?[0-9.]+) E')
+    detRE = re.compile('TIMEFRAME:\\s+([0-9-]+ [0-9:]+) - ([0-9-]+ [0-9:]+)\\s+LOCATION:\\s+(-?[0-9.]+) N, (-?[0-9.]+) E - (-?[0-9.]+) N, (-?[0-9.]+) E(\\s+SCORE:\\s+[0-9.-]+\\s+IDENT:\\s+([^(]+)\\s\\()?')
 
     for i, match in enumerate(detRE.finditer(detfile)):
         print('#{}'.format(i+1))
-        time_start = datetime.strptime(match.groups()[0], '%Y-%m-%d %H:%M:%S')
-        time_end = datetime.strptime(match.groups()[1], '%Y-%m-%d %H:%M:%S')
-        loc_start = (float(match.groups()[2]), float(match.groups()[3]))
-        loc_end = (float(match.groups()[4]), float(match.groups()[5]))
+        time_start = datetime.strptime(match.group(1), '%Y-%m-%d %H:%M:%S')
+        time_end = datetime.strptime(match.group(2), '%Y-%m-%d %H:%M:%S')
+        loc_start = (float(match.groups(3)), float(match.groups(4)))
+        loc_end = (float(match.groups(5)), float(match.groups(6)))
+        storm_name = match.group(8)
         try:
-            coastDatDetectionAnimation(time_start, time_end, [loc_start, loc_end], '{}_{:02d}.gif'.format(os.path.splitext(sys.argv[1])[0], i))
+            coastDatDetectionAnimation(time_start, time_end, [loc_start, loc_end], storm_name, '{}_{:02d}.gif'.format(os.path.splitext(sys.argv[1])[0], i))
         except Exception as e:
             print('Animating detection {} failed: {}'.format(i+1, e))
