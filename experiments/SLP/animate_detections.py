@@ -42,7 +42,7 @@ if __name__ == '__main__':
                 'time_start': time_start,
                 'time_end'  : time_end,
                 'loc_start' : (float(match.group(3)), float(match.group(4))),
-                'loc_end'   : (float(match.group(5)), float(match.group(6)))
+                'loc_end'   : (float(match.group(5)), float(match.group(6))),
                 'storm_name': match.group(8)
             })
             if (MAX_DET > 0) and (len(detections) >= MAX_DET):
@@ -81,11 +81,11 @@ if __name__ == '__main__':
         if t < 0:
             ax.set_title('Sea Level Pressure')
         else:
-            date = (base_date + datetime.timedelta(days = t)).date()
-            if (len(detections) > 0) and (detections[0]['storm_name'] is not None) and (t >= detections[0]['time_start']) and (t <= detections[0]['time_end']):
-                ax.set_title('Sea Level Pressure at {} ({})'.format(date, detections[0]['storm_name']))
-            else:
-                ax.set_title('Sea Level Pressure at {}'.format(date))
+            ax.set_title('Sea Level Pressure at {}'.format((base_date + datetime.timedelta(days = t)).date()))
+        if (len(detections) > 0) and (detections[0]['storm_name'] is not None) and (t >= detections[0]['time_start']) and (t <= detections[0]['time_end']):
+            fig.suptitle('{}'.format(detections[0]['storm_name']))
+        else:
+            fig.suptitle('')
         
         # Data heatmap
         if artists['im'] is not None:
