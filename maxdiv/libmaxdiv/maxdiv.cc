@@ -503,7 +503,7 @@ void printHelp(const char * progName)
          << "    --normalize" << endl
          << "        Normalize the values in the time-series." << endl
          << endl
-         << "    --td [<int>], -t [<int>]" << endl
+         << "    --td=[<int>], -t" << endl
          << "        Apply time-delay embedding to the time-series with the given embedding dimension." << endl
          << "        If no argument is given, an embedding dimension will be determined automatically." << endl
          << endl
