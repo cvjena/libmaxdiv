@@ -37,13 +37,13 @@ def matchDetectionWithStorm(detection):
     maxOverlapStorm = max(((storm, IoU(
                             (storm['START_DATE'] - base_date).days,
                             (storm['END_DATE'] - storm['START_DATE']).days + 1,
-                            detection.range_start[0],
-                            detection.range_end[0] - detection.range_start[0]
+                            detection[0][0],
+                            detection[1][0] - detection[0][0]
                         )) for storm in historic_storms), key = lambda x: x[1])
     return maxOverlapStorm[0] if maxOverlapStorm[1] > 0.0 else None
 
 def matchDetectionsWithStorms(detections):
-    matchedDetections = [(detection, matchDetectionWithStorm(detection, data_params)) for detection in detections]
+    matchedDetections = [(detection, matchDetectionWithStorm(detection)) for detection in detections]
     
     matched = { storm['NAME'] : False for storm in historic_storms }
     totalMatches = 0
@@ -70,7 +70,7 @@ def date2ind(date):
     return (date - datetime.date(YEAR_OFFS, 1, 1)).days
 
 def storm2str(storm):
-    startDate, endDate = storm['START_DATE'].date(), storm['END_DATE'].date()
+    startDate, endDate = storm['START_DATE'], storm['END_DATE']
     if startDate == endDate:
         datestr = startDate.strftime('%b %d')
     elif startDate.month == endDate.month:
