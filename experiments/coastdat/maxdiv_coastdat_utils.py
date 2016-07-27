@@ -62,7 +62,7 @@ def loadHistoricStorms(filename = 'historic_storms.csv'):
         storms = list(csv.DictReader(stormfile, delimiter = '\t'))
     for storm in storms:
         storm['START_DATE'] = datetime.datetime.strptime(storm['START_DATE'], '%Y-%m-%d')
-        storm['END_DATE'] = datetime.datetime.strptime(storm['END_DATE'], '%Y-%m-%d')
+        storm['END_DATE'] = datetime.datetime.strptime(storm['END_DATE'], '%Y-%m-%d') + datetime.timedelta(seconds = 60*60*24 - 1)
     return storms
 
 historic_storms = loadHistoricStorms()
