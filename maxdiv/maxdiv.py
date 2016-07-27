@@ -15,14 +15,16 @@
 
 import numpy as np
 from numpy.linalg import slogdet, inv, solve
-from scipy.linalg import cho_factor, cho_solve
+from scipy.linalg import solve_triangular, cholesky, cho_factor, cho_solve
 from scipy.stats import multivariate_normal
+from sklearn.gaussian_process import GaussianProcess
+from sklearn.gaussian_process.gaussian_process import l1_cross_distances
 import math, time, types
 from . import maxdiv_util, preproc
 from .baselines_noninterval import pointwiseRegionProposals
 
 def get_available_methods():
-    return ['parzen', 'gaussian_cov', 'gaussian_id_cov', 'gaussian_global_cov']
+    return ['parzen', 'gaussian_cov', 'gaussian_id_cov', 'gaussian_global_cov', 'gaussian_process']
 
 
 # Let's derive the algorithm where we try to maximize the KL divergence between the two distributions:
@@ -379,6 +381,131 @@ def maxdiv_gaussian(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'COV', score
         return [(a, b, score_merge_coeff * score + (1.0 - score_merge_coeff) * base_score) for a, b, score, base_score in scores]
 
 #
+# Maximally divergent regions using Gaussian Process Regression
+#
+def maxdiv_gp(X, intervals, mode = 'I_OMEGA', theta = None, score_merge_coeff = None, **kwargs):
+    """ Scores given intervals by fitting a Gaussian Process to them.
+    
+    `X` is a d-by-n matrix with `n` data points, each with `d` attributes.
+    
+    `intervals` has to be an iterable of `(a, b, score)` tuples, which define an
+    interval `[a,b)` which is suspected to be an anomaly.
+    The scores should be in the range [0,1] and will be integrated into the final interval
+    score if `score_merge_coeff` is not `None`. The proposed score and the divergence-based
+    score will be combined according to the following equation:
+    
+    `score = score_merge_coeff * divergence_score + (1.0 - score_merge_coeff) * proposed_score`
+    
+    The divergence-based scores will be scaled to be in range [0,1].
+    This scaling won't be performed if score merging is disabled by setting `score_merge_coeff`
+    to `None`.
+    
+    Returns: a list of `(a, b, score)` tuples. `a` and `b` are the same as in the given
+             `intervals` iterable, but the scores will indicate whether a given interval
+             is an anomaly or not.
+    """
+    
+    dimension, n = X.shape
+    scores = []
+    
+    # Fit gaussian process parameters to time-series
+    if theta is None:
+        gp = GaussianProcess(thetaL = 0.1, thetaU = 1000, nugget = 1e-8, normalize = False)
+    else:
+        gp = GaussianProcess(theta0 = theta, nugget = 1e-8, normalize = False)
+    gp.fit(np.linspace(0, 1, n, endpoint = True).reshape(n, 1), X.T)
+    
+    # Compute regression function
+    f = gp.regr(gp.X)
+    
+    # Compute correlation matrix
+    D, ij = l1_cross_distances(gp.X)
+    r = gp.corr(gp.theta_, D)
+    corr = np.eye(n) * (1. + gp.nugget)
+    corr[ij[:, 0], ij[:, 1]] = r
+    corr[ij[:, 1], ij[:, 0]] = r
+
+    # Search for maximally divergent intervals
+    eps = 1e-7
+    for a, b, base_score in intervals:
+        
+        score = 0.0
+        
+        extreme_interval_length = b - a
+        non_extreme_points = n - extreme_interval_length
+        
+        timesteps_extreme = np.arange(a, b)
+        timesteps_non_extreme = np.setdiff1d(np.arange(n), timesteps_extreme)
+
+        mu, sigma = condition_gp(gp, f, corr, timesteps_non_extreme, timesteps_extreme)
+        ll = multivariate_normal.logpdf(gp.y[timesteps_extreme, :].T, mu.ravel(), sigma + np.eye(sigma.shape[0]) * eps)
+        
+        if mode != 'TS':
+            score -= ll / extreme_interval_length
+        else:
+            score -= ll
+        
+        scores.append((a, b, score, base_score) if score_merge_coeff is not None else (a, b, score))
+
+    # Merge divergence and proposal scores
+    if score_merge_coeff is None:
+        return scores
+    else:
+        # Apply sigmoid function to scale scores to [0,1)
+        if mode != 'JSD':
+            for i, (a, b, score, base_score) in enumerate(scores):
+                scores[i] = (a, b, 2.0 / (1.0 + math.exp(-0.02 * scores[i][2])) - 1.0, base_score)
+        # Combine divergence-based scores with proposed scores linearly
+        return [(a, b, score_merge_coeff * score + (1.0 - score_merge_coeff) * base_score) for a, b, score, base_score in scores]
+
+def condition_gp(gp, f, corr, train_x, test_x):
+    
+    ## Checks and pre-processing ##
+    
+    # Get shapes
+    n = gp.X.shape[0]
+    n_test = len(test_x)
+    n_train = len(train_x)
+    n_targets = gp.y.shape[1]
+    
+    ## Compute regression and correlation functions for training and test set ##
+    
+    # Split up regression function into pieces mu and m'
+    mu_train = f[train_x, :]    # mu
+    mu_test = f[test_x, :]      # m'
+    
+    # Extract correlations S, S' and S'' from overall correlation matrix
+    i, j = np.meshgrid(train_x, train_x, indexing = 'ij')
+    S_train = corr[i, j]        # S
+    i, j = np.meshgrid(test_x, test_x, indexing = 'ij')
+    S_test = corr[i, j]         # S''
+    i, j = np.meshgrid(test_x, train_x, indexing = 'ij')
+    S_test_train = corr[i, j]   # S'^T
+    
+    # Cholesky decomposition of S = C * C^T
+    C = cholesky(S_train, lower = True)
+    
+    ## Compute conditioned mean ##
+    # m' + S'^T * S^-1 * (y - mu)
+    mu = mu_test + np.dot(S_test_train, cho_solve((C, True), gp.y[train_x, :] - mu_train))
+    
+    ## Compute conditioned covariance matrix ##
+    # S'' - S'^T * S^-1 * S'
+    
+    # Compute C^-1 * S' (C is the Cholesky decomposition of S)
+    rt = solve_triangular(C, S_test_train.T, lower = True)
+    # Now: S'^T * S^-1 * S' = S'^T * C^-T * C^-1 * S' = (C^-1 * S')^T * (C^-1 * S') = rt^T * rt
+    S_sub = np.dot(rt.T, rt)
+    
+    # Conditioned covariance
+    sigma = S_test - S_sub
+    
+    return mu, sigma
+    
+
+
+
+#
 # Search non-overlapping regions
 #
 def find_max_regions(intervals, num_intervals = None, overlap_th = 0.0):
@@ -504,6 +631,9 @@ def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', u
         K = maxdiv_util.calc_gaussian_kernel(X, normalized = False, **kernelparameters)
         # obtain the interval [a,b] of the extreme event with score score
         interval_scores = maxdiv_parzen(K, intervals, **kwargs)
+    
+    elif method == 'gaussian_process':
+        interval_scores = maxdiv_gp(X, intervals, **kwargs)
 
     elif method.startswith('gaussian'):
         if 'alpha' in kwargs:
