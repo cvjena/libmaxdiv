@@ -383,7 +383,7 @@ def maxdiv_gaussian(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'COV', score
 #
 # Maximally divergent regions using Gaussian Process Regression
 #
-def maxdiv_gp(X, intervals, mode = 'I_OMEGA', theta = None, score_merge_coeff = None, **kwargs):
+def maxdiv_gp(X, intervals, mode = 'I_OMEGA', theta = 30, train_step = 5, score_merge_coeff = None, **kwargs):
     """ Scores given intervals by fitting a Gaussian Process to them.
     
     `X` is a d-by-n matrix with `n` data points, each with `d` attributes.
@@ -415,6 +415,9 @@ def maxdiv_gp(X, intervals, mode = 'I_OMEGA', theta = None, score_merge_coeff = 
         gp = GaussianProcess(theta0 = theta, nugget = 1e-8, normalize = False)
     gp.fit(np.linspace(0, 1, n, endpoint = True).reshape(n, 1), X.T)
     
+    # Compute characteristic length scale
+    ls = int(np.sqrt(0.5 / gp.theta_).flat[0] * n + 0.5)
+    
     # Compute regression function
     f = gp.regr(gp.X)
     
@@ -435,7 +438,11 @@ def maxdiv_gp(X, intervals, mode = 'I_OMEGA', theta = None, score_merge_coeff = 
         non_extreme_points = n - extreme_interval_length
         
         timesteps_extreme = np.arange(a, b)
-        timesteps_non_extreme = np.setdiff1d(np.arange(n), timesteps_extreme)
+        #timesteps_non_extreme = np.setdiff1d(np.arange(n), timesteps_extreme)
+        timesteps_non_extreme = np.concatenate((
+            np.arange(max(0, a - ls), b, train_step),
+            np.arange(b, min(n, b + ls), train_step)
+        ))
 
         mu, sigma = condition_gp(gp, f, corr, timesteps_non_extreme, timesteps_extreme)
         ll = multivariate_normal.logpdf(gp.y[timesteps_extreme, :].T, mu.ravel(), sigma + np.eye(sigma.shape[0]) * eps)
