@@ -75,7 +75,7 @@ std::pair<int, int> TimeDelayEmbedding::getEmbeddingParams(const DataTensor & da
             return std::make_pair(k, 1);
         int contextSize = this->determineContextWindowSize(data);
         if (k < 1 && T < 1)
-            T = contextSize / 50 + 1;
+            T = contextSize / 25 + 1;
         if (k < 1)
             k = std::max(1, static_cast<int>(static_cast<float>(contextSize) / T + 0.5));
         else

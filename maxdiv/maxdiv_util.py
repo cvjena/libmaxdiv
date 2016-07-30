@@ -81,6 +81,25 @@ def td_mutual_information(ts, k, T = 1):
     return (np.linalg.inv(cov_indep).dot(cov).trace() + np.linalg.slogdet(cov_indep)[1] - np.linalg.slogdet(cov)[1] - embed_func.shape[0]) / 2
 
 
+def context_window_size(X, th = 0.0002):
+    """Heuristically determines the number of previous time steps being a relevant context."""
+    
+    # Adjust threshold based on the number of attributes
+    th *= X.shape[0]
+    # Compute entropy
+    entropy = td_mutual_information(X, 1)
+    # Compute ratio of mutual information and entropy for different context window sizes
+    rmi = np.array([td_mutual_information(X, 2, d) / entropy for d in range(1, min(200, int(0.05 * X.shape[1])))])
+    # Compute gradient of relative mutual information
+    drmi = np.convolve(rmi, [-1, 0, 1], 'valid')
+    # Select first context window size below threshold
+    if np.any(drmi <= th):
+        context_size = np.where(drmi <= th)[0][0] + 3
+    else:
+        context_size = drmi.argmin() + 3
+    return context_size
+
+
 def m_estimation(A, b, k = 1.345):
     """ Robust M-Estimation with Huber's function.
     
