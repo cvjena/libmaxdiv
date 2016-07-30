@@ -232,6 +232,10 @@ def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', *
     if 'extint_max_len' in kwargs:
         params.max_size[:] = [kwargs['extint_max_len']] * len(params.max_size)
     
+    # Overlap Threshold
+    if 'overlap_th' in kwargs:
+        params.overlap_th = kwargs['overlap_th']
+    
     # Method
     method = method.lower()
     if method in ('gaussian_cov', 'gaussian_cov_ts', 'gaussian_ts'):
@@ -275,7 +279,7 @@ def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', *
             raise ValueError('Unknown divergence mode: {}'.format(mode))
     
     # Proposal generator
-    if ('proposalparameters' in kwargs) and ('method' in kwargs['proposalparameters']):
+    if (proposals != 'dense') and ('proposalparameters' in kwargs) and ('method' in kwargs['proposalparameters']):
         proposals = kwargs['proposalparameters']['method']
     proposals = proposals.lower()
     if proposals == 'dense':

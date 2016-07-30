@@ -660,7 +660,7 @@ def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', u
         interval_min_length = 20
     
     # get the K best non-overlapping regions
-    regions = find_max_regions(interval_scores, num_intervals)
+    regions = find_max_regions(interval_scores, num_intervals, kwargs['overlap_th'] if 'overlap_th' in kwargs else 0.0)
 
     return regions
 
