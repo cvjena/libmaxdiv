@@ -817,6 +817,7 @@ class MDIGUI(TkApp):
         if det == -1:
             self.resetView()
         elif (len(self.timesteps) > 0) and (len(self.detections) > 0) and (det >= 0) and (det < len(self.detections)):
+            minZoomSize = min(MIN_DET_ZOOM_SIZE, self.data.shape[1])
             detLen = self.detections[det][1] - self.detections[det][0]
             margin = int(0.4 * detLen)
             if 2 * margin + detLen < MIN_DET_ZOOM_SIZE:
