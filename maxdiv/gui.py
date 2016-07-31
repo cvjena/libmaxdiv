@@ -213,6 +213,7 @@ class MDIGUI(TkApp):
         self.boolPreviewPreproc = tkinter.BooleanVar(self, value = False)
         self.boolPropGrad = tkinter.BooleanVar(self, value = True)
         self.boolPropMAD = tkinter.BooleanVar(self, value = False)
+        self.boolExpandPlot = tkinter.BooleanVar(self, value = False)
         
         self.strMinLen.trace('w', self._updateScaleValues)
         self.strMaxLen.trace('w', self._updateScaleValues)
@@ -223,6 +224,7 @@ class MDIGUI(TkApp):
         self.boolNormalize.trace('w', self._onPreprocChange)
         self.boolLinearTrend.trace('w', self._onPreprocChange)
         self.boolPreviewPreproc.trace('w', self._onPreviewPreprocChange)
+        self.boolExpandPlot.trace('w', self._onExpandPlotChange)
         
         # Private variables
         self._destroyed = False
@@ -275,6 +277,7 @@ class MDIGUI(TkApp):
                 del self.boolPreviewPreproc
                 del self.boolPropGrad
                 del self.boolPropMAD
+                del self.boolExpandPlot
             except:
                 pass
     
@@ -300,17 +303,19 @@ class MDIGUI(TkApp):
         self.btnPan = ttk.Radiobutton(self.frmTS, text = 'P', variable = self.strFigureNavMode, value = 'pan')
         self.btnZoom = ttk.Radiobutton(self.frmTS, text = 'Z', variable = self.strFigureNavMode, value = 'zoom')
         self.btnReset = ttk.Button(self.frmTS, text = 'R', command = self.resetView)
+        self.btnExpand = ttk.Checkbutton(self.frmTS, text = 'X', variable = self.boolExpandPlot)
         self.btnFirstDet = ttk.Button(self.frmTS, text = '1', command = lambda *args: self.goToDetection(0))
         self.btnNextDet = ttk.Button(self.frmTS, text = '->', command = self.goToNextDetection)
         self.btnPrevDet = ttk.Button(self.frmTS, text = '<-', command = self.goToPrevDetection)
         self.btnSaveFig = ttk.Button(self.frmTS, text = 'S', command = self.saveFigDlg)
         self.btnExportDetections = ttk.Button(self.frmTS, text = 'E', command = self.exportDetectionsDlg)
-        self.lblTS.grid(row = 0, column = 0, rowspan = 5, sticky = (N,S,W,E))
-        self.btnsVis = [[self.btnPan, self.btnZoom, self.btnReset, None, self.btnSaveFig],
-                        [self.btnFirstDet, self.btnNextDet, self.btnPrevDet, None, self.btnExportDetections]]
-        btnIcons = [['move.png', 'zoom-in.png', 'reload.png', None, 'camera.png'], ['medal.png', 'arrow-right.png', 'arrow-left.png', None, 'save.png']]
-        btnHints = [['Pan figure', 'Zoom into figure with left click and out with right click', 'Reset figure', None, 'Save figure'],
-                    ['Zoom in to first detection', 'Zoom in to next detection', 'Zoom in to previous detection', None, 'Export detections as CSV file']]
+        self.lblTS.grid(row = 0, column = 0, rowspan = 6, sticky = (N,S,W,E))
+        self.btnsVis = [[self.btnPan, self.btnZoom, self.btnReset, self.btnExpand, None, self.btnSaveFig],
+                        [self.btnFirstDet, self.btnNextDet, self.btnPrevDet, None, None, self.btnExportDetections]]
+        btnIcons = [['move.png', 'zoom-in.png', 'reload.png', 'expand.png', None, 'camera.png'],
+                    ['medal.png', 'arrow-right.png', 'arrow-left.png', None, None, 'save.png']]
+        btnHints = [['Pan figure', 'Zoom into figure with left click and out with right click', 'Reset figure', 'Expand figure and show variables in separate axes.', None, 'Save figure'],
+                    ['Zoom in to first detection', 'Zoom in to next detection', 'Zoom in to previous detection', None, None, 'Export detections as CSV file']]
         if HAS_TIX:
             self.tooltip = tix.Balloon(self)
         for c, btns in enumerate(self.btnsVis):
@@ -329,7 +334,7 @@ class MDIGUI(TkApp):
                     btn.grid(row = r, column = c + 1, sticky = (N,S,W,E), padx = 0,
                              pady = (PADDING if r == 0 else 0, 30 if r == len(btns) - 1 else 0))
         self.frmTS.columnconfigure(0, weight = 1)
-        self.frmTS.rowconfigure(3, weight = 1)
+        self.frmTS.rowconfigure(4, weight = 1)
         self.frmTS.grid(row = 1, column = 0, columnspan = 2, sticky = (N,S,W,E), padx = PADDING)
         
         # Two-column layout for settings
@@ -376,6 +381,7 @@ class MDIGUI(TkApp):
         self.txtPeriodNum = tkinter.Spinbox(self.frmPreproc, textvariable = self.intPeriodNum, width = 6, from_ = 1, to = 10000, increment = 1)
         self.lblPeriodLen = ttk.Label(self.frmPreproc, text = 'Length of each season:')
         self.txtPeriodLen = tkinter.Spinbox(self.frmPreproc, textvariable = self.intPeriodLen, width = 6, from_ = 1, to = 10000, increment = 1)
+        self.btnPeriodAuto = ttk.Button(self.frmPreproc, text = 'auto', command = self.detectSeasonality)
         self.chkLinearTrend = ttk.Checkbutton(self.frmPreproc, text = 'Remove global linear trend', variable = self.boolLinearTrend)
         self.chkPreviewPreproc = ttk.Checkbutton(self.frmPreproc, text = 'Plot pre-processed instead of original data', variable = self.boolPreviewPreproc)
         self.chkNormalize.grid(row = 0, column = 0, columnspan = 3, sticky = W, padx = PADDING, pady = PADDING)
@@ -388,9 +394,13 @@ class MDIGUI(TkApp):
         ]
         for r, (label, widget) in enumerate(self.widgetsPreproc):
             label.grid(row = r + 1, column = 0, sticky = W, padx = PADDING, pady = PADDING)
-            widget.grid(row = r + 1, column = 1, columnspan = 1 if widget in (self.txtTdDim, self.txtTdLag) else 2, sticky = (W, E), padx = PADDING, pady = PADDING)
+            widget.grid(row = r + 1, column = 1,
+                        columnspan = 1 if widget in (self.txtTdDim, self.txtTdLag, self.txtPeriodNum) else 2,
+                        sticky = (W, E), padx = PADDING, pady = PADDING)
             if widget is self.txtTdDim:
                 self.btnTdAuto.grid(row = r + 1, column = 2, rowspan = 2, sticky = (W, E, N, S), padx = PADDING, pady = PADDING)
+            elif widget is self.txtPeriodNum:
+                self.btnPeriodAuto.grid(row = r + 1, column = 2, sticky = (W, E, N, S), padx = PADDING, pady = PADDING)
         self.chkLinearTrend.grid(row = len(self.widgetsPreproc) + 1, column = 0, columnspan = 3, sticky = W, padx = PADDING, pady = PADDING)
         self.chkPreviewPreproc.grid(row = len(self.widgetsPreproc) + 2, column = 0, columnspan = 3, sticky = W, padx = PADDING, pady = PADDING)
         self.frmPreproc.columnconfigure(1, weight = 1)
@@ -487,9 +497,11 @@ class MDIGUI(TkApp):
         if method in ('deseasonalize_z', 'deseasonalize_ols'):
             self.lblPeriodNum.grid()
             self.txtPeriodNum.grid()
+            self.btnPeriodAuto.grid()
         else:
             self.lblPeriodNum.grid_remove()
             self.txtPeriodNum.grid_remove()
+            self.btnPeriodAuto.grid_remove()
         if method == 'deseasonalize_ols':
             self.lblPeriodLen.grid()
             self.txtPeriodLen.grid()
@@ -531,11 +543,8 @@ class MDIGUI(TkApp):
         """Adjusts the size of the window to fit it's contents and sets the new size as the minimum size."""
         
         self.minsize(0, 0)
-        self.geometry('') # resize window to fit new contents
-        self.after(250, self._setMinSize)
-    
-    
-    def _setMinSize(self):
+        self.geometry('')   # resize window to fit new contents
+        self.update()       # process pending geometry management to update actual size
         self.minsize(self.winfo_width(), self.winfo_height())
     
     
@@ -722,6 +731,15 @@ class MDIGUI(TkApp):
             self.intTdLag.set(T)
     
     
+    def detectSeasonality(self, *args):
+        """Tries to automatically detect the length of the main seasonal period in the time-series."""
+        
+        if self.data.shape[1] > 0:
+            periods, _ = preproc.detect_periods(self.data)
+            if len(periods) > 0:
+                self.intPeriodNum.set(int(round(periods[0])))
+    
+    
     def runDetector(self):
         """Runs the MDI algorithm on self.data and stores the result in self.detections."""
         
@@ -799,6 +817,27 @@ class MDIGUI(TkApp):
             self.lblTS['cursor'] = 'sb_h_double_arrow'
             self.lblTS.bind('<B1-Motion>', self._figPan)
             self.lblTS.bind('<ButtonRelease-1>', self._figRelease)
+    
+    
+    def _onExpandPlotChange(self, *args):
+        """Hides the settings and expands the figure to full height if `self.boolExpandPlot` is `True`."""
+        
+        if self.boolExpandPlot.get():
+            self.frmLeftCol.grid_remove()
+            self.frmRightCol.grid_remove()
+            self.btnRun.grid_remove()
+            self.minsize(400, 240)
+            self.geometry('{}x{}'.format(self.winfo_width(), max(240, min(960, self.data.shape[0] * 120))))
+        else:
+            self.minsize(0, 0)
+            self.geometry('{}x240'.format(self.winfo_width()))
+            self.update()
+            self.redrawPlot()
+            self.frmLeftCol.grid()
+            self.frmRightCol.grid()
+            self.btnRun.grid()
+            self._resizeWindow()
+        self.updatePlot()
     
     
     def resetView(self, *args):
@@ -899,33 +938,50 @@ class MDIGUI(TkApp):
         plt = self.fig.add_subplot(111)
         if self.data.shape[1] > 0:
             
+            # Create multiple axes if figure is expanded
+            if self.boolExpandPlot.get():
+                self.fig.clear()
+                plots = [self.fig.add_subplot(self.data.shape[0], 1, 1)]
+                for i in range(1, self.data.shape[0]):
+                    plots.append(self.fig.add_subplot(self.data.shape[0], 1, i + 1, sharex = plots[0]))
+            else:
+                plots = [plt]
+            
             # Plot data
             if self.boolPreviewPreproc.get():
                 self.updatePreprocData()
             for i in range(self.data.shape[0]):
-                plt.plot(self.timesteps, self.preprocData[i,:].T if self.boolPreviewPreproc.get() else self.data[i,:].T, label = self.varnames[i])
+                plots[min(i, len(plots) - 1)].plot(
+                    self.timesteps,
+                    self.preprocData[i,:].T if self.boolPreviewPreproc.get() else self.data[i,:].T,
+                    label = self.varnames[i]
+                )
+                if len(plots) > 1:
+                    plots[i].set_ylabel(self.varnames[i])
+                    plots[i].yaxis.set_label_position('right')
             if self._xlim is None:
-                plt.set_xlim(self.timesteps[0], self.timesteps[-1])
+                plots[0].set_xlim(self.timesteps[0], self.timesteps[-1])
             else:
-                plt.set_xlim(self.timesteps[self._xlim[0]], self.timesteps[self._xlim[1]])
+                plots[0].set_xlim(self.timesteps[self._xlim[0]], self.timesteps[self._xlim[1]])
             
             # Plot detections
             if len(self.detections) > 0:
                 maxScore = max(score for a, b, score in self.detections)
                 minScore = min(score for a, b, score in self.detections)
                 cm = matplotlib.pyplot.cm.autumn
-                ymin, ymax = plt.get_ylim()
-                plt.set_ylim(ymin, ymax)
-                for a, b, score in self.detections:
-                    ta, tb = self.timesteps[a], self.timesteps[b - 1]
-                    #col = cm(1.0 - (score - minScore) / (maxScore - minScore)) if maxScore != minScore else cm(0.0)
-                    intensity = float(score - minScore) / (maxScore - minScore) if minScore < maxScore else 1.0
-                    col = (1.0, 0.8 - intensity * 0.8, 0.8 - intensity * 0.8)
-                    plt.fill([ta, ta, tb, tb], [ymin, ymax, ymax, ymin], color = col, alpha = 0.3)
+                for plt in plots:
+                    ymin, ymax = plt.get_ylim()
+                    plt.set_ylim(ymin, ymax)
+                    for a, b, score in self.detections:
+                        ta, tb = self.timesteps[a], self.timesteps[b - 1]
+                        #col = cm(1.0 - (score - minScore) / (maxScore - minScore)) if maxScore != minScore else cm(0.0)
+                        intensity = float(score - minScore) / (maxScore - minScore) if minScore < maxScore else 1.0
+                        col = (1.0, 0.8 - intensity * 0.8, 0.8 - intensity * 0.8)
+                        plt.fill([ta, ta, tb, tb], [ymin, ymax, ymax, ymin], color = col, alpha = 0.3)
             
             # Show legend
-            if (self.data.shape[0] > 1) and (self.data.shape[0] <= 10):
-                plt.legend(bbox_to_anchor = (0., 1., 1., .1), loc = 3, ncol = self.data.shape[0], mode = "expand", borderaxespad = 0., fontsize = 9)
+            if (not self.boolExpandPlot.get()) and (self.data.shape[0] > 1) and (self.data.shape[0] <= 10):
+                plots[0].legend(bbox_to_anchor = (0., 1., 1., .1), loc = 3, ncol = self.data.shape[0], mode = "expand", borderaxespad = 0., fontsize = 9)
             
         else:
             plt.set_xlim(0.0, 1.0)
