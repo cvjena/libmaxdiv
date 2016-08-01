@@ -81,8 +81,8 @@ PROPOSAL_METHODS = [
 DETRENDING_METHODS = [
     ('', 'None'),
     ('deseasonalize_z', 'Z-Score'),
-    ('deseasonalize_ols', 'OLS'),
-    ('deseasonalize_ft', 'FT')
+    ('deseasonalize_ols', 'Least Squares'),
+    ('deseasonalize_ft', 'Fourier Transform')
 ]
 
 
@@ -726,7 +726,8 @@ class MDIGUI(TkApp):
         """Heuristically determines parameters for Time-Delay Embedding."""
         
         if self.data.shape[1] > 0:
-            k, T = preproc.td_params(self.data, None, None)
+            self.updatePreprocData()
+            k, T = preproc.td_params(self.preprocData, None, None)
             self.intTdDim.set(k)
             self.intTdLag.set(T)
     
@@ -738,6 +739,7 @@ class MDIGUI(TkApp):
             periods, _ = preproc.detect_periods(self.data)
             if len(periods) > 0:
                 self.intPeriodNum.set(int(round(periods[0])))
+                self.intPeriodLen.set(1)
     
     
     def runDetector(self):
