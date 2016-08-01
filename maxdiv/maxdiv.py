@@ -445,7 +445,7 @@ def maxdiv_gp(X, intervals, mode = 'I_OMEGA', theta = 30, train_step = 5, score_
         ))
 
         mu, sigma = condition_gp(gp, f, corr, timesteps_non_extreme, timesteps_extreme)
-        ll = multivariate_normal.logpdf(gp.y[timesteps_extreme, :].T, mu.ravel(), sigma + np.eye(sigma.shape[0]) * eps)
+        ll = multivariate_normal.logpdf(gp.y[timesteps_extreme, :].T - mu.T, None, sigma + np.eye(sigma.shape[0]) * eps).sum()
         
         if mode != 'TS':
             score -= ll / extreme_interval_length
