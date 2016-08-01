@@ -403,7 +403,7 @@ void MaxDiv::nonMaximumSuppression(DetectionList & detections, unsigned int numD
                     
                     // Exclude intervals with a lower score overlapping this one
                     for (j = i + 1; j < detections.size(); ++j)
-                        if (include[j] && (detections[j].score < 1e-8 || detections[i].IoU(detections[j]) > overlap_th))
+                        if (include[j] && detections[i].IoU(detections[j]) > overlap_th)
                             include[j] = false;
                 }
             

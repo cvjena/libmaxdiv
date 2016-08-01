@@ -45,7 +45,7 @@ public:
     * @param[in] innerRange The sub-block to compare against the rest of the data passed to `init()`.
     *
     * @return Returns a measure of divergence which is high if the two data segments are very dissimilar,
-    * but near zero if they are similar.
+    * but low if they are similar.
     */
     virtual Scalar operator()(const IndexRange & innerRange) =0;
 
