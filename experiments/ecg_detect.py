@@ -6,7 +6,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-import csv
+import csv, os.path
 from glob import glob
 from bisect import bisect
 
@@ -54,12 +54,14 @@ def classifyDetections(detections, timesteps, anomalies):
 def runOnDataset(dataset, params):
     
     detections = []
-    numAnomalies += 0
+    numAnomalies = 0
     records = [os.path.splitext(os.path.basename(file))[0] for file in glob(ROOT_DIR + dataset + '/*.csv')]
     for record in records:
         ecg, timesteps, anomalies = readECG('{}/{}'.format(dataset, record))
         if len(anomalies) > 0:
-            detections.append(classifyDetections(maxdiv.maxdiv(ecg, *params), timesteps, anomalies))
+            print('Running detector on {}/{}'.format(dataset, record))
+            sys.stdout.flush()
+            detections.append(classifyDetections(maxdiv.maxdiv(ecg, **params), timesteps, anomalies))
             numAnomalies += len(anomalies)
     return detections, numAnomalies
 
@@ -76,7 +78,7 @@ def recall_precision(detections, numPositive):
     # Compute recall and precision
     tp = tp.cumsum()
     fp = fp.cumsum()
-    return (tp / numPositive, tp / (tp + fp) if len(regions) > 0 else tp)
+    return (tp / numPositive, tp / (tp + fp) if len(detections) > 0 else tp)
 
 
 def average_precision(detections, numPositive, plotFilename = None, plotTitle = ''):
@@ -96,7 +98,7 @@ def average_precision(detections, numPositive, plotFilename = None, plotTitle = 
     # Plot recall/precision curve
     if plotFilename is not None:
         fig = plt.figure()
-        sp = fig.add_subplot(111, title = '{} (AP: {.2f})'.format(plotTitle, ap), xlabel = 'Recall', ylabel = 'Precision', ylim = (0.0, 1.05))
+        sp = fig.add_subplot(111, title = '{} (AP: {:.2f})'.format(plotTitle, ap), xlabel = 'Recall', ylabel = 'Precision', ylim = (0.0, 1.05))
         sp.plot(recall, precision)
         fig.savefig(plotFilename)
     
@@ -110,7 +112,7 @@ if __name__ == '__main__':
     parser.add_argument('--method', help='maxdiv method', choices=maxdiv.get_available_methods(), default = 'gaussian_cov')
     parser.add_argument('--mode', help='Mode for KL divergence computation', choices=['OMEGA_I', 'SYM', 'I_OMEGA', 'TS', 'LAMBDA', 'IS_I_OMEGA', 'JSD'], default='TS')
     parser.add_argument('--kernel_sigma_sq', help='kernel sigma square hyperparameter for Parzen estimation', type=float, default=1.0)
-    parser.add_argument('--extint_min_len', help='minimum length of the extreme interval', default=100, type=int)
+    parser.add_argument('--extint_min_len', help='minimum length of the extreme interval', default=200, type=int)
     parser.add_argument('--extint_max_len', help='maximum length of the extreme interval', default=400, type=int)
     parser.add_argument('--num_intervals', help='number of intervals', default=1000, type=int)
     parser.add_argument('--deseas', help='apply FT deseasonalization', action = 'store_true')
@@ -119,19 +121,27 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     args_dict = vars(args)
-    parameters = {parameter_name: args_dict[parameter_name] for parameter_name in maxdiv_tools.get_algorithm_parameters()}
+    parameters = {parameter_name: args_dict[parameter_name] for parameter_name in maxdiv_tools.get_algorithm_parameters() if parameter_name in args_dict}
     if ('num_intervals' in parameters) and (parameters['num_intervals'] <= 0):
         parameters['num_intervals'] = None
     parameters['kernelparameters'] = { 'kernel_sigma_sq' : args.kernel_sigma_sq }
+    
+    suffix = args.method + '_' + args.mode
+   
+    parameters['preproc'] = ['normalize'] 
+    if args.deseas:
+        parameters['preproc'].append('deseasonalize_ft')
+        suffix += '_ft'
     
     all_detections = []
     num_anomalies = 0
     for ds in DATASETS:
         detections, numPositive = runOnDataset(ds, parameters)
-        ap = average_precision(detections, numPositive, 'precrec_{}.svg'.format(ds), ds)
+        ap = average_precision(detections, numPositive, 'precrec_{}_{}.svg'.format(ds, suffix), ds)
         print('Processed {} ECGs from dataset {} (AP: {})'.format(len(detections), ds, ap))
+        sys.stdout.flush()
         all_detections += detections
         num_anomalies += numPositive
     
-    ap = average_precision(all_detections, num_anomalies, 'precrec_overall.svg', 'Overall')
+    ap = average_precision(all_detections, num_anomalies, 'precrec_overall_{}.svg'.format(suffix), 'Overall')
     print('Overall AP: {}'.format(ap))
