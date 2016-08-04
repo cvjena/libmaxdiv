@@ -4,12 +4,13 @@ from maxdiv.libmaxdiv_wrapper import *
 
 #dump_file = '../../../coastDat_ff-hs-mp_all-aggregated.dat'
 dump_file = '../../../coastDat_ff-hs-mp_aggregated.dat'
-#dump_file = '../../../coastDat_ff-hs-mp_1990.dat'
+#dump_file = '../../../coastDat_ff-hs-mp_1990-1999.dat'
 #dump_file = ''
 
 data_params = coastdat_params_t()
 coastdat_default_params(data_params)
-#data_params.firstYear = data_params.lastYear = 1990
+#data_params.firstYear = 1990
+#data_params.lastYear = 1999
 #data_params.firstLat = data_params.lastLat = 80
 #data_params.firstLon = data_params.lastLon = 70
 #data_params.firstLat = data_params.firstLon = 0
@@ -32,7 +33,7 @@ params.preproc.embedding.kt = 3
 params.preproc.embedding.kx = params.preproc.embedding.ky = 1
 params.preproc.normalization = enums['MAXDIV_NORMALIZE_MAX']
 #params.preproc.detrending.method = enums['MAXDIV_DETREND_ZSCORE']
-#params.preproc.detrending.z_period_len = 24
+#params.preproc.detrending.z_period_len = 8766
 
 num_det = c_uint(50)
 detections = (detection_t * num_det.value)()
