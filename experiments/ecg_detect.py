@@ -37,14 +37,24 @@ def readECG(id):
 def classifyDetections(detections, timesteps, anomalies):
     
     det = []
+    detected = np.zeros(len(anomalies), dtype = bool)
     for a, b, score in detections:
         i, j = bisect(anomalies, timesteps[a]), bisect(anomalies, timesteps[b-1])
         if j > i: # interval contains an anomaly
+            if detected[i:j].all():
+                continue
             isTP = True
+            detected[i:j] = True
         elif (i > 0) and (timesteps[a] - anomalies[i-1] < 1):   # nearby anomaly to the left
+            if detected[i-1]:
+                continue
             isTP = True
+            detected[i-1] = True
         elif (j < len(anomalies)) and (anomalies[j] - timesteps[b - 1] < 1):   # nearby anomaly to the right
+            if detected[j]:
+                continue
             isTP = True
+            detected[j] = True
         else:
             isTP = False
         det.append((a, b, score, isTP))
