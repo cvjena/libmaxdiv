@@ -13,13 +13,6 @@ try:
     import tkinter
     from tkinter import N, E, S, W
     from tkinter import ttk, messagebox, filedialog, simpledialog
-    try:
-        from tkinter import tix
-        HAS_TIX = True
-        TkApp = tix.Tk
-    except:
-        HAS_TIX = False
-        TkApp = tkinter.Tk
 except:
     # Python 2
     import Tkinter as tkinter
@@ -28,13 +21,6 @@ except:
     import tkMessageBox as messagebox
     import tkFileDialog as filedialog
     import tkSimpleDialog as simpledialog
-    try:
-        import Tix as tix
-        HAS_TIX = True
-        TkApp = tix.Tk
-    except:
-        HAS_TIX = False
-        TkApp = tkinter.Tk
 
 import math, re, datetime, csv, os
 import numpy as np
@@ -47,7 +33,7 @@ except:
     import Image, ImageTk
 
 from .maxdiv import maxdiv
-from . import preproc
+from . import preproc, wckToolTips
 
 
 
@@ -177,14 +163,14 @@ def figure2img(fig, w, h):
 
 
 
-class MDIGUI(TkApp):
+class MDIGUI(tkinter.Tk):
     """Main window of the GUI to the MDI algorithm."""
     
     
     def __init__(self):
         """Initializes the main window of the application."""
     
-        TkApp.__init__(self)
+        tkinter.Tk.__init__(self)
         self.title("Maximally Divergent Intervals for Anomaly Detection (MDI)")
         
         # Properties
@@ -316,8 +302,6 @@ class MDIGUI(TkApp):
                     ['medal.png', 'arrow-right.png', 'arrow-left.png', None, None, 'save.png']]
         btnHints = [['Pan figure', 'Zoom into figure with left click and out with right click', 'Reset figure', 'Expand figure and show variables in separate axes.', None, 'Save figure'],
                     ['Zoom in to first detection', 'Zoom in to next detection', 'Zoom in to previous detection', None, None, 'Export detections as CSV file']]
-        if HAS_TIX:
-            self.tooltip = tix.Balloon(self)
         for c, btns in enumerate(self.btnsVis):
             for r, btn in enumerate(btns):
                 if btn is not None:
@@ -329,8 +313,7 @@ class MDIGUI(TkApp):
                         btn['image'] = btn._img
                     except:
                         pass
-                    if HAS_TIX:
-                        self.tooltip.bind_widget(btn, msg = btnHints[c][r])
+                    wckToolTips.register(btn, btnHints[c][r])
                     btn.grid(row = r, column = c + 1, sticky = (N,S,W,E), padx = 0,
                              pady = (PADDING if r == 0 else 0, 30 if r == len(btns) - 1 else 0))
         self.frmTS.columnconfigure(0, weight = 1)
