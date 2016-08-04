@@ -44,7 +44,10 @@ def gmm_scores(X, n_components = 2):
     gmm = GMM(n_components, 'full', n_init = 10)
     gmm.fit(X.T)
     nominal_component = gmm.weights_.argmax()
-    return (1.0 - gmm.score_samples(X.T)[1][:, nominal_component])
+    if n_components == 2:
+        return gmm.score_samples(X.T)[1][:, 1 - nominal_component]
+    else:
+        return (1.0 - gmm.score_samples(X.T)[1][:, nominal_component])
 
 
 def pointwiseScoresToIntervals(scores, min_length = 0):
