@@ -132,7 +132,11 @@ Scalar KLDivergence::operator()(const IndexRange & innerRange)
             }
         }
         if (this->m_mode == KLMode::UNBIASED)
-            score = (numExtremes * score - this->m_chiMean) / this->m_chiSD;
+        {
+            score *= numExtremes;
+            if (gde->getMode() == GaussianDensityEstimator::CovMode::FULL)
+                score = score - this->m_chiMean / this->m_chiSD;
+        }
     }
     else
     {
