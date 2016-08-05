@@ -47,25 +47,21 @@ def printDetectedParagraphs(text, intervals):
         printDetectedParagraph(text, interval)
 
 
-def word_feat(w):
-    
-    f = np.zeros((27,))
-    f[0] = len(w)
-    for c in w.lower():
-        ind = ord(c) - ord('a')
-        if (ind >= 0) and (ind < 26):
-            f[ind + 1] += 1
-    return f
-
-
 def sent_feat(s):
     
     f = np.zeros((27,))
     samples = 0
+    characters = 0
     for w in s:
         if w.isalpha():
-            f += word_feat(w)
+            f[0] += len(w)
+            for c in w:
+                ind = ord(c) - ord('a')
+                if (ind >= 0) and (ind < 26):
+                    f[ind + 1] += 1
+                    characters += 1
             samples += 1
+    
     if samples > 0:
         f[0] /= samples
     return f
@@ -84,8 +80,9 @@ if __name__ == '__main__':
     
     text, gt = makeMixedText(minLen, maxLen, numForeign)
     
+    feat = text2feat(text)
     start = time.time()
-    intervals = maxdiv(text2feat(text).T, method = 'gaussian_global_cov', mode = 'TS',
+    intervals = maxdiv(feat.T, method = 'gaussian_global_cov', mode = 'TS',
                        extint_min_len = minLen, extint_max_len = maxLen, num_intervals = numForeign * 2)
     stop = time.time()
     print('The search for anomalous paragraphs in a text of {} sentences took {} seconds.'.format(len(text), stop - start))
