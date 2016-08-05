@@ -35,6 +35,7 @@ for filtered in FILTERED:
         mean_ap[id] = {}
         labels[id] = '{}, {}'.format('median' if useMAD else 'mean', 'gradients' if filtered else 'scores')
         print('Testing {}'.format(labels[id]))
+        sys.stdout.flush()
         
         for sd_th in THS:
             ygts = []
@@ -50,7 +51,8 @@ for filtered in FILTERED:
                 cur_regions = []
                 for func in data[ftype]:
                     gts.append(func['gt'])
-                    cur_regions.append(maxdiv.maxdiv(func['ts'], method = METHOD, mode = MODE, preproc = ['normalize', 'td'],
+                    cur_regions.append(maxdiv.maxdiv(func['ts'], method = METHOD, mode = MODE, preproc = 'normalize',
+                                                     td_dim = 6, td_lag = 2,
                                                      num_intervals = None, extint_min_len = 20, extint_max_len = 100,
                                                      proposals = propmeth, proposalparameters = propparams))
                 aps.append(eval.average_precision(gts, cur_regions))

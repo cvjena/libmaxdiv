@@ -71,7 +71,7 @@ def runOnDataset(dataset, params):
         if len(anomalies) > 0:
             print('Running detector on {}/{}'.format(dataset, record))
             sys.stdout.flush()
-            detections.append(classifyDetections(maxdiv.maxdiv(ecg, **params), timesteps, anomalies))
+            detections.append(classifyDetections(maxdiv.maxdiv(ecg, useLibMaxDiv = True, **params), timesteps, anomalies))
             numAnomalies += len(anomalies)
     return detections, numAnomalies
 
@@ -142,6 +142,8 @@ if __name__ == '__main__':
     if args.deseas:
         parameters['preproc'].append('deseasonalize_ft')
         suffix += '_ft'
+    if (args.td_dim != 3) or (args.td_lag != 1):
+        suffix += '_td{}-{}'.format(args.td_dim, args.td_lag)
     
     all_detections = []
     num_anomalies = 0
