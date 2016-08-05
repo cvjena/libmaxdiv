@@ -51,7 +51,7 @@ for filtered in FILTERED:
                 for func in data[ftype]:
                     gts.append(func['gt'])
                     cur_regions.append(maxdiv.maxdiv(func['ts'], method = METHOD, mode = MODE, preproc = ['normalize', 'td'],
-                                                     num_intervals = None, extint_min_len = 10, extint_max_len = 50,
+                                                     num_intervals = None, extint_min_len = 20, extint_max_len = 100,
                                                      proposals = propmeth, proposalparameters = propparams))
                 aps.append(eval.average_precision(gts, cur_regions))
                 ygts += gts

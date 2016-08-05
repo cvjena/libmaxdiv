@@ -16,7 +16,9 @@ THS = np.concatenate((np.linspace(0, 2, 20, endpoint = False), np.linspace(2, 4,
 
 # Parse parameters
 dataset = sys.argv[1] if len(sys.argv) > 1 else 'synthetic'
-extint_max_len = max(10, int(sys.argv[2])) if len(sys.argv) > 2 else 50
+extint_max_len = max(10, int(sys.argv[2])) if len(sys.argv) > 2 else 100
+td_dim = max(1, int(sys.argv[3])) if len(sys.argv) > 3 else 1
+td_lag = max(1, int(sys.argv[4])) if len(sys.argv) > 4 else 1
 
 # Load test data
 data = datasets.loadDatasets(dataset, 'interval')
@@ -32,8 +34,10 @@ for propmeth in PROPMETHODS:
         for ftype in data:
             for func in data[ftype]:
                 ygts.append(func['gt'])
-                regions.append(list(pointwiseRegionProposals(preproc.td(preproc.normalize_time_series(func['ts'])),
-                                                             method = propmeth, sd_th = sd_th,
+                ts = preproc.normalize_time_series(func['ts'])
+                if td_dim > 1:
+                    ts = preproc.td(ts, td_dim, td_lag)
+                regions.append(list(pointwiseRegionProposals(ts, method = propmeth, sd_th = sd_th,
                                                              extint_min_len = 10, extint_max_len = extint_max_len)))
             
         results[propmeth][sd_th] = eval.recall_precision(ygts, regions, multiAsFP = False)
