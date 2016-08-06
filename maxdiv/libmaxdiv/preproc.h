@@ -357,9 +357,9 @@ public:
     Scalar opt_th; /**< Threshold for automatic parameter determination. See `getContextWindowSize()`. */
     DataTensor::Index maxContextWindowSize; /**< Maximum size of context windows for automatic parameter determination. */
 
-    TimeDelayEmbedding() : k(0), T(1), borderPolicy(BorderPolicy::AUTO), opt_th(0.0002), maxContextWindowSize(200) {};
+    TimeDelayEmbedding() : k(0), T(1), borderPolicy(BorderPolicy::AUTO), opt_th(0.05), maxContextWindowSize(200) {};
     TimeDelayEmbedding(int k, int T = 1, BorderPolicy borders = BorderPolicy::AUTO)
-    : k(k), T(T), borderPolicy(borders), opt_th(0.0002), maxContextWindowSize(200) {};
+    : k(k), T(T), borderPolicy(borders), opt_th(0.05), maxContextWindowSize(200) {};
     
     virtual DataTensor & operator()(const DataTensor & dataIn, DataTensor & dataOut) const override;
     
@@ -378,8 +378,7 @@ public:
     * If both the `k` and the `T` attribute of this object are set to a value greater than 0,
     * this method will just return those values.
     *
-    * Otherwise, it will determine appropriate values automatically based on the ratio of
-    * Mutual Information and Entropy.
+    * Otherwise, it will determine appropriate values automatically based on Mutual Information.
     *
     * @param[in] data The data tensor to perform time-delay embedding on.
     *
@@ -391,10 +390,10 @@ public:
     /**
     * Determines the size of the relevant context window for a given time-series @p data.
     *
-    * The size of this window is determined based on the ratio of the mutual information between
-    * two points in the time-series with varying distance and the entropy of the time-series.
-    * The `opt_th` attribute sets a threshold on the gradient of that ratio. If the ratio drops
-    * slowlier than this threshold, the respective context window size will be chosen.
+    * The size of this window is determined based on the mutual information between two points
+    * in the time-series with varying distance.
+    * The `opt_th` attribute sets a threshold on the gradient of MI. If MI drops slowlier than
+    * this threshold, the respective context window size will be chosen.
     *
     * For spatio-temporal data, this will be done for each location separately and the median context
     * window size will be returned.

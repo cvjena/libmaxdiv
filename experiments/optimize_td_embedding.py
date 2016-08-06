@@ -40,12 +40,11 @@ def td_from_mi(func, method, td_lag):
     return detections, k
 
 
-def td_from_relative_mi(func, method, td_lag, th = 0.0002):
+def td_from_relative_mi(func, method, td_lag, th = 0.05):
     
-    th *= func['ts'].shape[0]
-    # Determine Time Lag based on the ratio of Mutual Information and Entropy
-    entropy = mutual_information(func['ts'], 1)
-    rmi = np.array([mutual_information(func['ts'], 2, d) / entropy for d in range(1, int(0.05 * func['ts'].shape[1]))])
+    # Determine Time Lag based on "normalized" Mutual Information
+    rmi = np.array([mutual_information(func['ts'], 2, d) for d in range(1, int(0.05 * func['ts'].shape[1]))])
+    rmi /= rmi[0]
     drmi = np.convolve(rmi, [-1, 0, 1], 'valid')
     if np.any(drmi <= th):
         k = (np.where(drmi <= th)[0][0] + 3) // td_lag
@@ -96,9 +95,9 @@ def mutual_information(ts, k, T = 1):
         # Entropy as a special case of MI
         cov = np.cov(ts)
         if d > 1:
-            return (n * (np.log(2 * np.pi) + 1) + np.linalg.slogdet(cov)[1]) / 2
+            return (d * (np.log(2 * np.pi) + 1) + np.linalg.slogdet(cov)[1]) / 2
         else:
-            return (n * (np.log(2 * np.pi) + 1) + np.log(cov)) / 2
+            return (np.log(2 * np.pi) + 1 + np.log(cov)) / 2
     
     # Time-Delay Embedding with the given embedding dimension and time lag
     embed_func = np.vstack([ts[:, ((k - i - 1) * T):(n - i * T)] for i in range(k)])

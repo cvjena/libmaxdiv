@@ -64,9 +64,9 @@ def td_mutual_information(ts, k, T = 1):
         # Entropy as a special case of MI
         cov = np.cov(ts)
         if d > 1:
-            return (n * (np.log(2 * np.pi) + 1) + np.linalg.slogdet(cov)[1]) / 2
+            return (d * (np.log(2 * np.pi) + 1) + np.linalg.slogdet(cov)[1]) / 2
         else:
-            return (n * (np.log(2 * np.pi) + 1) + np.log(cov)) / 2
+            return (np.log(2 * np.pi) + 1 + np.log(cov)) / 2
     
     # Time-Delay Embedding with the given embedding dimension and time lag
     embed_func = np.vstack([ts[:, ((k - i - 1) * T):(n - i * T)] for i in range(k)])
@@ -81,22 +81,19 @@ def td_mutual_information(ts, k, T = 1):
     return (np.linalg.inv(cov_indep).dot(cov).trace() + np.linalg.slogdet(cov_indep)[1] - np.linalg.slogdet(cov)[1] - embed_func.shape[0]) / 2
 
 
-def context_window_size(X, th = 0.0002):
+def context_window_size(X, th = 0.05):
     """Heuristically determines the number of previous time steps being a relevant context."""
     
-    # Adjust threshold based on the number of attributes
-    th *= X.shape[0]
-    # Compute entropy
-    entropy = td_mutual_information(X, 1)
-    # Compute ratio of mutual information and entropy for different context window sizes
-    rmi = np.array([td_mutual_information(X, 2, d) / entropy for d in range(1, min(200, int(0.05 * X.shape[1])))])
+    # Compute "normalized" mutual information for different context window sizes
+    mi = np.array([td_mutual_information(X, 2, d) for d in range(1, min(200, int(0.05 * X.shape[1])))])
+    mi /= mi[0]
     # Compute gradient of relative mutual information
-    drmi = np.convolve(rmi, [-1, 0, 1], 'valid')
+    dmi = np.convolve(mi, [-1, 0, 1], 'valid')
     # Select first context window size below threshold
-    if np.any(drmi <= th):
-        context_size = np.where(drmi <= th)[0][0] + 3
+    if np.any(dmi <= th):
+        context_size = np.where(dmi <= th)[0][0] + 3
     else:
-        context_size = drmi.argmin() + 3
+        context_size = dmi.argmin() + 3
     return context_size
 
 

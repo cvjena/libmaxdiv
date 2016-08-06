@@ -32,16 +32,16 @@ def local_linear_regression(X, window_size=5):
     return params
 
 
-def td(X, k = None, T = 1, opt_th = 0.0002):
+def td(X, k = None, T = 1, opt_th = 0.05):
     """ Time-Delay Embedding transformation
     
     X - The time-series to be transformed
     k - Embedding dimension (the number of time steps to integrate into one)
     T - Time Lag (the gap between two consecutive time steps)
     opt_th - Both, k and T, may be `None` to determine appropriate parameters automatically
-             based on the ratio of Mutual Information and Entropy. This parameter sets a
-             threshold on the gradient of that ratio. If the ratio drops slowlier than this
-             threshold, the respective context window size will be chosen.
+             based on Mutual Information. This parameter sets a threshold on the gradient
+             of Mutual Information. If MI drops slowlier than this threshold, the respective
+             context window size will be chosen.
     """
     
     k, T = td_params(X, k, T, opt_th)
@@ -54,13 +54,14 @@ def td(X, k = None, T = 1, opt_th = 0.0002):
     return newX
 
 
-def td_params(X, k = None, T = 1, opt_th = 0.0002):
+def td_params(X, k = None, T = 1, opt_th = 0.05):
     """Heuristically determines parameters for Time-Delay Embedding."""
     
     if (k is None) or (T is None):
         context_size = maxdiv_util.context_window_size(X, opt_th)
         if (k is None) and (T is None):
-            T = int(context_size // 25) + 1
+            max_k = max(5, 50 // X.shape[0])
+            T = int(context_size // max_k) + 1
         if k is None:
             k = max(1, int(round(context_size / T)))
         else:

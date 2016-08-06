@@ -75,7 +75,10 @@ std::pair<int, int> TimeDelayEmbedding::getEmbeddingParams(const DataTensor & da
             return std::make_pair(k, 1);
         int contextSize = this->determineContextWindowSize(data);
         if (k < 1 && T < 1)
-            T = contextSize / 25 + 1;
+        {
+            int max_k = std::max(5, static_cast<int>(50 / data.numAttrib()));
+            T = contextSize / max_k + 1;
+        }
         if (k < 1)
             k = std::max(1, static_cast<int>(static_cast<float>(contextSize) / T + 0.5));
         else
@@ -86,9 +89,7 @@ std::pair<int, int> TimeDelayEmbedding::getEmbeddingParams(const DataTensor & da
 
 int TimeDelayEmbedding::determineContextWindowSize(const DataTensor & data) const
 {
-    // Adjust threshold based on the number of attributes
     DataTensor::Index na = data.numAttrib();
-    Scalar opt_th = this->opt_th * na;
     
     // Compute sum along time dimension
     ReflessIndexVector flatShape = data.shape();
@@ -96,40 +97,14 @@ int TimeDelayEmbedding::determineContextWindowSize(const DataTensor & data) cons
     DataTensor sum(flatShape);
     sum.asTemporalMatrix() = data.asTemporalMatrix().colwise().sum();
     
-    // Tensor containing mutual information for each location and various distances
+    // Compute mutual information for each location and various distances
     flatShape.d = std::min(data.length() / 20, this->maxContextWindowSize);
     DataTensor mi(flatShape);
-    
-    // Compute entropy
-    Sample mean(na), centered(na);
+    mi.channel(0).setConstant(1); // not used
+    Sample sumLeft(na), sumRight(na), mean(2 * na), centered(2 * na);
     ScalarMatrix cov(na, na);
-    Eigen::Map<const Sample> covVec(cov.data(), na * na);
-    Scalar entropySummand = data.length() * (std::log(2 * M_PI) + 1);
+    ScalarMatrix indepCov = ScalarMatrix::Zero(na, na);
     Scalar covLogDet, indepCovLogDet;
-    for (IndexVector loc = mi.makeIndexVector(); loc.t < loc.shape.t; loc += loc.shape.d)
-    {
-        mean = sum(0, loc.x, loc.y, loc.z) / data.length();
-        cov.setZero();
-        for (DataTensor::Index t = 0; t < data.length(); ++t)
-        {
-            centered = data(t, loc.x, loc.y, loc.z) - mean;
-            cov.noalias() += centered * centered.transpose();
-        }
-        cov /= data.length() - 1;
-        if (na > 1)
-            cholesky(cov, static_cast<Eigen::LLT<ScalarMatrix>*>(nullptr), &covLogDet);
-        else
-            covLogDet = std::log(cov(0, 0));
-        mi(loc) = (entropySummand + covLogDet) / 2;
-    }
-    assert((mi.channel(0).array() >= 0).all());
-    
-    // Compute relative mutual information for each location and various distances
-    Sample sumLeft(na), sumRight(na);
-    mean.resize(2 * na);
-    centered.resize(2 * na);
-    cov.resize(2 * na, 2 * na);
-    ScalarMatrix indepCov = ScalarMatrix::Zero(cov.rows(), cov.cols());
     Eigen::LLT<ScalarMatrix> indepCovChol;
     for (IndexVector loc = mi.makeIndexVector(); loc.t < loc.shape.t; ++loc)
         if (loc.d == 0)
@@ -164,10 +139,13 @@ int TimeDelayEmbedding::determineContextWindowSize(const DataTensor & data) cons
             // Compute KL divergence between p(x_t, x_(t-d)) and p(x_t)*p(x_(t-d))
             cholesky(cov, static_cast<Eigen::LLT<ScalarMatrix>*>(nullptr), &covLogDet);
             cholesky(indepCov, &indepCovChol, &indepCovLogDet);
-            mi(loc) = (indepCovChol.solve(cov).trace() + indepCovLogDet - covLogDet - 2 * na) / (2 * mi({ loc.t, loc.x, loc.y, loc.z, 0 }));
+            mi(loc) = (indepCovChol.solve(cov).trace() + indepCovLogDet - covLogDet - 2 * na) / 2;
         }
-    mi.channel(0).setConstant(1);
     assert((mi.data().array() >= 0).all());
+    
+    // Normalize MI by dividing by the first value
+    for (DataTensor::Index d = 2; d < mi.numAttrib(); ++d)
+        mi.channel(d) = mi.channel(d).cwiseQuotient(mi.channel(1));
     
     // Compute negative gradient of relative mutual information
     ScalarMatrix tmpChannel1 = ScalarMatrix::Constant(1, mi.numSamples(), 1);
