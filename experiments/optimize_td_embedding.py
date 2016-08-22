@@ -8,7 +8,7 @@ import argparse
 
 from sklearn.gaussian_process import GaussianProcess
 
-from maxdiv import maxdiv, preproc, eval
+from maxdiv import maxdiv, maxdiv_util, preproc, eval
 import datasets
 
 
@@ -87,6 +87,39 @@ def td_from_length_scale(func, method, td_lag, factor = 0.3):
     return detections, k
 
 
+def td_from_false_neighbors(func, method, td_lag, Rtol = 5.0, Ntol = 0.01):
+    
+    d, n = func['ts'].shape
+    Rtol2 = Rtol * Rtol
+    
+    # Determine embedding dimension based on false nearest neighbors
+    dist = maxdiv_util.calc_distance_matrix(func['ts'])
+    cumdist = dist.copy()
+    fnn = []
+    max_k = int(0.05 * func['ts'].shape[1])
+    for k in range(1, max_k + 1):
+        
+        cur_fnn = 0
+        for i in range(n - 1):
+            for j in range(i + 1, n):
+                id = max(0, i - k * td_lag)
+                jd = max(0, j - k * td_lag)
+                if dist[id, jd] / cumdist[i, j] > Rtol2:
+                    cur_fnn += 1
+                cumdist[i, j] += dist[id, jd]
+        fnn.append(cur_fnn)
+        
+        if (len(fnn) >= 3) and (abs(fnn[-3] - fnn[-1]) <= Ntol * abs(fnn[0] - fnn[2])):
+            k -= 2
+            break
+    
+    # Detect regions
+    detections = maxdiv.maxdiv(func['ts'], method = method, mode = 'I_OMEGA',
+                               extint_min_len = 20, extint_max_len = 100, num_intervals = None,
+                               td_dim = k, td_lag = td_lag)
+    return detections, k
+
+
 def mutual_information(ts, k, T = 1):
     
     d, n = ts.shape
@@ -121,7 +154,7 @@ def length_scale(ts):
 
 
 # Constants
-optimizers = { 'best_k' : find_best_k, 'mi' : td_from_mi, 'rmi' : td_from_relative_mi, 'dmi' : td_from_mi_gradient, 'gp_ls' : td_from_length_scale }
+optimizers = { 'best_k' : find_best_k, 'mi' : td_from_mi, 'rmi' : td_from_relative_mi, 'dmi' : td_from_mi_gradient, 'gp_ls' : td_from_length_scale, 'fnn' : td_from_false_neighbors }
 
 # Parameters
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)

@@ -108,7 +108,7 @@ for i, meth in enumerate(methods):
     if method != 'compare':
         plt.errorbar(X, avg_scores, fmt = '-', yerr = var_scores, ecolor = '#A0A0A0', errorevery = 5, label = 'Empirical mean and variance')
     else:
-        ax[0].plot(X, avg_scores - avg_scores[-1], label = meth)
+        ax[0].plot(X, avg_scores, label = meth)
         ax[1].plot(X, var_scores, label = meth)
 
 if method in ('gaussian_id_cov', 'gaussian_global_cov'):
