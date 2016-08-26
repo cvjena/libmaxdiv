@@ -35,6 +35,9 @@ void maxdiv_init_params(maxdiv_params_t * params)
     // Estimator Parameters
     params->kernel_sigma_sq = 1.0;
     params->gaussian_cov_mode = MAXDIV_GAUSSIAN_COV_FULL;
+    params->erph.num_hist = 100;
+    params->erph.num_bins = 0;
+    params->erph.discount = 1.0;
     
     // Preprocessing Parameters
     params->preproc.normalization = MAXDIV_NORMALIZE_NONE;
@@ -76,6 +79,9 @@ unsigned int maxdiv_compile_pipeline(const maxdiv_params_t * params)
                 break;
             case MAXDIV_GAUSSIAN:
                 densityEstimator = std::make_shared<GaussianDensityEstimator>(gaussian_cov_mode);
+                break;
+            case MAXDIV_ERPH:
+                densityEstimator = std::make_shared<EnsembleOfRandomProjectionHistograms>(params->erph.num_hist, params->erph.num_bins, params->erph.discount);
                 break;
             default:
                 return 0;

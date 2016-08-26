@@ -31,6 +31,7 @@ enums = {
     
     'MAXDIV_KDE'        : 0,
     'MAXDIV_GAUSSIAN'   : 1,
+    'MAXDIV_ERPH'       : 2,
     
     'MAXDIV_DENSE_PROPOSALS'                    : 0,
     'MAXDIV_POINTWISE_PROPOSALS_HOTELLINGST'    : 1,
@@ -80,6 +81,11 @@ class pointwise_proposal_params_t(Structure):
                 ('sd_th', maxdiv_scalar),
                 ('kernel_sigma_sq', maxdiv_scalar)]
 
+class erph_params_t(Structure):
+    _fields_ = [('num_hist', c_uint),
+                ('num_bins', c_uint),
+                ('discount', maxdiv_scalar)]
+
 class embedding_params_t(Structure):
     _fields_ = [('kt', c_uint),
                 ('kx', c_uint),
@@ -119,6 +125,7 @@ class maxdiv_params_t(Structure):
                 ('kl_mode', c_int),
                 ('kernel_sigma_sq', maxdiv_scalar),
                 ('gaussian_cov_mode', c_int),
+                ('erph', erph_params_t),
                 ('preproc', preproc_params_t)]
 
 
@@ -255,6 +262,14 @@ def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', *
             params.kernel_sigma_sq = kwargs['kernelparameters']['kernel_sigma_sq']
         elif 'kernel_sigma_sq' in kwargs:
             params.kernel_sigma_sq = kwargs['kernel_sigma_sq']
+    elif method == 'erph':
+        params.estimator = enums['MAXDIV_ERPH']
+        if 'num_hist' in kwargs:
+            params.erph.num_hist = kwargs['num_hist']
+        if 'num_bins' in kwargs:
+            params.erph.num_bins = kwargs['num_bins'] if (kwargs['num_bins'] is not None) and (kwargs['num_bins'] > 0) else 0
+        if 'discount' in kwargs:
+            params.erph.discount = kwargs['discount']
     else:
         raise ValueError('Unknown method: {}'.format(method))
     

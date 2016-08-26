@@ -16,8 +16,8 @@
 #include <cstdlib>
 #include <getopt.h>
 
-//#undef __STRICT_ANSI__
-//#include <float.h>
+#undef __STRICT_ANSI__
+#include <float.h>
 
 using namespace MaxDiv;
 using namespace std;
@@ -25,7 +25,7 @@ using namespace std::chrono;
 
 
 enum maxdiv_divergence_t { MAXDIV_KL_DIVERGENCE, MAXDIV_JS_DIVERGENCE };
-enum maxdiv_estimator_t { MAXDIV_KDE, MAXDIV_GAUSSIAN };
+enum maxdiv_estimator_t { MAXDIV_KDE, MAXDIV_GAUSSIAN, MAXDIV_ERPH };
 enum maxdiv_proposal_generator_t { MAXDIV_DENSE_PROPOSALS, MAXDIV_POINTWISE_PROPOSALS_HOTELLINGST, MAXDIV_POINTWISE_PROPOSALS_KDE };
 
 
@@ -36,7 +36,8 @@ DetectionList apply_maxdiv(const std::shared_ptr<DataTensor> & data,
                            maxdiv_divergence_t divergence, maxdiv_estimator_t estimator, maxdiv_proposal_generator_t proposals,
                            KLDivergence::KLMode kl_mode, GaussianDensityEstimator::CovMode gauss_cov_mode,
                            unsigned int min_len, unsigned int max_len, unsigned int num_intervals, Scalar overlap_th,
-                           Scalar kernel_sigma_sq, Scalar prop_th, bool prop_mad, bool prop_filter,
+                           Scalar kernel_sigma_sq, unsigned int num_hist, unsigned int num_bins, Scalar discount,
+                           Scalar prop_th, bool prop_mad, bool prop_filter,
                            bool normalize, unsigned int td_embed, unsigned int td_lag, BorderPolicy borders,
                            unsigned int period_num, unsigned int period_len, bool linear_trend, bool linear_season_trend)
 {
@@ -51,6 +52,9 @@ DetectionList apply_maxdiv(const std::shared_ptr<DataTensor> & data,
             break;
         case MAXDIV_GAUSSIAN:
             densityEstimator = std::make_shared<GaussianDensityEstimator>(gauss_cov_mode);
+            break;
+        case MAXDIV_ERPH:
+            densityEstimator = std::make_shared<EnsembleOfRandomProjectionHistograms>(num_hist, num_bins, discount);
             break;
         default:
             return detections;
@@ -132,9 +136,10 @@ int main(int argc, char * argv[])
     GaussianDensityEstimator::CovMode gauss_cov_mode = GaussianDensityEstimator::CovMode::FULL;
     BorderPolicy borders = BorderPolicy::AUTO;
     unsigned int min_len = 0, max_len = 0, num_intervals = 0,
+                 num_hist = 100, num_bins = 0,
                  td_embed = 1, td_lag = 1, period_num = 0, period_len = 1,
                  first_row = 0, first_col = 0, last_col = -1;
-    Scalar overlap_th = 0.0, kernel_sigma_sq = 1.0, prop_th = 1.5;
+    Scalar overlap_th = 0.0, kernel_sigma_sq = 1.0, discount = 1.0, prop_th = 1.5;
     int prop_mad = 0, prop_filter = 1, normalize = 0, linear_trend = 0, linear_season_trend = 0, timing = 0;
     char delimiter = ',';
     
@@ -158,6 +163,9 @@ int main(int argc, char * argv[])
             {"divergence",          required_argument,  NULL,       'd'},
             {"estimator",           required_argument,  NULL,       'e'},
             {"kernel_sigma_sq",     required_argument,  NULL,       's'},
+            {"num_hist",            required_argument,  NULL,       'f'},
+            {"num_bins",            required_argument,  NULL,       'g'},
+            {"discount",            required_argument,  NULL,       'w'},
             
             // Proposals
             {"proposals",           required_argument,  NULL,       'p'},
@@ -185,7 +193,7 @@ int main(int argc, char * argv[])
         };
         
         int option_index = 0;
-        c = getopt_long(argc, argv, "a:b:c:d:e:hi:j:l:n:o:p:q:r:st::u:x:z:", long_options, &option_index);
+        c = getopt_long(argc, argv, "a:b:c:d:e:f:g:hi:j:l:n:o:p:q:r:st::u:w:x:z:", long_options, &option_index);
         switch (c)
         {
             case 'h':
@@ -272,6 +280,8 @@ int main(int argc, char * argv[])
                 }
                 else if (argstr == "PARZEN" || argstr == "KDE")
                     estimator = MAXDIV_KDE;
+                else if (argstr == "ERPH")
+                    estimator = MAXDIV_ERPH;
                 else
                 {
                     cerr << "Unknown estimator: " << argstr << endl << "See --help for a list of possible values." << endl;
@@ -283,6 +293,30 @@ int main(int argc, char * argv[])
                 if (kernel_sigma_sq <= 0)
                 {
                     cerr << "Invalid value specified for option --kernel_sigma_sq" << endl;
+                    return 1;
+                }
+                break;
+            case 'f':
+                num_hist = strtoul(optarg, NULL, 10);
+                if (num_hist == 0)
+                {
+                    cerr << "Invalid value specified for option --num_hist" << endl;
+                    return 1;
+                }
+                break;
+            case 'g':
+                num_bins = strtoul(optarg, NULL, 10);
+                if (num_bins == 0)
+                {
+                    cerr << "Invalid value specified for option --num_bins" << endl;
+                    return 1;
+                }
+                break;
+            case 'w':
+                discount = strtod(optarg, NULL);
+                if (discount < 0)
+                {
+                    cerr << "Invalid value specified for option --discount" << endl;
                     return 1;
                 }
                 break;
@@ -414,9 +448,9 @@ int main(int argc, char * argv[])
         return 1;
     }
     
-    /*_clearfp();
+    _clearfp();
     unsigned unused_current_word = 0;
-    _controlfp_s(&unused_current_word, 0, _EM_OVERFLOW | _EM_UNDERFLOW | _EM_INVALID | _EM_ZERODIVIDE);*/
+    _controlfp_s(&unused_current_word, 0, _EM_OVERFLOW | _EM_UNDERFLOW | _EM_INVALID | _EM_ZERODIVIDE);
     
     Eigen::initParallel();
     
@@ -431,7 +465,8 @@ int main(int argc, char * argv[])
     // Apply MaxDiv algorithm
     auto start = high_resolution_clock::now();
     DetectionList detections = apply_maxdiv(data, divergence, estimator, proposals, kl_mode, gauss_cov_mode,
-                                            min_len, max_len, num_intervals, overlap_th, kernel_sigma_sq, prop_th, prop_mad, prop_filter,
+                                            min_len, max_len, num_intervals, overlap_th, kernel_sigma_sq, num_hist, num_bins, discount,
+                                            prop_th, prop_mad, prop_filter,
                                             normalize, td_embed, td_lag, borders, period_num, period_len, linear_trend, linear_season_trend);
     auto stop = high_resolution_clock::now();
     if (timing)
@@ -482,10 +517,21 @@ void printHelp(const char * progName)
          << "        Divergence measure. One of: KL_I_OMEGA, KL_OMEGA_I, KL_SYM, KL_UNBIASED, JS" << endl
          << endl
          << "    --estimator <str>, -e <str> (default: GAUSSIAN)" << endl
-         << "        Distribution model. One of: GAUSSIAN, GAUSSIAN_GLOBAL_COV, GAUSSIAN_ID_COV, PARZEN" << endl
+         << "        Distribution model. One of: GAUSSIAN, GAUSSIAN_GLOBAL_COV, GAUSSIAN_ID_COV, PARZEN, ERPH" << endl
          << endl
          << "    --kernel_sigma_sq <float>, -s <float> (default: 1.0)" << endl
          << "        The variance of the Gaussian kernel used by the PARZEN density estimator." << endl
+         << endl
+         << "    --num_hist <int>, -f <int> (default: 100)" << endl
+         << "        The number of histograms used by the ERPH estimator." << endl
+         << endl
+         << "    --num_bins <int>, -g <int>" << endl
+         << "        The number of bins in the histograms used by the ERPH estimator. If not specified, an" << endl
+         << "        individual number of bins will be determined automatically for each histogram." << endl
+         << endl
+         << "    --discount <float>, -w <float> (default: 1.0)" << endl
+         << "        Discount added to all bins of the histograms of the ERPH estimator in order to make" << endl
+         << "        unseen values not completely unlikely." << endl
          << endl
          << "    --proposals <str>, -p <str> (default: DENSE)" << endl
          << "        Interval proposal generation method. One of: DENSE, HOTELLINGS_T, KDE" << endl

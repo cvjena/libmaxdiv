@@ -419,7 +419,7 @@ public:
     
     /**
     * Returns a constant Eigen::Map object wrapping the raw data of this tensor, where the
-    * samples are stored in a contiguous way, i.e. the returned object will have as rows
+    * samples are stored in a contiguous way, i.e. the returned object will have as many rows
     * as there are data points and as many columns as each data points has attributes.
     */
     Eigen::Map<const ScalarMatrix> data() const

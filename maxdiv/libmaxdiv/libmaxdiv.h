@@ -37,8 +37,9 @@ enum maxdiv_divergence_t
 
 enum maxdiv_estimator_t
 {
-    MAXDIV_KDE, /**< Kernel Density Estimation */
-    MAXDIV_GAUSSIAN /**< Normal Distribution */
+    MAXDIV_KDE,         /**< Kernel Density Estimation */
+    MAXDIV_GAUSSIAN,    /**< Normal Distribution */
+    MAXDIV_ERPH         /**< Ensemble of Random Projection Histograms */
 };
 
 enum maxdiv_proposal_generator_t
@@ -113,6 +114,12 @@ typedef struct {
     /* Estimator Parameters */
     MaxDivScalar kernel_sigma_sq; /**< The variance of the Gauss kernel used by `MAXDIV_KDE`. */
     maxdiv_gaussian_cov_mode_t gaussian_cov_mode; /**< Specifies how the covariance matrix is estimated by `MAXDIV_GAUSSIAN`. */
+    struct
+    {
+        unsigned int num_hist; /**< The number of histograms in the ensemble. */
+        unsigned int num_bins; /**< The number of bins per histogram (0 = determine automatically for each histogram). */
+        MaxDivScalar discount; /**< Discount to be added to all histogram bins in order to make unseen values not completely unlikely. */
+    } erph; /**< Parameters regarding the ERPH estimator. */
     
     /* Preprocessing Parameters */
     struct

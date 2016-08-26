@@ -39,12 +39,15 @@ def read_csv_timeseries(input, selected_variables, timecol, timeformat, maxdatap
     return X, times
 
 def get_algorithm_parameters():
-    method_parameter_names = ['extint_min_len', 'extint_max_len', 'alpha', 'mode', 'method', 'num_intervals', 'preproc', 'td_dim', 'td_lag', 'proposals']
-    return method_parameter_names 
+    return ['extint_min_len', 'extint_max_len', 'alpha', 'mode', 'method', 'num_intervals', 'preproc', 'td_dim', 'td_lag', 'proposals',
+            'num_hist', 'num_bins', 'discount'] 
 
 def add_algorithm_parameters(parser):
     parser.add_argument('--method', help='maxdiv method', choices=maxdiv.get_available_methods(), required=True)
     parser.add_argument('--kernel_sigma_sq', help='kernel sigma square hyperparameter for Parzen estimation', type=float, default=1.0)
+    parser.add_argument('--num_hist', help='The number of histograms used by the ERPH estimator', type=int, default=100)
+    parser.add_argument('--num_bins', help='The number of bins in the histograms used by the ERPH estimator (0 = auto)', type=int, default=0)
+    parser.add_argument('--discount', help='Discount added to all bins of the histograms of the ERPH estimator in order to make unseen values not completely unlikely', type=float, default=1)
     parser.add_argument('--extint_min_len', help='minimum length of the extreme interval', default=20, type=int)
     parser.add_argument('--extint_max_len', help='maximum length of the extreme interval', default=100, type=int)
     parser.add_argument('--alpha', help='Hyperparameter for the KL divergence', type=float, default=1.0)

@@ -24,7 +24,7 @@ from . import maxdiv_util, preproc
 from .baselines_noninterval import pointwiseRegionProposals
 
 def get_available_methods():
-    return ['parzen', 'gaussian_cov', 'gaussian_id_cov', 'gaussian_global_cov', 'gaussian_process']
+    return ['parzen', 'gaussian_cov', 'gaussian_id_cov', 'gaussian_global_cov', 'gaussian_process', 'erph']
 
 
 # Let's derive the algorithm where we try to maximize the KL divergence between the two distributions:
@@ -380,6 +380,203 @@ def maxdiv_gaussian(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'COV', score
         # Combine divergence-based scores with proposed scores linearly
         return [(a, b, score_merge_coeff * score + (1.0 - score_merge_coeff) * base_score) for a, b, score, base_score in scores]
 
+
+#
+# Maximally divergent regions using an Ensemble of Random Projection Histograms
+#
+def maxdiv_erph(X, intervals, mode = 'I_OMEGA', num_hist = 100, num_bins = None, discount = 1, score_merge_coeff = None, **kwargs):
+    """ Scores given intervals by estimating the joint likelihood over all attributes using an ensemble
+    of histograms over random 1d projections.
+    
+    `X` is a d-by-n matrix with `n` data points, each with `d` attributes.
+    
+    `intervals` has to be an iterable of `(a, b, score)` tuples, which define an
+    interval `[a,b)` which is suspected to be an anomaly.
+    The scores should be in the range [0,1] and will be integrated into the final interval
+    score if `score_merge_coeff` is not `None`. The proposed score and the divergence-based
+    score will be combined according to the following equation:
+    
+    `num_hist` specifies the number of histograms / random projections to be used. Should be
+    much greater than `d`.
+    
+    `num_bins` specifies the number of bins to be used per histogram. If set to `None` an
+    individual number of bins will be determined automatically for each histogram.
+    
+    `discount` is a constant value added to the count of each bin in order to make unseen values
+    not completely unlikely.
+    
+    `score = score_merge_coeff * divergence_score + (1.0 - score_merge_coeff) * proposed_score`
+    
+    The divergence-based scores will be scaled to be in range [0,1].
+    This scaling won't be performed if score merging is disabled by setting `score_merge_coeff`
+    to `None`.
+    
+    Returns: a list of `(a, b, score)` tuples. `a` and `b` are the same as in the given
+             `intervals` iterable, but the scores will indicate whether a given interval
+             is an anomaly or not.
+    """
+
+    dimension, n = X.shape
+    scores = []
+    
+    if (num_bins is not None) and (num_bins < 1):
+        num_bins = None
+    
+    if (discount < 1e-7):
+        discount = 1e-7
+    
+    # Generate random projections
+    proj_dims = int(round(np.sqrt(dimension)))
+    dim_range = np.arange(dimension)
+    proj = np.zeros((num_hist, dimension))
+    for i in range(num_hist):
+        np.random.shuffle(dim_range)
+        proj[i, dim_range[:proj_dims]] = np.random.randn(proj_dims)
+    
+    # Project data and initialize histograms
+    Xp = proj.dot(X)
+    hist = [Histogram1D(Xp[i,:], num_bins, store_data = False) for i in range(num_hist)]
+    ind = np.array([hist[i].indices(Xp[i,:]) for i in range(num_hist)])
+    counts = [np.array([[1.0 if ind[i, j] == b else 0.0 for j in range(n)] for b in range(hist[i].num_bins)]).cumsum(axis = 1) for i in range(num_hist)]
+
+    # Score intervals
+    extreme = np.zeros(n, dtype=bool)
+    non_extreme = np.ones(n, dtype=bool)
+    counts_inner, counts_outer = [None] * num_hist, [None] * num_hist
+    prob_inner, prob_outer = [None] * num_hist, [None] * num_hist
+    logprob_inner, logprob_outer = [None] * num_hist, [None] * num_hist
+    for a, b, base_score in intervals:
+        
+        score = 0.0
+        
+        extreme[:] = False
+        extreme[a:b] = True
+        non_extreme = np.logical_not(extreme)
+
+        # number of data points in the current interval
+        extreme_interval_length = b - a
+        # number of data points outside of the current interval
+        non_extreme_points = n - extreme_interval_length
+        
+        # Compute histograms and probability density estimates
+        for i in range(num_hist):
+            counts_inner[i] = counts[i][:, b-1] - (counts[i][:, a-1] if a > 0 else 0.0)
+            counts_outer[i] = counts[i][:, -1] - counts_inner[i]
+            prob_inner[i] = hist[i].num_bins * (counts_inner[i] + discount) / (extreme_interval_length + hist[i].num_bins * discount)
+            prob_outer[i] = hist[i].num_bins * (counts_outer[i] + discount) / (non_extreme_points + hist[i].num_bins * discount)
+            logprob_inner[i] = np.log(prob_inner[i])
+            logprob_outer[i] = np.log(prob_outer[i])
+
+        # Compute divergence
+        if mode == "OMEGA_I" or mode == "SYM":
+            for i in range(num_hist):
+                score += np.sum(counts_outer[i] * (logprob_outer[i] - logprob_inner[i])) / (non_extreme_points * num_hist)
+        
+        if mode == "I_OMEGA" or mode == "SYM":
+            for i in range(num_hist):
+                score += np.sum(counts_inner[i] * (logprob_inner[i] - logprob_outer[i])) / (extreme_interval_length * num_hist)
+        
+        if mode == 'JSD':
+            jsd = 0.0
+            
+            for i in range(n):
+                p_I = sum(logprob_inner[h][ind[h,i]] for h in range(num_hist)) / num_hist
+                p_Omega = sum(logprob_outer[h][ind[h,i]] for h in range(num_hist)) / num_hist
+                logprob_combined = np.log((np.exp(p_I) + np.exp(p_Omega)) / 2)
+                if extreme[i]:
+                    jsd += (p_I - logprob_combined) / extreme_interval_length
+                else:
+                    jsd += (p_Omega - logprob_combined) / non_extreme_points
+            
+            score += jsd / (np.log(2.0) * 2.0)
+
+        # store the score
+        scores.append((a, b, score, base_score) if score_merge_coeff is not None else (a, b, score))
+
+    # Merge divergence and proposal scores
+    if score_merge_coeff is None:
+        return scores
+    else:
+        # Apply sigmoid function to scale scores to [0,1)
+        if mode != 'JSD':
+            for i, (a, b, score, base_score) in enumerate(scores):
+                scores[i] = (a, b, 2.0 / (1.0 + math.exp(-0.02 * scores[i][2])) - 1.0, base_score)
+        # Combine divergence-based scores with proposed scores linearly
+        return [(a, b, score_merge_coeff * score + (1.0 - score_merge_coeff) * base_score) for a, b, score, base_score in scores]
+
+
+class Histogram1D(object):
+    
+    def __init__(self, X, num_bins = None, store_data = True):
+        """ Initializes a 1d histogram for the data in the vector X.
+        
+        If `num_bins` is set to `None`, the number of bins will be determined from the data.
+        
+        If `store_data` is `False`, the histogram will be initialized, but empty.
+        """
+
+        object.__init__(self)
+        self.vmin, self.vmax = np.min(X), np.max(X)
+        
+        if num_bins is None:
+            
+            max_pml = 0.0
+            argmax_pml = None
+            last_ll = np.ndarray((20,))
+            last_pen = np.ndarray((20,))
+            for b in range(2, len(X) // 2 + 1):
+                self.num_bins = b
+                self.fit(X)
+                pml, ll, penalty = self._penalizedML()
+                last_ll[b % 20] = ll
+                last_pen[b % 20] = penalty
+                if (argmax_pml is None) or (pml > max_pml):
+                    max_pml, argmax_pml = pml, b
+                elif (b >= 22) and (b - argmax_pml > 20) and (np.mean(last_ll[1:] - last_ll[:-1]) < np.mean(last_pen[1:] - last_pen[:-1])):
+                    break
+            self.num_bins = argmax_pml
+            
+        else:
+            self.num_bins = num_bins
+        
+        if store_data:
+            self.fit(X)
+        else:
+            self.counts = np.zeros(self.num_bins, dtype = int)
+            self.N = 0
+    
+    def fit(self, X, ind = False):
+        """ Reset the histogram and add the samples in X. """
+        
+        self.counts = np.zeros(self.num_bins, dtype = int)
+        self.N = len(X)
+        if not ind:
+            X = self.indices(X)
+        self.counts = np.array([(X == i).sum() for i in range(self.num_bins)])
+    
+    def pdf(self, X, ind = False):
+        """ Retrieve the frequencies of the samples in X. """
+        
+        if not ind:
+            X = self.indices(X)
+        return self.num_bins * self.counts[X].astype(float) / self.N
+    
+    def indices(self, X):
+        """ Retrieve the indices of the bins for the samples in X. """
+        
+        ind = ((X - self.vmin) * self.num_bins / (self.vmax - self.vmin)).astype(int)
+        ind[ind < 0] = 0
+        ind[ind >= self.num_bins] = self.num_bins - 1
+        return ind
+    
+    def _penalizedML(self):
+        """ The penalized maximum likelihood of the histogram. """
+        
+        ll = np.sum(self.counts.astype(float) * np.log(self.num_bins * self.counts.astype(float) / self.N + 1e-12))
+        penalization = self.num_bins - 1 + np.log(self.num_bins) ** 2.5
+        return ll - penalization, ll, penalization
+
+
 #
 # Maximally divergent regions using Gaussian Process Regression
 #
@@ -647,6 +844,9 @@ def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', u
             del kwargs['alpha']
         kwargs['gaussian_mode'] = method[9:].upper()
         interval_scores = maxdiv_gaussian(X, intervals, **kwargs)
+    
+    elif method == 'erph':
+        interval_scores = maxdiv_erph(X, intervals, **kwargs)
         
     else:
         raise Exception("Unknown method {}".format(method))

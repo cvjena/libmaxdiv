@@ -142,12 +142,12 @@ Scalar KLDivergence::operator()(const IndexRange & innerRange)
     {
         if (this->m_mode == KLMode::I_OMEGA || this->m_mode == KLMode::SYM || this->m_mode == KLMode::UNBIASED)
         {
-            std::pair<Scalar, Scalar> ll = this->m_densityEstimator->logLikelihood(innerRange);
+            std::pair<Scalar, Scalar> ll = this->m_densityEstimator->logLikelihoodInner();
             score += (ll.first - ll.second) / numExtremes;
         }
         if (this->m_mode == KLMode::OMEGA_I || this->m_mode == KLMode::SYM)
         {
-            std::pair<Scalar, Scalar> ll = this->m_densityEstimator->logLikelihoodOutsideRange(innerRange);
+            std::pair<Scalar, Scalar> ll = this->m_densityEstimator->logLikelihoodOuter();
             score += (ll.second - ll.first) / (this->m_numSamples - numExtremes);
         }
         if (this->m_mode == KLMode::UNBIASED)

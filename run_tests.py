@@ -7,7 +7,7 @@ import maxdiv_tools, datasets
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--novis', action='store_true', help='skip the visualization')
-parser.add_argument('--datasets', help='datasets to be loaded', nargs='+', default=datasets.DATASETS)
+parser.add_argument('--datasets', help='datasets to be loaded', nargs='+', default=['synthetic'])
 parser.add_argument('--subsets', help='subsets of the datasets to be tested', nargs='+',default=[])
 parser.add_argument('--extremetypes', help='types of extremes to be tested', nargs='+',default=datasets.TYPES)
 parser.add_argument('--demomode', help='show results with a given delay and store images to disk', action='store_true')
