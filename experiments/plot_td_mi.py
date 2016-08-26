@@ -14,9 +14,9 @@ def mutual_information(func, k, T = 1):
         # Entropy as a special case of MI
         cov = np.cov(func)
         if d > 1:
-            return (n * (np.log(2 * np.pi) + 1) + np.linalg.slogdet(cov)[1]) / 2
+            return (d * (np.log(2 * np.pi) + 1) + np.linalg.slogdet(cov)[1]) / 2
         else:
-            return (n * (np.log(2 * np.pi) + 1) + np.log(cov)) / 2
+            return (d * (np.log(2 * np.pi) + 1) + np.log(cov)) / 2
     
     # Time-Delay Embedding with the given embedding dimension and time lag
     embed_func = np.vstack([func[:, ((k - i - 1) * T):(n - i * T)] for i in range(k)])
@@ -51,9 +51,9 @@ if __name__ == '__main__':
     else:
         data = sum(datasets.loadSyntheticTestbench().values(), [])
 
-    # Compute mutual information (normalized by entropy) for various time lags and all functions in the data set
+    # Compute mutual information for various time lags and all functions in the data set
     lags = np.arange(1, 61)
-    mi = np.array([[mutual_information(func['ts'], 2, lag) / mutual_information(func['ts'], 1) for func in data] for lag in lags])
+    mi = np.array([[mutual_information(func['ts'], 2, lag) for func in data] for lag in lags])
     
     # Plot average mutual information and its gradient for each time lag
     mi_mean = np.mean(mi, axis = 1)
@@ -66,7 +66,8 @@ if __name__ == '__main__':
     plt.errorbar(lags, mi_mean, yerr = mi_sd, fmt = '-')
     plt.plot(lags, [mi_th] * len(lags), '--', color = 'gray')
     plt.figure()
-    plt.plot(lags[1:-1], np.convolve(mi_mean, [1, 0, -1], 'valid'), '-r')
+    plt.plot(lags[1:-1], np.convolve(mi_mean / mi_mean[0], [1, 0, -1], 'valid'), '-r')
+    plt.plot(lags[1:-1], [-0.05] * (len(lags) - 2), '--k')
     plt.show()
     
     # Compute mutual information for various embedding dimensions and all functions in the data set
