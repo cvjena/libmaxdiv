@@ -87,7 +87,7 @@ def td_from_length_scale(func, method, td_lag, factor = 0.3):
     return detections, k
 
 
-def td_from_false_neighbors(func, method, td_lag, Rtol = 5.0, Ntol = 0.01):
+def td_from_false_neighbors(func, method, td_lag, Rtol = 1.0, Ntol = 0.001):
     
     d, n = func['ts'].shape
     Rtol2 = Rtol * Rtol
