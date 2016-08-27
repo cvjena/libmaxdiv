@@ -16,8 +16,8 @@
 #include <cstdlib>
 #include <getopt.h>
 
-#undef __STRICT_ANSI__
-#include <float.h>
+//#undef __STRICT_ANSI__
+//#include <float.h>
 
 using namespace MaxDiv;
 using namespace std;
@@ -448,9 +448,9 @@ int main(int argc, char * argv[])
         return 1;
     }
     
-    _clearfp();
+    /*_clearfp();
     unsigned unused_current_word = 0;
-    _controlfp_s(&unused_current_word, 0, _EM_OVERFLOW | _EM_UNDERFLOW | _EM_INVALID | _EM_ZERODIVIDE);
+    _controlfp_s(&unused_current_word, 0, _EM_OVERFLOW | _EM_UNDERFLOW | _EM_INVALID | _EM_ZERODIVIDE);*/
     
     Eigen::initParallel();
     
