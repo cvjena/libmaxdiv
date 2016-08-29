@@ -90,4 +90,5 @@ print('-- Average Precision --')
 for ftype in canonical_order:
     if ftype in aps:
         print ("{}: {}".format(ftype, aps[ftype]))
+print ("MEAN AP: {}".format(np.mean(list(aps.values()))))
 print ("OVERALL AP: {}".format(eval.average_precision(all_gt, all_regions)))
