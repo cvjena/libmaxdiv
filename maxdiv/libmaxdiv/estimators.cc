@@ -1204,9 +1204,9 @@ void EnsembleOfRandomProjectionHistograms::init(const std::shared_ptr<const Data
         // Generate random projection vectors
         if (!this->m_proj || this->m_proj->cols() != shape.d)
         {
-            this->m_proj.reset(new ScalarMatrix(this->m_num_hist, shape.d));
-            this->m_proj->setZero();
+            this->m_proj.reset(new SparseMatrix(this->m_num_hist, shape.d));
             unsigned int numNonZero = static_cast<unsigned int>(std::sqrt(shape.d) + 0.5);
+            this->m_proj->reserve(Eigen::VectorXi::Constant(this->m_num_hist, numNonZero));
             
             std::random_device rd;
             std::mt19937 gen(rd());
@@ -1216,13 +1216,16 @@ void EnsembleOfRandomProjectionHistograms::init(const std::shared_ptr<const Data
             unsigned int i, j;
             int d;
             for (i = 0; i < this->m_num_hist; ++i)
+            {
                 for (j = 0; j < numNonZero; ++j)
                 {
                     do {
                         d = udis(gen);
-                    } while ((*(this->m_proj))(i, d) != 0);
-                    (*(this->m_proj))(i, d) = ndis(gen);
+                    } while (this->m_proj->coeff(i, d) != 0);
+                    this->m_proj->insert(i, d) = ndis(gen);
                 }
+                this->m_proj->row(i) /= this->m_proj->row(i).norm();
+            }
         }
         
         // Project data onto 1d spaces
@@ -1407,7 +1410,7 @@ EnsembleOfRandomProjectionHistograms::IntTensor::Sample EnsembleOfRandomProjecti
     
     // Optimize bins separately for each histogram in order to allow for early exit
     IntTensor::Sample bins = IntTensor::Sample::Constant(data.numAttrib(), 1);
-    unsigned int maxBins = data.numSamples() / 2;
+    unsigned int maxBins = std::ceil(data.numSamples() / std::log(data.numSamples()));
     Scalar logLikelihood, penalty, pml, max_pml, eps = std::numeric_limits<Scalar>::epsilon();
     Sample last_ll_cache(20), last_pen_cache(20);
     unsigned int h, b, i, j;

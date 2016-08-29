@@ -6,6 +6,7 @@
 #include <utility>
 #include <Eigen/Core>
 #include <Eigen/Cholesky>
+#include <Eigen/SparseCore>
 #include "DataTensor.h"
 #include "math_utils.h"
 
@@ -665,6 +666,8 @@ class EnsembleOfRandomProjectionHistograms : public DensityEstimator
 public:
 
     typedef DataTensor_<unsigned int> IntTensor;
+    
+    typedef Eigen::SparseMatrix<Scalar, Eigen::RowMajor> SparseMatrix;
 
 
     /**
@@ -829,7 +832,7 @@ protected:
     Scalar m_discount; /**< Discount to be added to all histogram bins. */
     IntTensor::Sample m_hist_bins; /**< Number of bins in each individual histogram. */
     IntTensor::Sample m_hist_offsets; /**< Offsets of the first bin of each histogram in flat vectors. */
-    std::shared_ptr<ScalarMatrix> m_proj; /**< Sparse random projection vectors, one per row. */
+    std::shared_ptr<SparseMatrix> m_proj; /**< Sparse random projection vectors, one per row. */
     std::shared_ptr<IntTensor> m_indices; /**< Indices of the bins which the samples passed to `init()` fall into. */
     std::shared_ptr<IntTensor> m_counts; /**< Cumulative counts for the bins of all histograms. */
     IntTensor::Sample m_hist_inner; /**< Flat vector of histogram bins for the data in the range passed to `fit()`. */
