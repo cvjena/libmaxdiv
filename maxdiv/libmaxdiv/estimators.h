@@ -665,7 +665,7 @@ class EnsembleOfRandomProjectionHistograms : public DensityEstimator
 {
 public:
 
-    typedef DataTensor_<unsigned int> IntTensor;
+    typedef DataTensor_<DataTensor::Index> IntTensor;
     
     typedef Eigen::SparseMatrix<Scalar, Eigen::RowMajor> SparseMatrix;
 
@@ -688,7 +688,7 @@ public:
     * @param[in] discount Discount to be added to all histogram bins in order to make unseen values not
     * completely unlikely.
     */
-    EnsembleOfRandomProjectionHistograms(unsigned int num_hist, unsigned int num_bins = 0, Scalar discount = 1);
+    EnsembleOfRandomProjectionHistograms(DataTensor::Index num_hist, DataTensor::Index num_bins = 0, Scalar discount = 1);
     
     /**
     * Constructs and initializes a EnsembleOfRandomProjectionHistograms for a given data tensor with default parameters.
@@ -710,7 +710,7 @@ public:
     * @param[in] discount Discount to be added to all histogram bins in order to make unseen values not
     * completely unlikely.
     */
-    EnsembleOfRandomProjectionHistograms(const std::shared_ptr<const DataTensor> & data, unsigned int num_hist, unsigned int num_bins = 0, Scalar discount = 1);
+    EnsembleOfRandomProjectionHistograms(const std::shared_ptr<const DataTensor> & data, DataTensor::Index num_hist, DataTensor::Index num_bins = 0, Scalar discount = 1);
     
     /**
     * Makes a flat copy of another EnsembleOfRandomProjectionHistograms. Most internal structures will be shared
@@ -807,7 +807,7 @@ public:
     /**
     * @return Returns the number of histograms in the ensemble.
     */
-    unsigned int numHist() const { return this->m_num_hist; };
+    DataTensor::Index numHist() const { return this->m_num_hist; };
     
     /**
     * Determines a suitable number of bins for 1-dimensional histograms for each dimension of the given data.
@@ -827,8 +827,8 @@ public:
 
 protected:
 
-    unsigned int m_num_hist; /**< Number of histograms in the ensemble. */
-    unsigned int m_num_bins; /**< The number of bins of each histogram. May be 0 to determine the number of bins automatically for each histogram indivdually. */
+    DataTensor::Index m_num_hist; /**< Number of histograms in the ensemble. */
+    DataTensor::Index m_num_bins; /**< The number of bins of each histogram. May be 0 to determine the number of bins automatically for each histogram indivdually. */
     Scalar m_discount; /**< Discount to be added to all histogram bins. */
     IntTensor::Sample m_hist_bins; /**< Number of bins in each individual histogram. */
     IntTensor::Sample m_hist_offsets; /**< Offsets of the first bin of each histogram in flat vectors. */
@@ -840,7 +840,7 @@ protected:
     mutable Sample m_logprob_inner; /**< Flat vector of log-PDF estimates over the inner range for each bin of all histograms. */
     mutable Sample m_logprob_outer; /**< Flat vector of log-PDF estimates over the outer range for each bin of all histograms. */
     mutable std::shared_ptr<Sample> m_log_cache; /**< Cached values for `log(n + discount)` for `0 <= n <=N`. */
-    mutable std::unordered_map<unsigned int, Sample> m_log_denom_cache; /**< Cached values for `log(N/bins + discount)` for each histogram. */
+    mutable std::unordered_map<DataTensor::Index, Sample> m_log_denom_cache; /**< Cached values for `log(N/bins + discount)` for each histogram. */
     mutable bool m_logprob_normalized; /**< Indicates if the log-denominator `log(N/bins + discount)` has already been subtracted from m_logprob_inner/outer. */
     
     /**
@@ -850,7 +850,7 @@ protected:
     *
     * @return Returns a vector with the log-demoninator for each histogram.
     */
-    const Sample & logDenomFromCache(unsigned int n) const;
+    const Sample & logDenomFromCache(DataTensor::Index n) const;
 
 };
 

@@ -1106,7 +1106,7 @@ const Scalar GaussianDensityEstimator::mahalanobisDistance(const Eigen::Ref<cons
 EnsembleOfRandomProjectionHistograms::EnsembleOfRandomProjectionHistograms()
 : EnsembleOfRandomProjectionHistograms(100, 0, 1) {}
 
-EnsembleOfRandomProjectionHistograms::EnsembleOfRandomProjectionHistograms(unsigned int num_hist, unsigned int num_bins, Scalar discount)
+EnsembleOfRandomProjectionHistograms::EnsembleOfRandomProjectionHistograms(DataTensor::Index num_hist, DataTensor::Index num_bins, Scalar discount)
 : DensityEstimator(), m_num_hist(num_hist), m_num_bins(num_bins), m_discount(std::max(discount, 1e-7)),
   m_hist_bins(IntTensor::Sample::Constant(num_hist, num_bins)), m_hist_offsets(num_hist),
   m_logprob_normalized(false)
@@ -1127,7 +1127,7 @@ EnsembleOfRandomProjectionHistograms::EnsembleOfRandomProjectionHistograms(const
     this->init(data);
 }
 
-EnsembleOfRandomProjectionHistograms::EnsembleOfRandomProjectionHistograms(const std::shared_ptr<const DataTensor> & data, unsigned int num_hist, unsigned int num_bins, Scalar discount)
+EnsembleOfRandomProjectionHistograms::EnsembleOfRandomProjectionHistograms(const std::shared_ptr<const DataTensor> & data, DataTensor::Index num_hist, DataTensor::Index num_bins, Scalar discount)
 : EnsembleOfRandomProjectionHistograms(num_hist, num_bins, discount)
 {
     this->init(data);
@@ -1186,7 +1186,7 @@ void EnsembleOfRandomProjectionHistograms::init(const std::shared_ptr<const Data
         // Cache some logarithms
         if (!this->m_log_cache || this->m_log_cache->size() < data->numSamples() + 1)
         {
-            unsigned int n;
+            DataTensor::Index n;
             if (this->m_log_cache)
             {
                 n = this->m_log_cache->size();
@@ -1205,7 +1205,7 @@ void EnsembleOfRandomProjectionHistograms::init(const std::shared_ptr<const Data
         if (!this->m_proj || this->m_proj->cols() != shape.d)
         {
             this->m_proj.reset(new SparseMatrix(this->m_num_hist, shape.d));
-            unsigned int numNonZero = static_cast<unsigned int>(std::sqrt(shape.d) + 0.5);
+            DataTensor::Index numNonZero = static_cast<DataTensor::Index>(std::sqrt(shape.d) + 0.5);
             this->m_proj->reserve(Eigen::VectorXi::Constant(this->m_num_hist, numNonZero));
             
             std::random_device rd;
@@ -1213,7 +1213,7 @@ void EnsembleOfRandomProjectionHistograms::init(const std::shared_ptr<const Data
             std::uniform_int_distribution<> udis(0, shape.d - 1);
             std::normal_distribution<Scalar> ndis;
             
-            unsigned int i, j;
+            DataTensor::Index i, j;
             int d;
             for (i = 0; i < this->m_num_hist; ++i)
             {
@@ -1241,7 +1241,7 @@ void EnsembleOfRandomProjectionHistograms::init(const std::shared_ptr<const Data
         if (this->m_num_bins == 0)
         {
             this->m_hist_bins = EnsembleOfRandomProjectionHistograms::getOptimalBinNum(projectedData);
-            for (unsigned int i = 0, offs = 0; i < this->m_num_hist; offs += this->m_hist_bins(i++))
+            for (DataTensor::Index i = 0, offs = 0; i < this->m_num_hist; offs += this->m_hist_bins(i++))
                 this->m_hist_offsets(i) = offs;
         }
         this->m_hist_inner = this->m_hist_outer = IntTensor::Sample(this->m_hist_offsets(this->m_num_hist - 1) + this->m_hist_bins(this->m_num_hist - 1));
@@ -1251,7 +1251,7 @@ void EnsembleOfRandomProjectionHistograms::init(const std::shared_ptr<const Data
         this->m_indices.reset(new IntTensor(shape));
         shape.d = this->m_hist_inner.size();
         this->m_counts.reset(new IntTensor(shape, 0));
-        unsigned int i, j;
+        DataTensor::Index i, j;
         for (i = 0; i < projectedData.numSamples(); ++i)
         {
             const auto sample = projectedData.sample(i);
@@ -1259,7 +1259,7 @@ void EnsembleOfRandomProjectionHistograms::init(const std::shared_ptr<const Data
             auto c = this->m_counts->sample(i);
             for (j = 0; j < this->m_num_hist; ++j)
             {
-                ind(j) = std::min(static_cast<unsigned int>(sample(j) * this->m_hist_bins(j)), this->m_hist_bins(j) - 1);
+                ind(j) = std::min(static_cast<DataTensor::Index>(sample(j) * this->m_hist_bins(j)), this->m_hist_bins(j) - 1);
                 c(this->m_hist_offsets(j) + ind(j)) = 1;
             }
         }
@@ -1286,7 +1286,7 @@ void EnsembleOfRandomProjectionHistograms::fit(const IndexRange & range)
     // Compute logarithm of probability density estimates:
     // log( bins * (n_i + discount) / (N + bins * discount) ) = log(n_i + discount) - log( N/bins + discount )
     // We only compute log(n_i + discount) here and leave the denominator for being added later, since it does not depend on n_i.
-    for (unsigned int i = 0; i < this->m_hist_inner.size(); ++i)
+    for (DataTensor::Index i = 0; i < this->m_hist_inner.size(); ++i)
     {
         this->m_logprob_inner(i) = (*this->m_log_cache)(this->m_hist_inner(i));
         this->m_logprob_outer(i) = (*this->m_log_cache)(this->m_hist_outer(i));
@@ -1322,7 +1322,7 @@ std::pair<Scalar, Scalar> EnsembleOfRandomProjectionHistograms::logpdf(const Ref
     {
         const Sample & logDenomInner = this->logDenomFromCache(this->m_numExtremes);
         const Sample & logDenomOuter = this->logDenomFromCache(this->m_data->numSamples() - this->m_numExtremes);
-        for (unsigned int i = 0; i < this->m_num_hist; ++i)
+        for (DataTensor::Index i = 0; i < this->m_num_hist; ++i)
         {
             this->m_logprob_inner.segment(this->m_hist_offsets(i), this->m_hist_bins(i)).array() -= logDenomInner(i);
             this->m_logprob_outer.segment(this->m_hist_offsets(i), this->m_hist_bins(i)).array() -= logDenomOuter(i);
@@ -1332,9 +1332,9 @@ std::pair<Scalar, Scalar> EnsembleOfRandomProjectionHistograms::logpdf(const Ref
     
     // Compute average log-likelihood over all histograms
     const auto bins = this->m_indices->sample(ind);
-    unsigned int bin;
+    DataTensor::Index bin;
     Scalar sum_inner = 0, sum_outer = 0;
-    for (unsigned int i = 0; i < this->m_num_hist; ++i)
+    for (DataTensor::Index i = 0; i < this->m_num_hist; ++i)
     {
         bin = this->m_hist_offsets(i) + bins(i);
         sum_inner += this->m_logprob_inner(bin);
@@ -1386,7 +1386,7 @@ std::pair<Scalar, Scalar> EnsembleOfRandomProjectionHistograms::logLikelihoodOut
     return ll;
 }
 
-const Sample & EnsembleOfRandomProjectionHistograms::logDenomFromCache(unsigned int n) const
+const Sample & EnsembleOfRandomProjectionHistograms::logDenomFromCache(DataTensor::Index n) const
 {
     try
     {
@@ -1394,7 +1394,7 @@ const Sample & EnsembleOfRandomProjectionHistograms::logDenomFromCache(unsigned 
     }
     catch (const std::out_of_range & e)
     {
-        this->m_log_denom_cache.insert(std::pair<unsigned int, Sample>(
+        this->m_log_denom_cache.insert(std::pair<DataTensor::Index, Sample>(
             n,
             (static_cast<Scalar>(n) / this->m_hist_bins.array().cast<Scalar>() + this->m_discount).log())
         );
@@ -1410,10 +1410,10 @@ EnsembleOfRandomProjectionHistograms::IntTensor::Sample EnsembleOfRandomProjecti
     
     // Optimize bins separately for each histogram in order to allow for early exit
     IntTensor::Sample bins = IntTensor::Sample::Constant(data.numAttrib(), 1);
-    unsigned int maxBins = std::ceil(data.numSamples() / std::log(data.numSamples()));
+    DataTensor::Index maxBins = std::ceil(data.numSamples() / std::log(data.numSamples()));
     Scalar logLikelihood, penalty, pml, max_pml, eps = std::numeric_limits<Scalar>::epsilon();
     Sample last_ll_cache(20), last_pen_cache(20);
-    unsigned int h, b, i, j;
+    DataTensor::Index h, b, i, j;
     for (h = 0; h < bins.size(); ++h)
     {
         const auto channel = data.channel(h);
@@ -1425,7 +1425,7 @@ EnsembleOfRandomProjectionHistograms::IntTensor::Sample EnsembleOfRandomProjecti
             IntTensor::Sample counts = IntTensor::Sample::Zero(b);
             for (i = 0; i < channel.rows(); ++i)
                 for (j = 0; j < channel.cols(); ++j)
-                    counts(std::min(static_cast<unsigned int>(b * channel(i, j)), b - 1)) += 1;
+                    counts(std::min(static_cast<DataTensor::Index>(b * channel(i, j)), b - 1)) += 1;
             
             // Compute penalized maximum likelihood
             Sample logprob = counts.cast<Scalar>() * static_cast<Scalar>(b) / data.numSamples();
