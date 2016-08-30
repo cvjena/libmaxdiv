@@ -33,7 +33,7 @@ except:
     import Image, ImageTk
 
 from .maxdiv import maxdiv
-from . import preproc, wckToolTips
+from . import preproc, libmaxdiv_wrapper, wckToolTips
 
 
 
@@ -228,7 +228,9 @@ class MDIGUI(tkinter.Tk):
         self.bind('<Configure>', self._onResize)
         self.bind('<Destroy>', self._onDestroy, True)
         
-        self.after(500, self.selectDataFile)
+        self.update()
+        self._checkLibMaxDiv()
+        self.selectDataFile()
     
     
     def _onResize(self, evt):
@@ -458,6 +460,33 @@ class MDIGUI(tkinter.Tk):
         self._onDetrendingSelect()
         self._onSearchStrategySelect()
         self._updateScaleValues()
+    
+    
+    def _checkLibMaxDiv(self):
+        """Checks if libmaxdiv has been found and is up-to-date."""
+        
+        basedir = os.path.dirname(__file__)
+        if libmaxdiv_wrapper.libmaxdiv is None:
+            messagebox.showwarning(
+                title = 'libmaxdiv not found',
+                message = 'libmaxdiv could not be found.\n\n' \
+                          'You can still use the full functionality of this tool, but the detection ' \
+                          'of anomalous intervals will be extremely slow.\n' \
+                          'Information on how to build the libmaxdiv library to gain a significant speed-up ' \
+                          'can be found in maxdiv/libmaxdiv/README.md.'
+            )
+        elif os.path.exists(libmaxdiv_wrapper.libmaxdiv_path) \
+                and os.path.exists(os.path.join(basedir, 'libmaxdiv_wrapper.py')) \
+                and os.path.exists(os.path.join(basedir, 'libmaxdiv', 'libmaxdiv.h')) \
+                and os.path.getmtime(libmaxdiv_wrapper.libmaxdiv_path) < os.path.getmtime(os.path.join(basedir, 'libmaxdiv_wrapper.py')) \
+                and os.path.getmtime(libmaxdiv_wrapper.libmaxdiv_path) < os.path.getmtime(os.path.join(basedir, 'libmaxdiv', 'libmaxdiv.h')):
+            messagebox.showerror(
+                title = 'libmaxdiv is out-dated',
+                message = 'Your build of libmaxdiv is older than the the source code.\n\n'
+                          'Please re-build libmaxdiv in order to make sure that you\'re working with the latest version.'
+            )
+            self.destroy()
+            exit()
     
     
     def _onEstimatorSelect(self, *args):
@@ -766,7 +795,22 @@ class MDIGUI(tkinter.Tk):
                     params['num_intervals'] = None
                 
                 # Run detector
-                self.detections = maxdiv(self.preprocData, **params)
+                if libmaxdiv_wrapper.libmaxdiv is None:
+                    self.detections = maxdiv(self.preprocData, **params)
+                else:
+                    try:
+                        self.detections = maxdiv(self.preprocData, useLibMaxDiv = True, **params)
+                    except Exception as e:
+                        if messagebox.askquestion(
+                            title = 'libmaxdiv failure',
+                            message = 'For some reason, the data could not be processed using libmaxdiv.\n' \
+                                      'We will fall back to the Python implementation, but this will take a lot more time.\n\n' \
+                                      'Error information: {!s}'.format(e),
+                            type = messagebox.OKCANCEL,
+                            default = messagebox.OK,
+                            icon = messagebox.WARNING
+                        ) == messagebox.OK:
+                            self.detections = maxdiv(self.preprocData, **params)
                 
             except Exception as e:
                 messagebox.showerror(title = 'Exception', message = 'An error occurred: {!s}'.format(e))

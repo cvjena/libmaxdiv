@@ -213,10 +213,16 @@ def _search_libmaxdiv():
         if not n is None:
             try:
                 lib = CDLL(n)
-                return _LibMaxDiv(lib)
+                if os.path.exists(n + '.dll'):
+                    fn = n + '.dll'
+                elif os.path.exists(n + '.so'):
+                    fn = n + '.so'
+                else:
+                    fn = n
+                return _LibMaxDiv(lib), fn
             except (OSError, TypeError):
                 pass
-    return None
+    return None, None
 
 
 
@@ -413,4 +419,4 @@ def maxdiv_exec(X, params, num_intervals = 1):
 
 
 # Search library
-libmaxdiv = _search_libmaxdiv()
+libmaxdiv, libmaxdiv_path = _search_libmaxdiv()
