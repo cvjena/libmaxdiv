@@ -51,7 +51,8 @@ ESTIMATORS = [
     ('gaussian_cov', 'Gaussian (Full Covariance)'),
     ('gaussian_global_cov', 'Gaussian (Global Covariance)'),
     ('gaussian_id_cov', 'Gaussian (Identity Covariance)'),
-    ('parzen', 'Kernel Density Estimation')
+    ('parzen', 'Kernel Density Estimation'),
+    ('erph', 'Ensemble of Random Projection Histograms')
 ]
 
 SEARCH_STRATEGIES = [
@@ -189,6 +190,8 @@ class MDIGUI(tkinter.Tk):
         self.strMaxLen = tkinter.StringVar(self, value = '100')
         self.strOverlapTh = tkinter.StringVar(self, value = '0')
         self.strFigureNavMode = tkinter.StringVar(self, value = 'pan')
+        self.intNumHist = tkinter.IntVar(self, value = 100)
+        self.intNumBins = tkinter.IntVar(self, value = 0)
         self.intTdDim = tkinter.IntVar(self, value = 3)
         self.intTdLag = tkinter.IntVar(self, value = 1)
         self.intPeriodNum = tkinter.IntVar(self, value = 24)
@@ -255,6 +258,8 @@ class MDIGUI(tkinter.Tk):
                 del self.strMaxLen
                 del self.strOverlapTh
                 del self.strFigureNavMode
+                del self.intNumHist
+                del self.intNumBins
                 del self.intTdDim
                 del self.intTdLag
                 del self.intPeriodNum
@@ -339,10 +344,16 @@ class MDIGUI(tkinter.Tk):
         self.selEstimator.current(0)
         self.lblKernelSigmaSq = ttk.Label(self.frmGeneralParams, text = 'Kernel Variance:')
         self.txtKernelSigmaSq = tkinter.Spinbox(self.frmGeneralParams, textvariable = self.strKernelSigmaSq, width = 10, from_ = 0.001, to = 1000.0, increment = 0.1)
+        self.lblNumHist = ttk.Label(self.frmGeneralParams, text = 'Histograms:')
+        self.txtNumHist = tkinter.Spinbox(self.frmGeneralParams, textvariable = self.intNumHist, width = 10, from_ = 1, to = 1000, increment = 1)
+        self.lblNumBins = ttk.Label(self.frmGeneralParams, text = 'Bins (0 = auto):')
+        self.txtNumBins = tkinter.Spinbox(self.frmGeneralParams, textvariable = self.intNumBins, width = 10, from_ = 0, to = 1000, increment = 1)
         self.widgetsGeneralParams = [
             (self.lblDivergence, self.selDivergence),
             (self.lblEstimator, self.selEstimator),
-            (self.lblKernelSigmaSq, self.txtKernelSigmaSq)
+            (self.lblKernelSigmaSq, self.txtKernelSigmaSq),
+            (self.lblNumHist, self.txtNumHist),
+            (self.lblNumBins, self.txtNumBins)
         ]
         for r, (label, widget) in enumerate(self.widgetsGeneralParams):
             label.grid(row = r, column = 0, sticky = W, padx = PADDING, pady = PADDING)
@@ -499,6 +510,16 @@ class MDIGUI(tkinter.Tk):
         else:
             self.lblKernelSigmaSq.grid_remove()
             self.txtKernelSigmaSq.grid_remove()
+        if estimator == 'erph':
+            self.lblNumHist.grid()
+            self.txtNumHist.grid()
+            self.lblNumBins.grid()
+            self.txtNumBins.grid()
+        else:
+            self.lblNumHist.grid_remove()
+            self.txtNumHist.grid_remove()
+            self.lblNumBins.grid_remove()
+            self.txtNumBins.grid_remove()
         self._resizeWindow()
     
     
@@ -777,6 +798,8 @@ class MDIGUI(tkinter.Tk):
                     'method'        : ESTIMATORS[self.selEstimator.current()][0],
                     'mode'          : MODES[self.selDivergence.current()][0],
                     'kernelparameters'  : { 'kernel_sigma_sq' : float(self.strKernelSigmaSq.get()) },
+                    'num_hist'      : self.intNumHist.get(),
+                    'num_bins'      : self.intNumBins.get(),
                     'td_dim'        : self.intTdDim.get(),
                     'td_lag'        : self.intTdLag.get(),
                     'proposals'     : SEARCH_STRATEGIES[self.selSearchStrategy.current()][0],
