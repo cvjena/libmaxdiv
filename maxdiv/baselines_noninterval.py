@@ -50,6 +50,107 @@ def gmm_scores(X, n_components = 2):
         return (1.0 - gmm.score_samples(X.T)[1][:, nominal_component])
 
 
+def rkde(X, kernel_sigma_sq = 1.0, type = 'hampel'):
+    """Perform Robust Kernel Density Estimation (Kim & Scott, 2012) for point-wise anomaly detection.
+    
+    `type` can either be 'huber' or 'hampel'.
+    """
+    
+    def rho(x, type, params):
+        if type == 'huber':
+            a = params[0]
+            J = np.sum((x[x <= a] ** 2) / 2) + np.sum(a * (x[x > a] - a) + (a*a)/2)
+        elif type == 'hampel':
+            a, b, c = params
+            i1 = (x <= a)
+            i2 = ((a < x) & (x <= b))
+            i3 = ((b < x) & (x <= c))
+            i4 = (c < x)
+            p = -a/(c-b)
+            q = a*c/(c-b)
+            r = a*b - (a*a)/2 - (p*b*b)/2 - q*b
+            J = np.sum((x[i1] ** 2) / 2)
+            J += np.sum(a * (x[i2] - a) + (a*a)/2)
+            J += np.sum(p * (x[i3] ** 2) / 2 + q * x[i3] + r)
+            J += np.sum((p * c * c) / 2 + q * c + r)
+        return J/len(x)
+    
+    def psi(x, type, params):
+        if type == 'huber':
+            return np.minimum(x, params[0])
+        elif type == 'hampel':
+            a, b, c = params
+            i1 = (x < a)
+            i2 = ((x >= a) & (x < b))
+            i3 = ((x >= b) & (x < c))
+            i4 = (x >=c)
+            out = np.ndarray(x.shape)
+            out[i1] = x[i1]
+            out[i2] = a
+            out[i3] = a * (c - x[i3])/(c - b)
+            out[i4] = 0
+            return out
+    
+    def parameter_select(K, type):
+        n = K.shape[0]
+        w = np.ones(n) / n
+        tol = 1e-8
+        norm2mu = np.dot(w.T, np.dot(K, w))
+        normdiff = np.sqrt(K.diagonal()) + norm2mu - 2 * K.dot(w)
+        J = normdiff.sum() / n
+        while True:
+            J_old = J
+            w = 1.0 / normdiff
+            w /= w.sum()
+            norm2mu = np.dot(w.T, np.dot(K, w))
+            normdiff = np.sqrt(K.diagonal()) + norm2mu - 2 * K.dot(w)
+            J = normdiff.sum() / n
+            if abs(J_old - J) < J_old * tol:
+                break
+        if type == 'huber':
+            return (np.median(normdiff),)
+        elif type == 'hampel':
+            return (np.median(normdiff), np.percentile(normdiff, 95), np.max(normdiff))
+    
+    if type not in ('huber', 'hampel'):
+        raise ValueError('Unknown loss function: {}'.format(type))
+    
+    d, n = X.shape
+    K = calc_gaussian_kernel(X, kernel_sigma_sq)
+    
+    # Find median absolute deviation
+    params = parameter_select(K, type)
+    
+    # Initialize weights
+    w = np.ones(n) / n
+    tol = 1e-8
+    
+    # Compute loss of the initial solution in kernel space
+    norm2mu = np.dot(w.T, np.dot(K, w)) # norm of the kernel space solution
+    normdiff = np.sqrt(K.diagonal()) + norm2mu - 2 * K.dot(w) # norm of the difference between target and solution
+    J = rho(normdiff, type, params) # compute loss
+    
+    # Kernelized Iteratively Re-weighted Least Squares (KIRWLS)
+    while True:
+        J_old = J
+        
+        # Obtain new weights
+        w = psi(normdiff, type, params) / normdiff
+        w /= w.sum()
+        
+        # Compute loss of the new kernel space solution
+        norm2mu = np.dot(w.T, np.dot(K, w)) # norm of the kernel space solution
+        normdiff = np.sqrt(K.diagonal()) + norm2mu - 2 * K.dot(w) # norm of the difference between target and solution
+        J = rho(normdiff, type, params) # compute loss
+        
+        # Check termination criterion
+        if abs(J_old - J) < J_old * tol:
+            break
+    
+    # Score points by their unlikelihood
+    return (1.0 - np.sum(w * K, axis = 1))
+
+
 def pointwiseScoresToIntervals(scores, min_length = 0):
     
     sorted_scores = sorted(scores)

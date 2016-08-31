@@ -10,7 +10,7 @@ from maxdiv.baselines_noninterval import *
 import maxdiv_tools, datasets
 
 
-METHODS = { 'hotellings_t' : hotellings_t, 'kde' : pointwiseKDE, 'gmm' : gmm_scores }
+METHODS = { 'hotellings_t' : hotellings_t, 'kde' : pointwiseKDE, 'rkde' : rkde, 'gmm' : gmm_scores }
 
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
