@@ -70,10 +70,21 @@ def rand_sign():
     return (np.random.randint(0, 2) * 2) - 1
 
 
+def attributes_from_states(gps, numattr, numcorr):
+    numstates, n = gps.shape
+    states = np.arange(numstates)
+    proj = np.zeros((numattr, numstates))
+    for i in range(numattr):
+        np.random.shuffle(states)
+        proj[i, states[:numcorr]] = np.random.randn(numcorr)
+    return proj.dot(gps)
+    
+
+
 if __name__ == '__main__':
     
-    if (len(sys.argv) < 2) or (sys.argv[1] not in ('large', 'small', 'seasonal', 'nominal')):
-        print('Usage: {} <type = large|small|seasonal|nominal>'.format(sys.argv[0]))
+    if (len(sys.argv) < 2) or (sys.argv[1] not in ('large', 'small', 'hd', 'seasonal', 'nominal')):
+        print('Usage: {} <type = large|small|hd|seasonal|nominal>'.format(sys.argv[0]))
         exit()
     type = sys.argv[1]
 
@@ -229,6 +240,76 @@ if __name__ == '__main__':
                 f['meanshift5_hard'][i,0,a:b] += rand_sign() * (np.random.rand()*0.5 + 0.5)
         
         with open('testcube_small.pickle' if type == 'small' else 'testcube.pickle', 'wb') as fout:
+            pickle.dump({'f': f, 'y': y}, fout)
+    
+    elif type == 'hd':
+        
+        X = np.arange(0,1, 0.001)
+        X = np.reshape(X, [1, len(X)])
+        n = X.shape[1]
+        zeroy = np.zeros(n)
+        numf = 100
+        numattr = 100
+        numstates = 10
+        numcorr = 3
+        sigma = 0.01
+
+        print ("Generating time series of length {} with {} attributes reflecting {} hidden states".format(n, numattr, numstates))
+        defect_maxlen = int(0.1 * n)
+        defect_minlen = int(0.02 * n)
+        print ("Minimal and maximal length of one extreme {} - {}".format(defect_minlen, defect_maxlen))
+
+        y = {}
+        f = {}
+
+        y['meanshift_hd'] = []
+        f['meanshift_hd'] = np.ndarray((numf, numattr, n))
+        gps = np.reshape(sample_gp(X, zeroy, sigma, numf*numstates), [numf, numstates, n])
+        for i in range(numf):
+            defect, _, _ = sample_interval(n, defect_minlen, defect_maxlen)
+            y['meanshift_hd'].append(defect)
+            gps[i,0,defect] += rand_sign() * (np.random.rand()*1.0 + 3.0)
+            f['meanshift_hd'][i] = attributes_from_states(gps[i], numattr, numcorr)
+         
+        y['amplitude_change_hd'] = []
+        f['amplitude_change_hd'] = np.ndarray((numf, numattr, n))
+        for i in range(numf):
+            defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
+            y['amplitude_change_hd'].append(defect)
+            func = sample_gp(X, zeroy, sigma, numstates)
+            sigmaw = (b-a)/4.0
+            mu = (a+b)/2.0
+            gauss = np.array([ np.exp(-(xp-mu)**2/(2*sigmaw*sigmaw)) for xp in range(n) ])
+            gauss[gauss>0.2] = 0.2
+            func[0,:] = func[0,:] * (2.0*gauss/np.max(gauss)+1)
+            f['amplitude_change_hd'][i] = attributes_from_states(func, numattr, numcorr)
+
+        y['frequency_change_hd'] = []
+        f['frequency_change_hd'] = np.ndarray([numf, numattr, n])
+        for i in range(numf):
+            defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
+            y['frequency_change_hd'].append(defect)
+            func_defect = sample_gp_nonstat(X, zeroy, (1-defect)*0.01+0.0001, 1)
+            func_ok = sample_gp(X, zeroy, sigma, numstates - 1)
+            f['frequency_change_hd'][i] = attributes_from_states(np.vstack([func_defect, func_ok]), numattr, numcorr)
+        
+        fade_len = 10
+        fading = np.linspace(0, 1, fade_len, endpoint = False)
+        gps_nominal = sample_gp(X, zeroy, sigma, numf * numstates, 0).reshape([numf, numstates, n])
+        gps_anomalous = sample_gp(X, zeroy, sigma, numf * numstates, 0).reshape([numf, numstates, n])
+        y['mixed_hd'] = []
+        f['mixed_hd'] = np.ndarray([numf, numattr, n])
+        for i in range(numf):
+            while True:
+                defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
+                if (a >= 50) and (b <= n - 50):
+                    break
+            interpolation_mask = np.zeros((numstates, X.shape[1]))
+            interpolation_mask[:, (a - fade_len/2):(b + fade_len/2)] = np.concatenate([fading, np.ones(b - a - fade_len), fading[::-1]])
+            y['mixed_hd'].append(defect)
+            f['mixed_hd'][i] = attributes_from_states(gps_nominal[i] + (gps_anomalous[i] - gps_nominal[i]) * interpolation_mask + 0.1 * np.random.randn(numstates, n), numattr, numcorr)
+        
+        with open('testcube_hd.pickle', 'wb') as fout:
             pickle.dump({'f': f, 'y': y}, fout)
     
     elif type == 'seasonal':

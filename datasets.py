@@ -9,7 +9,7 @@ except ImportError:
     import pickle
 
 
-DATASETS = ['synthetic', 'synthetic_seasonal', 'nab_real', 'nab_artifical', 'yahoo_real']
+DATASETS = ['synthetic', 'synthetic_hd', 'synthetic_seasonal', 'nab_real', 'nab_artifical', 'yahoo_real']
 TYPES = ['interval', 'point', 'change']
 
 BASEPATH = os.path.dirname(os.path.realpath(__file__))
@@ -53,6 +53,8 @@ def loadDatasets(datasets = None, types = None):
             data.update(loadSyntheticTestbench())
         elif (ds == 'synthetic_small') and ('interval' in types):
             data.update(loadSyntheticTestbench(BASEPATH + '/testcube_small.pickle'))
+        elif (ds == 'synthetic_hd') and ('interval' in types):
+            data.update(loadSyntheticTestbench(BASEPATH + '/testcube_hd.pickle'))
         elif (ds == 'synthetic_seasonal') and ('interval' in types):
             data.update(loadSyntheticTestbench(BASEPATH + '/testcube_seasonal.pickle'))
         elif ds == 'synthetic_normal':
