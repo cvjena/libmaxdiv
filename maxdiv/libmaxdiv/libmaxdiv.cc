@@ -58,6 +58,8 @@ void maxdiv_init_params(maxdiv_params_t * params)
     params->preproc.detrending.ols_linear_trend = true;
     params->preproc.detrending.ols_linear_season_trend = false;
     params->preproc.detrending.z_period_len = 0;
+    params->preproc.dimensionality_reduction.method = MAXDIV_PROJECT_NONE;
+    params->preproc.dimensionality_reduction.ndims = 0;
 }
 
 
@@ -193,6 +195,21 @@ unsigned int maxdiv_compile_pipeline(const maxdiv_params_t * params)
             static_cast<BorderPolicy>(params->preproc.embedding.spatial_borders)
         ));
     }
+    
+    if (params->preproc.dimensionality_reduction.ndims > 0)
+        switch (params->preproc.dimensionality_reduction.method)
+        {
+            case MAXDIV_PROJECT_NONE:
+                break;
+            case MAXDIV_PROJECT_PCA:
+                preproc->push_back(std::make_shared<PCAProjection>(params->preproc.dimensionality_reduction.ndims));
+                break;
+            case MAXDIV_PROJECT_RANDOM:
+                preproc->push_back(std::make_shared<SparseRandomProjection>(params->preproc.dimensionality_reduction.ndims));
+                break;
+            default:
+                return 0;
+        }
     
     // Put everything together and construct the SearchStrategy
     std::shared_ptr<ProposalSearch> detector = std::make_shared<ProposalSearch>(divergence, proposals, preproc);

@@ -1,10 +1,12 @@
 #include "preproc.h"
 #include "math_utils.h"
 #include <algorithm>
+#include <random>
 #include <chrono>
 #include <Eigen/QR>
 #include <Eigen/Cholesky>
 #include <Eigen/Eigenvalues>
+#include <Eigen/SparseCore>
 using namespace MaxDiv;
 
 DataTensor & PreprocessingPipeline::operator()(DataTensor & data) const
@@ -402,4 +404,86 @@ DataTensor & ZScoreDeseasonalization::operator()(DataTensor & data) const
     }
     
     return data;
+}
+
+
+DataTensor & PCAProjection::operator()(const DataTensor & dataIn, DataTensor & dataOut) const
+{
+    // Center data
+    ScalarMatrix data = dataIn.data();
+    data.rowwise() -= data.colwise().mean();
+    
+    // Compute covariance matrix
+    ScalarMatrix cov;
+    cov.noalias() = data.transpose() * data;
+    cov /= static_cast<double>(data.rows() - 1);
+    
+    // Perform Eigen decomposition
+    Eigen::SelfAdjointEigenSolver<ScalarMatrix> eigensolver(cov);
+    
+    // Determine number of principal components to be kept
+    DataTensor::Index k = (this->k > 0) ? this->k : 1;
+    if (this->variability < 1.0)
+    {
+        Scalar totalEnergy = eigensolver.eigenvalues().sum(), curEnergy = 0.0;
+        for (k = 1; k <= this->k && k <= dataIn.numAttrib(); ++k)
+        {
+            curEnergy += eigensolver.eigenvalues()(dataIn.numAttrib() - k);
+            if (curEnergy >= this->variability * totalEnergy)
+                break;
+        }
+    }
+    if (k > dataIn.numAttrib())
+        k = dataIn.numAttrib();
+    
+    // Compose projection matrix of eigenvectors.
+    // Eigenvectors are sorted by eigenvalue in increasing order, so we take the last right columns and reverse their order:
+    ScalarMatrix proj = eigensolver.eigenvectors().rightCols(k) * Eigen::PermutationMatrix<Eigen::Dynamic>(Eigen::VectorXi::LinSpaced(k, k - 1, 0));
+    
+    // Project data
+    ReflessIndexVector shape = dataIn.shape();
+    shape.d = k;
+    dataOut.resize(shape);
+    dataOut.data().noalias() = data * proj;
+    
+    return dataOut;
+}
+
+
+DataTensor & SparseRandomProjection::operator()(const DataTensor & dataIn, DataTensor & dataOut) const
+{
+    typedef Eigen::SparseMatrix<Scalar, Eigen::RowMajor> SparseMatrix;
+    
+    ReflessIndexVector shape = dataIn.shape();
+    
+    // Generate random projection vectors
+    SparseMatrix proj(this->k, shape.d);
+    DataTensor::Index numNonZero = static_cast<DataTensor::Index>(std::sqrt(shape.d) + 0.5);
+    proj.reserve(Eigen::VectorXi::Constant(this->k, numNonZero));
+    
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> udis(0, shape.d - 1);
+    std::normal_distribution<Scalar> ndis;
+    
+    DataTensor::Index i, j;
+    int d;
+    for (i = 0; i < this->k; ++i)
+    {
+        for (j = 0; j < numNonZero; ++j)
+        {
+            do {
+                d = udis(gen);
+            } while (proj.coeff(i, d) != 0);
+            proj.insert(i, d) = ndis(gen);
+        }
+        proj.row(i) /= proj.row(i).norm();
+    }
+    
+    // Project data
+    shape.d = this->k;
+    dataOut.resize(shape);
+    dataOut.data().noalias() = dataIn.data() * proj.transpose();
+    
+    return dataOut;
 }

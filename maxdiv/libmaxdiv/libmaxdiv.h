@@ -87,6 +87,13 @@ enum maxdiv_detrending_method_t
     MAXDIV_DETREND_ZSCORE   /**< Z Score deseasonalization */
 };
 
+enum maxdiv_projection_method_t
+{
+    MAXDIV_PROJECT_NONE,    /**< Don't perform dimensionality reduction */
+    MAXDIV_PROJECT_PCA,     /**< Use Principal Components Analysis (PCA) for dimensionality reduction */
+    MAXDIV_PROJECT_RANDOM   /**< Project data onto sparse random projection vectors */
+};
+
 
 typedef struct {
     
@@ -150,6 +157,12 @@ typedef struct {
             bool ols_linear_season_trend; /**< Specifies whether to include a linear trend of each seasonal unit in the model. */
             unsigned int z_period_len; /**< Number of seasonal groups for Z Score deseasonalization. */
         } detrending; /**< Detrending parameters */
+        
+        struct
+        {
+            maxdiv_projection_method_t method; /**< Dimensionality reduction method */
+            unsigned int ndims; /**< New number of dimensions. */
+        } dimensionality_reduction; /**< Parameters for dimensionality reduction. */
     } preproc; /**< Preprocessing parameters */
     
 } maxdiv_params_t;

@@ -58,7 +58,11 @@ enums = {
     'MAXDIV_DETREND_NONE'   : 0,
     'MAXDIV_DETREND_LINEAR' : 1,
     'MAXDIV_DETREND_OLS'    : 2,
-    'MAXDIV_DETREND_ZSCORE' : 3
+    'MAXDIV_DETREND_ZSCORE' : 3,
+    
+    'MAXDIV_PROJECT_NONE'   : 0,
+    'MAXDIV_PROJECT_PCA'    : 1,
+    'MAXDIV_PROJECT_RANDOM' : 2
 }
 
 
@@ -112,6 +116,10 @@ class preproc_params_t(Structure):
                 ('embedding', embedding_params_t),
                 ('detrending', detrending_params_t)]
 
+class projection_params_t(Structure):
+    _fields_ = [('method', c_int),
+                ('ndims', c_uint)]
+
 # maxdiv_params_t structure definition according to libmaxdiv.h
 class maxdiv_params_t(Structure):
     _fields_ = [('strategy', c_int),
@@ -126,7 +134,8 @@ class maxdiv_params_t(Structure):
                 ('kernel_sigma_sq', maxdiv_scalar),
                 ('gaussian_cov_mode', c_int),
                 ('erph', erph_params_t),
-                ('preproc', preproc_params_t)]
+                ('preproc', preproc_params_t),
+                ('dimensionality_reduction', projection_params_t)]
 
 
 

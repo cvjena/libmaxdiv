@@ -682,6 +682,82 @@ public:
 
 };
 
+
+/**
+* @brief Performs dimensionality reduction using Principal Components Analysis (PCA).
+*
+* This class computes a mean feature vector \f$m \in \mathbb{R}^d\f$ for the data
+* \f$x \in \mathbb{R}^{n \times d}\f$ and a matrix \f$A \in \mathbb{R}^{d \times k}\f$
+* that can be used to reduce the dimensionality of the data by computing: \f$x' = (x - m) \cdot A\f$.
+*
+* PCA is used to find a matrix \f$A\f$ that maximizes the amount of variance in the reduced
+* feature space.
+*
+* @author Bjoern Barz <bjoern.barz@uni-jena.de>
+*/
+class PCAProjection : public Preprocessor
+{
+public:
+
+    DataTensor::Index k; /**< Maximum number of principal components to keep. */
+    Scalar variability; /**< Fraction of the data's variability to capture. */
+
+    PCAProjection() = delete;
+    
+    /**
+    * @param[in] k Number of principal components to keep.
+    */
+    PCAProjection(DataTensor::Index k) : k(k), variability(1.0) {};
+    
+    /**
+    * @param[in] k Maximum number of principal components to keep.
+    *
+    * @param[in] v Fraction of the data's variability to capture (value between 0 and 1).
+    */
+    PCAProjection(DataTensor::Index k, Scalar v) : k(k), variability(v) {};
+
+    /**
+    * Computes the first `k` principal components of the samples in @p dataIn and stores them in
+    * @p dataOut.
+    *
+    * @return Reference to `dataOut` in order to allow for chaining.
+    */
+    virtual DataTensor & operator()(const DataTensor & dataIn, DataTensor & dataOut) const override;
+
+};
+
+
+/**
+* @brief Performs dimensionality reduction using sparse random projection vectors.
+*
+* A given data set \f$x \in \mathbb{R}^{n \times d}\f$ is projected onto a space with a different dimensionality by
+* \f$x' = x \cdot W^T\f$, where \f$W \in \mathbb{R}^{k \times d}\f$ is a collection of \f$n\f$ sparse random projection
+* vectors, each of those having only \f$\sqrt{d}\f$ non-zero entries which are drawn from the standard normal distribution.
+*
+* @author Bjoern Barz <bjoern.barz@uni-jena.de>
+*/
+class SparseRandomProjection : public Preprocessor
+{
+public:
+
+    DataTensor::Index k; /**< Number of random projections. */
+
+    SparseRandomProjection() = delete;
+    
+    /**
+    * @param[in] k Number of random projections.
+    */
+    SparseRandomProjection(DataTensor::Index k) : k(k) {};
+
+    /**
+    * Applies the random projections to @p dataIn and stores the result in @p dataOut.
+    *
+    * @return Reference to `dataOut` in order to allow for chaining.
+    */
+    virtual DataTensor & operator()(const DataTensor & dataIn, DataTensor & dataOut) const override;
+
+};
+
 }
 
 #endif

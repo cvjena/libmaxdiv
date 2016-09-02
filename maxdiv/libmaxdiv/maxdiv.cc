@@ -39,7 +39,8 @@ DetectionList apply_maxdiv(const std::shared_ptr<DataTensor> & data,
                            Scalar kernel_sigma_sq, unsigned int num_hist, unsigned int num_bins, Scalar discount,
                            Scalar prop_th, bool prop_mad, bool prop_filter,
                            bool normalize, unsigned int td_embed, unsigned int td_lag, BorderPolicy borders,
-                           unsigned int period_num, unsigned int period_len, bool linear_trend, bool linear_season_trend)
+                           unsigned int period_num, unsigned int period_len, bool linear_trend, bool linear_season_trend,
+                           unsigned int pca_dims, unsigned int random_projection_dims)
 {
     DetectionList detections;
     
@@ -118,6 +119,11 @@ DetectionList apply_maxdiv(const std::shared_ptr<DataTensor> & data,
     if (td_embed != 1)
         preproc->push_back(std::make_shared<TimeDelayEmbedding>(td_embed, td_lag, borders));
     
+    if (pca_dims > 0)
+        preproc->push_back(std::make_shared<PCAProjection>(pca_dims));
+    if (random_projection_dims > 0)
+        preproc->push_back(std::make_shared<SparseRandomProjection>(random_projection_dims));
+    
     // Put everything together and construct the SearchStrategy
     ProposalSearch detector(div, proposal_gen, preproc);
     detector.setOverlapTh(overlap_th);
@@ -138,6 +144,7 @@ int main(int argc, char * argv[])
     unsigned int min_len = 0, max_len = 0, num_intervals = 0,
                  num_hist = 100, num_bins = 0,
                  td_embed = 1, td_lag = 1, period_num = 0, period_len = 1,
+                 pca_dims = 0, random_projection_dims = 0,
                  first_row = 0, first_col = 0, last_col = -1;
     Scalar overlap_th = 0.0, kernel_sigma_sq = 1.0, discount = 1.0, prop_th = 1.5;
     int prop_mad = 0, prop_filter = 1, normalize = 0, linear_trend = 0, linear_season_trend = 0, timing = 0;
@@ -182,6 +189,8 @@ int main(int argc, char * argv[])
             {"period_len",          required_argument,  NULL,       'j'},
             {"linear_trend",        no_argument,        &linear_trend, 1},
             {"linear_season_trend", no_argument,        &linear_season_trend, 1},
+            {"pca_dims",            required_argument,  NULL,       'P'},
+            {"random_projection_dims", required_argument, NULL,     'Q'},
             
             // Data format
             {"delimiter",           required_argument,  NULL,       'u'},
@@ -193,7 +202,7 @@ int main(int argc, char * argv[])
         };
         
         int option_index = 0;
-        c = getopt_long(argc, argv, "a:b:c:d:e:f:g:hi:j:l:n:o:p:q:r:st::u:w:x:z:", long_options, &option_index);
+        c = getopt_long(argc, argv, "a:b:c:d:e:f:g:hi:j:l:n:o:p:q:r:st::u:w:x:z:P:Q:", long_options, &option_index);
         switch (c)
         {
             case 'h':
@@ -395,6 +404,22 @@ int main(int argc, char * argv[])
                     return 1;
                 }
                 break;
+            case 'P':
+                pca_dims = strtoul(optarg, NULL, 10);
+                if (pca_dims == 0)
+                {
+                    cerr << "Invalid value specified for option --pca_dims" << endl;
+                    return 1;
+                }
+                break;
+            case 'Q':
+                random_projection_dims = strtoul(optarg, NULL, 10);
+                if (random_projection_dims == 0)
+                {
+                    cerr << "Invalid value specified for option --random_projection_dims" << endl;
+                    return 1;
+                }
+                break;
             case 'u':
                 argstr = optarg;
                 if (argstr.size() != 1)
@@ -467,7 +492,8 @@ int main(int argc, char * argv[])
     DetectionList detections = apply_maxdiv(data, divergence, estimator, proposals, kl_mode, gauss_cov_mode,
                                             min_len, max_len, num_intervals, overlap_th, kernel_sigma_sq, num_hist, num_bins, discount,
                                             prop_th, prop_mad, prop_filter,
-                                            normalize, td_embed, td_lag, borders, period_num, period_len, linear_trend, linear_season_trend);
+                                            normalize, td_embed, td_lag, borders, period_num, period_len, linear_trend, linear_season_trend,
+                                            pca_dims, random_projection_dims);
     auto stop = high_resolution_clock::now();
     if (timing)
         cerr << duration_cast<milliseconds>(stop - start).count() << " ms" << endl;
@@ -573,6 +599,12 @@ void printHelp(const char * progName)
          << endl
          << "    --linear_season_trend" << endl
          << "        Allow the seasonal coefficients of OLS deseasonalization to change linearly over time." << endl
+         << endl
+         << "    --pca_dims <int>, -P <int>" << endl
+         << "        Reduce the data to the specified number of dimensions using PCA." << endl
+         << endl
+         << "    --random_projection_dims <int>, -Q <int>" << endl
+         << "        Project the data onto the specified number of sparse random projection vectors." << endl
          << endl
          << "    --delimiter <char>, -u <char> (default: ,)" << endl
          << "        Delimiter used to separate the fields in the given CSV file." << endl
