@@ -252,3 +252,43 @@ def detrend_ols(ts, periods = None, linear_trend = True, linear_season_trend = F
     if ts.ndim == 1:
         norm_func_ols = norm_func_ols.ravel()
     return (norm_func_ols, ols_seasonality) if return_model_params else norm_func_ols
+
+
+def pca_projection(X, k):
+    """Reduces the given data X to k dimensions using PCA."""
+    
+    d, n = X.shape
+    # mean center the data
+    C = (X.T - X.mean(axis = 1)).T
+    # calculate the covariance matrix
+    R = np.cov(C)
+    # calculate eigenvectors & eigenvalues of the covariance matrix
+    # use 'eigh' rather than 'eig' since R is symmetric, 
+    # the performance gain is substantial
+    evals, evecs = np.linalg.eigh(R)
+    # sort eigenvalue in decreasing order
+    idx = np.argsort(evals)[::-1]
+    evecs = evecs[:,idx]
+    # sort eigenvectors according to same index
+    evals = evals[idx]
+    # select the first k eigenvectors
+    evecs = evecs[:, :k]
+    # transform data
+    return np.dot(evecs[:, :k].T, C)
+
+
+def sparse_random_projection(X, k):
+    """Projects the given data X onto k sparse random projection vectors."""
+    
+    d, n = X.shape
+    
+    # Generate random projections
+    proj_dims = int(round(np.sqrt(d)))
+    dim_range = np.arange(d)
+    proj = np.zeros((k, d))
+    for i in range(k):
+        np.random.shuffle(dim_range)
+        proj[i, dim_range[:proj_dims]] = np.random.randn(proj_dims)
+    
+    # Project data
+    return proj.dot(X)

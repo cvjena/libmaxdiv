@@ -798,6 +798,11 @@ def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', u
             td_lag = 1
         X = preproc.td(X, td_dim, td_lag)
     
+    if ('pca_dim' in kwargs) and (kwargs['pca_dim'] > 0):
+        X = preproc.pca_projection(X, kwargs['pca_dim'])
+    if ('random_projection_dim' in kwargs) and (kwargs['random_projection_dim'] > 0):
+        X = preproc.sparse_random_projection(X, kwargs['random_projection_dim'])
+    
     if 'proposalparameters' in kwargs:
         proposalParameters = kwargs['proposalparameters']
         del kwargs['proposalparameters']

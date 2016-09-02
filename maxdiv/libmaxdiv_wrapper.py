@@ -365,6 +365,12 @@ def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', *
         params.preproc.embedding.kt = kwargs['td_dim'] if (kwargs['td_dim'] is not None) and (kwargs['td_dim'] > 0) else 0
     if 'td_lag' in kwargs:
         params.preproc.embedding.dt = kwargs['td_lag'] if (kwargs['td_lag'] is not None) and (kwargs['td_lag'] > 0) else 0
+    if ('pca_dim' in kwargs) and (kwargs['pca_dim'] > 0):
+        params.preproc.dimensionality_reduction.method = enums['MAXDIV_PROJECT_PCA']
+        params.preproc.dimensionality_reduction.ndims = kwargs['pca_dim']
+    elif ('random_projection_dim' in kwargs) and (kwargs['random_projection_dim'] > 0):
+        params.preproc.dimensionality_reduction.method = enums['MAXDIV_PROJECT_RANDOM']
+        params.preproc.dimensionality_reduction.ndims = kwargs['random_projection_dim']
     
     return maxdiv_exec(X, params, num_intervals)
 
