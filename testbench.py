@@ -295,8 +295,8 @@ if __name__ == '__main__':
         
         fade_len = 10
         fading = np.linspace(0, 1, fade_len, endpoint = False)
-        gps_nominal = sample_gp(X, zeroy, sigma, numf * numstates, 0).reshape([numf, numstates, n])
-        gps_anomalous = sample_gp(X, zeroy, sigma, numf * numstates, 0).reshape([numf, numstates, n])
+        gps_nominal = sample_gp(X, zeroy, sigma, numf * numstates, 1e-12).reshape([numf, numstates, n])
+        gps_anomalous = sample_gp(X, zeroy, sigma, numf * numstates, 1e-12).reshape([numf, numstates, n])
         y['mixed_hd'] = []
         f['mixed_hd'] = np.ndarray([numf, numattr, n])
         for i in range(numf):
