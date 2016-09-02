@@ -111,14 +111,15 @@ class detrending_params_t(Structure):
                 ('ols_linear_season_trend', c_bool),
                 ('z_period_len', c_uint)]
 
-class preproc_params_t(Structure):
-    _fields_ = [('normalization', c_int),
-                ('embedding', embedding_params_t),
-                ('detrending', detrending_params_t)]
-
 class projection_params_t(Structure):
     _fields_ = [('method', c_int),
                 ('ndims', c_uint)]
+
+class preproc_params_t(Structure):
+    _fields_ = [('normalization', c_int),
+                ('embedding', embedding_params_t),
+                ('detrending', detrending_params_t),
+                ('dimensionality_reduction', projection_params_t)]
 
 # maxdiv_params_t structure definition according to libmaxdiv.h
 class maxdiv_params_t(Structure):
@@ -134,8 +135,7 @@ class maxdiv_params_t(Structure):
                 ('kernel_sigma_sq', maxdiv_scalar),
                 ('gaussian_cov_mode', c_int),
                 ('erph', erph_params_t),
-                ('preproc', preproc_params_t),
-                ('dimensionality_reduction', projection_params_t)]
+                ('preproc', preproc_params_t)]
 
 
 

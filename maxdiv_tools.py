@@ -40,7 +40,7 @@ def read_csv_timeseries(input, selected_variables, timecol, timeformat, maxdatap
 
 def get_algorithm_parameters():
     return ['extint_min_len', 'extint_max_len', 'alpha', 'mode', 'method', 'num_intervals', 'preproc', 'td_dim', 'td_lag', 'proposals',
-            'num_hist', 'num_bins', 'discount'] 
+            'pca_dim', 'random_projection_dim', 'num_hist', 'num_bins', 'discount'] 
 
 def add_algorithm_parameters(parser):
     parser.add_argument('--method', help='maxdiv method', choices=maxdiv.get_available_methods(), required=True)
@@ -56,6 +56,8 @@ def add_algorithm_parameters(parser):
     parser.add_argument('--preproc', help='use a pre-processing method', default=None, choices=preproc.get_available_methods())
     parser.add_argument('--td_dim', help='Time-Delay Embedding Dimension (may be set to 0 for automatic determination)', default=1, type=int)
     parser.add_argument('--td_lag', help='Time-Lag for Time-Delay Embedding (may be set to 0 for automatic determination)', default=1, type=int)
+    parser.add_argument('--pca_dim', help='Reduce data to the given number of dimensions using PCA', default=0, type=int)
+    parser.add_argument('--random_projection_dim', help='Project data onto the given number of random projection vectors', default=0, type=int)
     parser.add_argument('--proposals', help='method for interval proposing', default='dense', choices=['dense','hotellings_t','kde'])
     parser.add_argument('--prop_th', help='threshold for pointwise interval proposing', type=float, default=1.5)
     parser.add_argument('--prop_mad', help='use MAD to determine the threshold for interval proposing', action='store_true')
