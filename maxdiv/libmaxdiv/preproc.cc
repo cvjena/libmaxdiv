@@ -104,8 +104,8 @@ int TimeDelayEmbedding::determineContextWindowSize(const DataTensor & data) cons
     DataTensor mi(flatShape);
     mi.channel(0).setConstant(1); // not used
     Sample sumLeft(na), sumRight(na), mean(2 * na), centered(2 * na);
-    ScalarMatrix cov(na, na);
-    ScalarMatrix indepCov = ScalarMatrix::Zero(na, na);
+    ScalarMatrix cov(2 * na, 2 * na);
+    ScalarMatrix indepCov = ScalarMatrix::Zero(2 * na, 2 * na);
     Scalar covLogDet, indepCovLogDet;
     Eigen::LLT<ScalarMatrix> indepCovChol;
     for (IndexVector loc = mi.makeIndexVector(); loc.t < loc.shape.t; ++loc)
