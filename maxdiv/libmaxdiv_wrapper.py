@@ -28,6 +28,7 @@ enums = {
     
     'MAXDIV_KL_DIVERGENCE'      : 0,
     'MAXDIV_JS_DIVERGENCE'      : 1,
+    'MAXDIV_CROSS_ENTROPY'      : 2,
     
     'MAXDIV_KDE'        : 0,
     'MAXDIV_GAUSSIAN'   : 1,
@@ -305,6 +306,12 @@ def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', *
             params.kl_mode = enums['MAXDIV_KL_UNBIASED']
         elif mode == 'JSD':
             params.divergence = enums['MAXDIV_JS_DIVERGENCE']
+        elif mode == 'CROSSENT':
+            params.divergence = enums['MAXDIV_CROSS_ENTROPY']
+            params.kl_mode = enums['MAXDIV_KL_I_OMEGA']
+        elif mode == 'CROSSENT_TS':
+            params.divergence = enums['MAXDIV_CROSS_ENTROPY']
+            params.kl_mode = enums['MAXDIV_KL_UNBIASED']
         else:
             raise ValueError('Unknown divergence mode: {}'.format(mode))
     

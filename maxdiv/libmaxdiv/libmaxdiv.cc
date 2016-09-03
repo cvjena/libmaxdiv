@@ -100,6 +100,9 @@ unsigned int maxdiv_compile_pipeline(const maxdiv_params_t * params)
         case MAXDIV_JS_DIVERGENCE:
             divergence = std::make_shared<JSDivergence>(densityEstimator);
             break;
+        case MAXDIV_CROSS_ENTROPY:
+            divergence = std::make_shared<CrossEntropy>(densityEstimator, kl_mode);
+            break;
         default:
             return 0;
     }

@@ -51,7 +51,7 @@ def add_algorithm_parameters(parser):
     parser.add_argument('--extint_min_len', help='minimum length of the extreme interval', default=20, type=int)
     parser.add_argument('--extint_max_len', help='maximum length of the extreme interval', default=100, type=int)
     parser.add_argument('--alpha', help='Hyperparameter for the KL divergence', type=float, default=1.0)
-    parser.add_argument('--mode', help='Mode for KL divergence computation', choices=['OMEGA_I', 'SYM', 'I_OMEGA', 'TS', 'LAMBDA', 'IS_I_OMEGA', 'JSD'], default='I_OMEGA')
+    parser.add_argument('--mode', help='Mode for KL divergence computation', choices=['OMEGA_I', 'SYM', 'I_OMEGA', 'TS', 'LAMBDA', 'IS_I_OMEGA', 'JSD', 'CROSSENT', 'CROSSENT_TS'], default='I_OMEGA')
     parser.add_argument('--num_intervals', help='number of intervals to be displayed', default=0, type=int)
     parser.add_argument('--preproc', help='use a pre-processing method', default=None, choices=preproc.get_available_methods())
     parser.add_argument('--td_dim', help='Time-Delay Embedding Dimension (may be set to 0 for automatic determination)', default=1, type=int)

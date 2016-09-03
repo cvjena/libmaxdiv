@@ -186,6 +186,68 @@ protected:
 
 
 /**
+* @brief Cross-Entropy
+*
+* The cross-entropy of two distributions is defined as:
+*
+* \f[
+*     \mathcal{H}(p_I, p_\Omega) = - \int p_I(x_t) \cdot \log \left ( p_\Omega(x_t) \right ) dx_t
+* \f]
+*
+* It is similar to the Kullback-Leibler divergence which can be expressed as
+* \f$\text{KL}(p_I, p_\Omega) = \mathcal{H}(p_I, p_\Omega) - \mathcal{H}(p_I, p_I)\f$.
+* It can be easily approximated empirically as the log-likelihood of the data in the interval \f$I\f$
+* under the model established by \f$p_\Omega\f$. However, it does not take the unexpectedness of the
+* suspected interval itself into account, as opposed to the KL divergence.
+*
+* @author Bjoern Barz <bjoern.barz@uni-jena.de>
+*/
+class CrossEntropy : public KLDivergence
+{
+public:
+
+    using KLDivergence::KLDivergence;
+    
+    /**
+    * Creates a copy of this object by calling the copy constructor of the actual derived class.
+    *
+    * @return Returns a pointer to a copy of this object.
+    */
+    virtual std::shared_ptr<Divergence> clone() const override;
+    
+    /**
+    * Initializes the density estimator used by this divergence with a given DataTensor @p data.
+    */
+    virtual void init(const std::shared_ptr<const DataTensor> & data) override;
+    
+    /**
+    * Resets this divergence and the density estimator to their uninitialized state and releases any
+    * memory allocated by `init()`.
+    */
+    virtual void reset() override;
+    
+    /**
+    * Approximates the cross-entropy between a given sub-block of the data passed to `init()` and the rest
+    * of that data tensor by evaluating one of the following formulas:
+    *
+    * - For `I_OMEGA` mode: \f$\mathcal{H}(I,\Omega) = - \frac{1}{\left | I \right |}\sum_{t \in I} \log \left ( p_\Omega(x_t) \right )\f$
+    * - For `OMEGA_I` mode: \f$\mathcal{H}(\Omega,I) = - \frac{1}{\left | \Omega \right |}\sum_{t \in \Omega} \log \left ( p_I(x_t) \right )\f$
+    * - For `SYM` mode: \f$\mathcal{H}_{\text{SYM}} = \mathcal{H}(I,\Omega) + \mathcal{H}(\Omega,I)\f$
+    * - For `UNBIASED` mode: \f$\mathcal{H}_{\text{TS}} = \left | I \right | \cdot \mathcal{H}(I,\Omega)\f$
+    *
+    * `init()` has to be called before this can be used.
+    *
+    * @param[in] innerRange The sub-block to compare against the rest of the data passed to `init()`.
+    *
+    * @return Returns an approximation of the cross-entropy which is high if the distributions of the data in
+    * the one interval can not be well explained by the model learned from the data in the other interval.
+    */
+    virtual Scalar operator()(const IndexRange & innerRange) override;
+
+};
+
+
+/**
 * @brief Jensen-Shannon Divergence
 *
 * The Jensen-Shannon Divergence can be defined as:

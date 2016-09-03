@@ -157,6 +157,84 @@ Scalar KLDivergence::operator()(const IndexRange & innerRange)
 }
 
 
+//---------------//
+// Cross-Entropy //
+//---------------//
+
+std::shared_ptr<Divergence> CrossEntropy::clone() const
+{
+    return std::make_shared<CrossEntropy>(*this);
+}
+
+Scalar CrossEntropy::operator()(const IndexRange & innerRange)
+{
+    // Estimate distributions
+    this->m_densityEstimator->fit(innerRange);
+    DataTensor::Index numExtremes = innerRange.shape().prod(0, MAXDIV_INDEX_DIMENSION - 2);
+    
+    // Compute cross-entropy
+    Scalar score = 0;
+    if (this->m_gaussDensityEstimator)
+    {
+        // There is a closed form solution for the cross-entropy for normal distributions:
+        // H(I, Omega) = (trace(S_Omega^-1 * S_I) + (mu_I - mu_Omega)^T * S_Omega^-1 * (mu_I - mu_Omega) + log(|S_Omega|) + D * log(2*pi)) / 2
+        GaussianDensityEstimator * gde = this->m_gaussDensityEstimator.get();
+        if (this->m_mode == KLMode::I_OMEGA || this->m_mode == KLMode::SYM || this->m_mode == KLMode::UNBIASED)
+        {
+            score += gde->mahalanobisDistance(gde->getInnerMean(), gde->getOuterMean(), false) - 2 * gde->getLogNormalizer();
+            switch (gde->getMode())
+            {
+                case GaussianDensityEstimator::CovMode::FULL:
+                    score += gde->getOuterCovChol().solve(gde->getInnerCov()).trace() + gde->getOuterCovLogDet();
+                    break;
+                case GaussianDensityEstimator::CovMode::SHARED:
+                    score += this->m_numAttributes() + gde->getOuterCovLogDet();
+                    break;
+                case GaussianDensityEstimator::CovMode::ID:
+                    score += this->m_numAttributes();
+                    break;
+            }
+        }
+        if (this->m_mode == KLMode::OMEGA_I || this->m_mode == KLMode::SYM)
+        {
+            score += gde->mahalanobisDistance(gde->getOuterMean(), gde->getInnerMean(), true) - 2 * gde->getLogNormalizer();
+            switch (gde->getMode())
+            {
+                case GaussianDensityEstimator::CovMode::FULL:
+                    score += gde->getInnerCovChol().solve(gde->getOuterCov()).trace() + gde->getInnerCovLogDet();
+                    break;
+                case GaussianDensityEstimator::CovMode::SHARED:
+                    score += this->m_numAttributes() + gde->getInnerCovLogDet();
+                    break;
+                case GaussianDensityEstimator::CovMode::ID:
+                    score += this->m_numAttributes();
+                    break;
+            }
+        }
+        if (this->m_mode == KLMode::UNBIASED)
+        {
+            score *= numExtremes;
+            if (gde->getMode() == GaussianDensityEstimator::CovMode::FULL)
+                score = score - this->m_chiMean / this->m_chiSD;
+        }
+    }
+    else
+    {
+        if (this->m_mode == KLMode::I_OMEGA || this->m_mode == KLMode::SYM || this->m_mode == KLMode::UNBIASED)
+        {
+            std::pair<Scalar, Scalar> ll = this->m_densityEstimator->logLikelihoodInner();
+            score -= ll.second / ((this->m_mode != KLMode::UNBIASED) ? numExtremes : 1);
+        }
+        if (this->m_mode == KLMode::OMEGA_I || this->m_mode == KLMode::SYM)
+        {
+            std::pair<Scalar, Scalar> ll = this->m_densityEstimator->logLikelihoodOuter();
+            score -= ll.first / (this->m_numSamples - numExtremes);
+        }
+    }
+    return score;
+}
+
+
 //---------------------------//
 // Jensen-Shannon Divergence //
 //---------------------------//

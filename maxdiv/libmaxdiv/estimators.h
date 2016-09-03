@@ -599,6 +599,21 @@ public:
     const Scalar getOuterCovLogDet() const { return this->m_outerCovLogDet; };
     
     /**
+    * @return Returns the cached value of `-D/2 * log(2 * pi)`.
+    */
+    const Scalar getLogNormalizer() const { return this->m_logNormalizer; };
+    
+    /**
+    * @return Returns the cached value of `this->getLogNormalizer() - this->getInnerCovLogDet() / 2`.
+    */
+    const Scalar getInnerLogNormalizer() const { return this->m_innerLogNormalizer; };
+    
+    /**
+    * @return Returns the cached value of `this->getLogNormalizer() - this->getOuterCovLogDet() / 2`.
+    */
+    const Scalar getOuterLogNormalizer() const { return this->m_outerLogNormalizer; };
+    
+    /**
     * Computes the Mahalanobis distance between two vectors using the covariance matrix estimated during the last call to `fit()`.
     *
     * @param[in] x1 First vector.

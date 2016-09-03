@@ -24,7 +24,7 @@ using namespace std;
 using namespace std::chrono;
 
 
-enum maxdiv_divergence_t { MAXDIV_KL_DIVERGENCE, MAXDIV_JS_DIVERGENCE };
+enum maxdiv_divergence_t { MAXDIV_KL_DIVERGENCE, MAXDIV_JS_DIVERGENCE, MAXDIV_CROSS_ENTROPY };
 enum maxdiv_estimator_t { MAXDIV_KDE, MAXDIV_GAUSSIAN, MAXDIV_ERPH };
 enum maxdiv_proposal_generator_t { MAXDIV_DENSE_PROPOSALS, MAXDIV_POINTWISE_PROPOSALS_HOTELLINGST, MAXDIV_POINTWISE_PROPOSALS_KDE };
 
@@ -70,6 +70,9 @@ DetectionList apply_maxdiv(const std::shared_ptr<DataTensor> & data,
             break;
         case MAXDIV_JS_DIVERGENCE:
             div = std::make_shared<JSDivergence>(densityEstimator);
+            break;
+        case MAXDIV_CROSS_ENTROPY:
+            div = std::make_shared<CrossEntropy>(densityEstimator, kl_mode);
             break;
         default:
             return detections;
@@ -264,6 +267,16 @@ int main(int argc, char * argv[])
                 }
                 else if (argstr == "JS")
                     divergence = MAXDIV_JS_DIVERGENCE;
+                else if (argstr == "CROSSENT")
+                {
+                    divergence = MAXDIV_CROSS_ENTROPY;
+                    kl_mode = KLDivergence::KLMode::I_OMEGA;
+                }
+                else if (argstr == "CROSSENT_TS")
+                {
+                    divergence = MAXDIV_CROSS_ENTROPY;
+                    kl_mode = KLDivergence::KLMode::UNBIASED;
+                }
                 else
                 {
                     cerr << "Unknown divergence: " << argstr << endl << "See --help for a list of possible values." << endl;
@@ -540,7 +553,7 @@ void printHelp(const char * progName)
          << "        Print the time taken by the algorithm to stderr." << endl
          << endl
          << "    --divergence <str>, -d <str> (default: KL_I_OMEGA)" << endl
-         << "        Divergence measure. One of: KL_I_OMEGA, KL_OMEGA_I, KL_SYM, KL_UNBIASED, JS" << endl
+         << "        Divergence measure. One of: KL_I_OMEGA, KL_OMEGA_I, KL_SYM, KL_UNBIASED, JS, CROSSENT, CROSSENT_TS" << endl
          << endl
          << "    --estimator <str>, -e <str> (default: GAUSSIAN)" << endl
          << "        Distribution model. One of: GAUSSIAN, GAUSSIAN_GLOBAL_COV, GAUSSIAN_ID_COV, PARZEN, ERPH" << endl
