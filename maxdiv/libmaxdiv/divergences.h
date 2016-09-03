@@ -216,17 +216,6 @@ public:
     virtual std::shared_ptr<Divergence> clone() const override;
     
     /**
-    * Initializes the density estimator used by this divergence with a given DataTensor @p data.
-    */
-    virtual void init(const std::shared_ptr<const DataTensor> & data) override;
-    
-    /**
-    * Resets this divergence and the density estimator to their uninitialized state and releases any
-    * memory allocated by `init()`.
-    */
-    virtual void reset() override;
-    
-    /**
     * Approximates the cross-entropy between a given sub-block of the data passed to `init()` and the rest
     * of that data tensor by evaluating one of the following formulas:
     *

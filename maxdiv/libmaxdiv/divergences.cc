@@ -188,10 +188,10 @@ Scalar CrossEntropy::operator()(const IndexRange & innerRange)
                     score += gde->getOuterCovChol().solve(gde->getInnerCov()).trace() + gde->getOuterCovLogDet();
                     break;
                 case GaussianDensityEstimator::CovMode::SHARED:
-                    score += this->m_numAttributes() + gde->getOuterCovLogDet();
+                    score += this->m_numAttributes + gde->getOuterCovLogDet();
                     break;
                 case GaussianDensityEstimator::CovMode::ID:
-                    score += this->m_numAttributes();
+                    score += this->m_numAttributes;
                     break;
             }
         }
@@ -204,10 +204,10 @@ Scalar CrossEntropy::operator()(const IndexRange & innerRange)
                     score += gde->getInnerCovChol().solve(gde->getOuterCov()).trace() + gde->getInnerCovLogDet();
                     break;
                 case GaussianDensityEstimator::CovMode::SHARED:
-                    score += this->m_numAttributes() + gde->getInnerCovLogDet();
+                    score += this->m_numAttributes + gde->getInnerCovLogDet();
                     break;
                 case GaussianDensityEstimator::CovMode::ID:
-                    score += this->m_numAttributes();
+                    score += this->m_numAttributes;
                     break;
             }
         }
