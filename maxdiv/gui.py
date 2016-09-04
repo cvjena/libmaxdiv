@@ -44,7 +44,8 @@ MIN_DET_ZOOM_SIZE = 2000
 MODES = [
     ('TS', 'Kullback-Leibler (prefer larger intervals)'),
     ('I_OMEGA', 'Kullback-Leibler (prefer smaller intervals)'),
-    ('CROSSENT', 'Cross Entropy'),
+    ('CROSSENT_TS', 'Cross Entropy (prefer larger intervals)'),
+    ('CROSSENT', 'Cross Entropy (prefer smaller intervals)'),
     ('JSD', 'Jensen-Shannon')
 ]
 
