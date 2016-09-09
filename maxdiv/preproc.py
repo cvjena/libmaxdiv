@@ -46,11 +46,13 @@ def td(X, k = None, T = 1, opt_th = 0.05):
     
     k, T = td_params(X, k, T, opt_th)
 
-    newX = np.copy(X)
+    newX = X.copy()
     for i in range(1, k):
         shift = np.arange(-i * T, X.shape[1] - (i * T), 1)
         shift[shift<0] = 0
-        newX = np.vstack([newX, X[:, shift]])
+        newX = np.ma.vstack([newX, X[:, shift]]) if np.ma.isMaskedArray(X) else np.vstack([newX, X[:, shift]])
+    if np.ma.isMaskedArray(newX):
+        newX = np.ma.mask_cols(newX)
     return newX
 
 
@@ -100,7 +102,7 @@ def detect_periods(ts):
     periods = {}
     for d in range(ts.shape[0]):
         # Threshold
-        th = np.mean(ps[d,:]) + 3 * np.std(ps[d,:])
+        th = ps[d,:].mean() + 3 * ps[d,:].std()
         period = (ps[d, :(ps.shape[1]//2)+1].ravel() > th)
         # Ignore implausibly long periods
         period[0:7] = False
@@ -146,14 +148,17 @@ def deseasonalize_zscore(ts, period_len):
     for h in range(period_len):
         if (ts.ndim == 1) or (ts.shape[0] == 1):
             values = ts.flat[h::period_len]
-            norm_func.flat[h::period_len] -= np.mean(values)
-            norm_func.flat[h::period_len] /= np.std(values)
+            norm_func.flat[h::period_len] -= values.mean()
+            norm_func.flat[h::period_len] /= values.std()
         else:
             values = ts[:, h::period_len]
-            mu = np.mean(values, axis = 1)
-            cov = np.cov(values)
+            mu = values.mean(axis = 1)
+            cov = np.ma.cov(values).filled(0)
             zeromean_X = (values.T - mu).T
-            norm_func[:,h::period_len] = np.dot(sqrtm(np.linalg.inv(cov)), zeromean_X)
+            if not np.ma.isMaskedArray(norm_func):
+                norm_func[:,h::period_len] = np.dot(sqrtm(np.linalg.inv(cov)), zeromean_X)
+            else:
+                norm_func[:,h::period_len] = np.ma.dot(sqrtm(np.linalg.inv(cov)), zeromean_X)
     return norm_func
 
 
@@ -166,6 +171,10 @@ def detrend_linear(ts):
     # First column of A: 0 to N-1. Second column of A: constantly 1.
     N = len(ts) if ts.ndim == 1 else ts.shape[1]
     A = np.hstack((np.arange(0.0, float(N)).reshape((N, 1)), np.ones((N, 1))))
+    
+    # Remove columns corresponding to missing values
+    if np.ma.isMaskedArray(ts):
+        A[ts.mask[0,:], :] = 0
     
     # Fit robust lines
     line_params = np.ndarray((2, 1 if ts.ndim == 1 else ts.shape[0]))
@@ -245,8 +254,12 @@ def detrend_ols(ts, periods = None, linear_trend = True, linear_season_trend = F
                 A[t, offs + num_season_coeffs + ind] = float(t) / season_num
             offs += season_num
     
+    # Remove columns corresponding to missing values
+    if np.ma.isMaskedArray(func):
+        A[func.mask[0,:], :] = 0
+    
     # Estimate parameters and detrend time series
-    ols_seasonality = np.linalg.lstsq(A, func.T)[0]
+    ols_seasonality = np.linalg.lstsq(A, (func.T if not np.ma.isMaskedArray(func) else func.filled(0).T))[0]
     ols_seasonal_ts = A.dot(ols_seasonality).T
     norm_func_ols = func - ols_seasonal_ts
     if ts.ndim == 1:
@@ -261,7 +274,7 @@ def pca_projection(X, k):
     # mean center the data
     C = (X.T - X.mean(axis = 1)).T
     # calculate the covariance matrix
-    R = np.cov(C)
+    R = np.ma.cov(C).filled(0)
     # calculate eigenvectors & eigenvalues of the covariance matrix
     # use 'eigh' rather than 'eig' since R is symmetric, 
     # the performance gain is substantial
@@ -274,7 +287,7 @@ def pca_projection(X, k):
     # select the first k eigenvectors
     evecs = evecs[:, :k]
     # transform data
-    return np.dot(evecs[:, :k].T, C)
+    return np.dot(evecs[:, :k].T, C) if not np.ma.isMaskedArray(C) else np.ma.dot(evecs[:, :k].T, C)
 
 
 def sparse_random_projection(X, k):
@@ -291,4 +304,4 @@ def sparse_random_projection(X, k):
         proj[i, dim_range[:proj_dims]] = np.random.randn(proj_dims)
     
     # Project data
-    return proj.dot(X)
+    return proj.dot(X) if not np.ma.isMaskedArray(X) else np.ma.dot(proj, X)

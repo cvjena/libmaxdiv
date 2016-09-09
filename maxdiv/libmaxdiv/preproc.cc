@@ -99,10 +99,16 @@ int TimeDelayEmbedding::determineContextWindowSize(const DataTensor & data) cons
     DataTensor sum(flatShape);
     sum.asTemporalMatrix() = data.asTemporalMatrix().colwise().sum();
     
+    // Get missing sample mask
+    DataTensor::Mask mask;
+    if (data.hasMissingSamples())
+        data.getMask(mask);
+    
     // Compute mutual information for each location and various distances
     flatShape.d = std::min(data.length() / 20, this->maxContextWindowSize);
     DataTensor mi(flatShape);
-    mi.channel(0).setConstant(1); // not used
+    mi.channel(0).setConstant(1); // valid location indicator
+    DataTensor::Index numValidSamples, numValidLeft, numValidRight, numValidJoint;
     Sample sumLeft(na), sumRight(na), mean(2 * na), centered(2 * na);
     ScalarMatrix cov(2 * na, 2 * na);
     ScalarMatrix indepCov = ScalarMatrix::Zero(2 * na, 2 * na);
@@ -113,26 +119,51 @@ int TimeDelayEmbedding::determineContextWindowSize(const DataTensor & data) cons
         {
             sumLeft.setZero();
             sumRight.setZero();
+            numValidSamples = (mask.empty()) ? data.length() : data.length() - mask.asTemporalMatrix().col(loc.prod(1, 3)).count();
+            numValidLeft = numValidRight = 0;
         }
         else
         {
             // Sum up samples in cropped regions
-            sumLeft += data(loc.d - 1, loc.x, loc.y, loc.z);
-            sumRight += data(data.length() - loc.d, loc.x, loc.y, loc.z);
+            if (mask.empty() || !mask({ loc.d - 1, loc.x, loc.y, loc.z, 0 }))
+            {
+                sumLeft += data(loc.d - 1, loc.x, loc.y, loc.z);
+                ++numValidLeft;
+            }
+            if (mask.empty() || !mask({ data.length() - loc.d, loc.x, loc.y, loc.z, 0 }))
+            {
+                sumRight += data(data.length() - loc.d, loc.x, loc.y, loc.z);
+                ++numValidRight;
+            }
+            
+            if (numValidSamples <= numValidLeft || numValidSamples <= numValidRight)
+            {
+                mi(loc) = 1;
+                mi({ loc.t, loc.x, loc.y, loc.z, 0 }) = 0; // indicate invalid location
+                continue;
+            }
             
             // Compute mean and covariance of joint distribution
-            DataTensor::Index validLength = data.length() - loc.d;
-            mean.head(na) = (sum(0, loc.x, loc.y, loc.z) - sumLeft) / validLength;
-            mean.tail(na) = (sum(0, loc.x, loc.y, loc.z) - sumRight) / validLength;
+            mean.head(na) = (sum(0, loc.x, loc.y, loc.z) - sumLeft) / (numValidSamples - numValidLeft);
+            mean.tail(na) = (sum(0, loc.x, loc.y, loc.z) - sumRight) / (numValidSamples - numValidRight);
             cov.setZero();
+            numValidJoint = 0;
             for (DataTensor::Index t = loc.d; t < data.length(); ++t)
+                if (mask.empty() || (!mask({ t, loc.x, loc.y, loc.z, 0 }) && !mask({ t - loc.d, loc.x, loc.y, loc.z, 0 })))
+                {
+                    centered.head(na) = data(t, loc.x, loc.y, loc.z);
+                    centered.tail(na) = data(t - loc.d, loc.x, loc.y, loc.z);
+                    centered -= mean;
+                    cov.noalias() += centered * centered.transpose();
+                    ++numValidJoint;
+                }
+            if (numValidJoint < 2)
             {
-                centered.head(na) = data(t, loc.x, loc.y, loc.z);
-                centered.tail(na) = data(t - loc.d, loc.x, loc.y, loc.z);
-                centered -= mean;
-                cov.noalias() += centered * centered.transpose();
+                mi(loc) = 1;
+                mi({ loc.t, loc.x, loc.y, loc.z, 0 }) = 0; // indicate invalid location
+                continue;
             }
-            cov /= validLength - 1;
+            cov /= numValidJoint - 1;
             
             // Set up covariance of independent distribution
             indepCov.block(0, 0, na, na) = cov.block(0, 0, na, na);
@@ -165,23 +196,28 @@ int TimeDelayEmbedding::determineContextWindowSize(const DataTensor & data) cons
     for (DataTensor::Index loc = 0; loc < mi.numSamples(); ++loc)
     {
         const auto sample = mi.sample(loc);
-        DataTensor::Index minInd = 0, d;
-        for (d = 1; d < mi.numAttrib() - 1; ++d)
+        if (sample(0) != 0)
         {
-            if (sample(d) <= opt_th)
+            DataTensor::Index minInd = 0, d;
+            for (d = 1; d < mi.numAttrib() - 1; ++d)
             {
-                cws.push_back(d + 1);
-                break;
+                if (sample(d) <= opt_th)
+                {
+                    cws.push_back(d + 1);
+                    break;
+                }
+                if (sample(d) < sample(minInd))
+                    minInd = d;
             }
-            if (sample(d) < sample(minInd))
-                minInd = d;
+            if (d >= mi.numAttrib() - 1)
+                cws.push_back(minInd + 1);
         }
-        if (d >= mi.numAttrib() - 1)
-            cws.push_back(minInd + 1);
     }
     
     // Return median context window size
-    if (cws.size() == 1)
+    if (cws.empty())
+        return 1;
+    else if (cws.size() == 1)
         return cws[0];
     else
     {
@@ -198,9 +234,9 @@ DataTensor & Normalizer::operator()(DataTensor & data) const
 {
     if (!data.empty())
     {
-        data -= data.data().colwise().mean();
+        data -= data.data().colwise().sum() / static_cast<Scalar>(data.numValidSamples());
         if (this->scaleBySD)
-            data /= data.data().cwiseAbs2().colwise().mean().cwiseSqrt();
+            data /= (data.data().cwiseAbs2().colwise().sum() / static_cast<Scalar>(data.numValidSamples())).cwiseSqrt();
         else
             data /= data.data().cwiseAbs().colwise().maxCoeff();
     }
@@ -230,20 +266,34 @@ DataTensor & LinearDetrending::operator()(const DataTensor & dataIn, DataTensor 
     for (unsigned int d = 1; d <= this->degree; d++)
     {
         A.col(d).setLinSpaced(static_cast<Scalar>(0), static_cast<Scalar>(dataIn.length() - 1));
-        A.col(d) = A.col(d).cwiseProduct(A.col(d - 1));
+        if (d > 1)
+            A.col(d) = A.col(d).cwiseProduct(A.col(d - 1));
     }
     Eigen::ColPivHouseholderQR<ScalarMatrix> qr(A);
     
+    // Construct selector matrix for exclusion of missing values
+    DataTensor::Mask mask;
+    if (dataIn.hasMissingSamples())
+        dataIn.getMask(mask);
+    
     // Perform least squares estimation for each spatial location and attribute
     auto tsOut = dataOut.asTemporalMatrix();
+    auto tsMask = mask.asTemporalMatrix();
     Sample params(this->degree + 1);
     ScalarMatrix::Index ts;
     
-    #pragma omp parallel for private(params)
+    #pragma omp parallel for private(ts,params)
     for (ts = 0; ts < tsOut.cols(); ++ts)
     {
         // Fit polynomial
-        params = qr.solve(tsOut.col(ts));
+        if (mask.empty() || !tsMask.col(ts / dataIn.numAttrib()).any())
+            params = qr.solve(tsOut.col(ts));
+        else if (tsMask.rows() - tsMask.col(ts / dataIn.numAttrib()).count() > params.size())
+            params = Eigen::ColPivHouseholderQR<ScalarMatrix>(
+                        tsMask.col(ts / dataIn.numAttrib()).replicate(1, A.cols()).select(static_cast<Scalar>(0), A)
+                     ).solve(tsOut.col(ts));
+        else
+            params.setZero();
         // Subtract trend
         tsOut.col(ts).noalias() -= A * params;
         // Store parameters
@@ -323,8 +373,14 @@ DataTensor & OLSDetrending::operator()(const DataTensor & dataIn, DataTensor & d
     // though not as accurate.
     Eigen::LLT<ScalarMatrix> llt(A.transpose() * A);
     
+    // Construct selector matrix for exclusion of missing values
+    DataTensor::Mask mask;
+    if (dataIn.hasMissingSamples())
+        dataIn.getMask(mask);
+    
     // Perform least squares estimation for each spatial location and attribute
     auto tsOut = dataOut.asTemporalMatrix();
+    auto tsMask = mask.asTemporalMatrix();
     Sample params(numParams);
     ScalarMatrix::Index ts;
     
@@ -332,7 +388,15 @@ DataTensor & OLSDetrending::operator()(const DataTensor & dataIn, DataTensor & d
     for (ts = 0; ts < tsOut.cols(); ++ts)
     {
         // Least squares solving
-        params = llt.solve(A.transpose() * tsOut.col(ts));
+        if (mask.empty() || !tsMask.col(ts / dataIn.numAttrib()).any())
+            params = llt.solve(A.transpose() * tsOut.col(ts));
+        else if (tsMask.rows() - tsMask.col(ts / dataIn.numAttrib()).count() > params.size())
+        {
+            ScalarMatrix maskedA = tsMask.col(ts / dataIn.numAttrib()).replicate(1, A.cols()).select(static_cast<Scalar>(0), A);
+            params = Eigen::LLT<ScalarMatrix>(maskedA.transpose() * maskedA).solve(maskedA.transpose() * tsOut.col(ts));
+        }
+        else
+            params.setZero();
         // Subtract trend
         tsOut.col(ts).noalias() -= A * params;
         // Store parameters
@@ -352,10 +416,17 @@ DataTensor & ZScoreDeseasonalization::operator()(DataTensor & data) const
         return data;
     
     DataTensor::Index nAttrib = data.numAttrib(),
-                      cols = data.shape().prod(1),
+                      locs = data.shape().prod(1, 3),
+                      cols = locs * nAttrib,
                       rowStride = cols * this->period_len,
+                      maskStride = locs * this->period_len,
                       groups = data.length() / this->period_len,
                       overhang = data.length() % this->period_len;
+    
+    DataTensor::Mask mask;
+    if (data.hasMissingSamples())
+        data.getMask(mask);
+    mask.data() = mask.data().cwiseEqual(false); // cwise not
     
     if (nAttrib == 1)
     {
@@ -368,8 +439,23 @@ DataTensor & ZScoreDeseasonalization::operator()(DataTensor & data) const
                 groups + ((p < overhang) ? 1 : 0), cols,
                 Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(rowStride, 1)
             );
-            seasonData.rowwise() -= seasonData.colwise().mean();
-            seasonData.array().rowwise() /= seasonData.cwiseAbs2().colwise().mean().cwiseSqrt().array();
+            if (mask.empty())
+            {
+                seasonData.rowwise() -= seasonData.colwise().mean();
+                seasonData.array().rowwise() /= seasonData.cwiseAbs2().colwise().mean().cwiseSqrt().array();
+            }
+            else
+            {
+                Eigen::Map< DataTensor::Mask::ScalarMatrix, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > seasonMask(
+                    mask.raw() + p * locs,
+                    groups + ((p < overhang) ? 1 : 0), locs,
+                    Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(maskStride, 1)
+                );
+                Sample numValidSamples = seasonMask.colwise().count().cwiseMax(1).cast<Scalar>();
+                seasonData.rowwise() -= seasonData.colwise().sum().cwiseQuotient(numValidSamples);
+                data.setMissingValues();
+                seasonData.array().rowwise() /= seasonData.cwiseAbs2().colwise().sum().cwiseQuotient(numValidSamples).cwiseSqrt().array();
+            }
         }
     }
     else
@@ -385,8 +471,27 @@ DataTensor & ZScoreDeseasonalization::operator()(DataTensor & data) const
                 Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(rowStride, 1)
             );
             
+            // Determine number of valid samples per column
+            Sample numValidSamples(cols);
+            if (mask.empty())
+                numValidSamples.setConstant(seasonData.rows());
+            else
+            {
+                Eigen::Map< DataTensor::Mask::ScalarMatrix, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > seasonMask(
+                    mask.raw() + p * locs,
+                    groups + ((p < overhang) ? 1 : 0), locs,
+                    Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(maskStride, 1)
+                );
+                for (DataTensor::Index d = 0; d < locs; ++d)
+                    numValidSamples.segment(d * nAttrib, nAttrib).setConstant(
+                        std::max(static_cast<Scalar>(seasonMask.col(d).count()), static_cast<Scalar>(1))
+                    );
+            }
+            
             // Subtract the mean of the group
-            seasonData.rowwise() -= seasonData.colwise().mean();
+            seasonData.rowwise() -= seasonData.colwise().sum().cwiseQuotient(numValidSamples);
+            if (!mask.empty())
+                data.setMissingValues();
             
             // Normalize the time series at each spatial location using its covariance
             // matrix S: x' = S^(-1/2) * x
@@ -396,7 +501,7 @@ DataTensor & ZScoreDeseasonalization::operator()(DataTensor & data) const
             {
                 auto locSeasonData = seasonData.block(0, offs, seasonData.rows(), nAttrib);
                 cov.noalias() = locSeasonData.transpose() * locSeasonData;
-                cov /= seasonData.rows();
+                cov /= numValidSamples(offs);
                 es.compute(cov);
                 locSeasonData = locSeasonData * es.operatorInverseSqrt();
             }
@@ -411,12 +516,14 @@ DataTensor & PCAProjection::operator()(const DataTensor & dataIn, DataTensor & d
 {
     // Center data
     ScalarMatrix data = dataIn.data();
-    data.rowwise() -= data.colwise().mean();
+    data.rowwise() -= data.colwise().sum() / static_cast<Scalar>(dataIn.numValidSamples());
+    for (const DataTensor::Index & missing : dataIn.getMissingSampleIndices())
+        data.row(missing).setZero();
     
     // Compute covariance matrix
     ScalarMatrix cov;
     cov.noalias() = data.transpose() * data;
-    cov /= static_cast<double>(data.rows() - 1);
+    cov /= static_cast<Scalar>(dataIn.numValidSamples() - 1);
     
     // Perform Eigen decomposition
     Eigen::SelfAdjointEigenSolver<ScalarMatrix> eigensolver(cov);
@@ -445,6 +552,7 @@ DataTensor & PCAProjection::operator()(const DataTensor & dataIn, DataTensor & d
     shape.d = k;
     dataOut.resize(shape);
     dataOut.data().noalias() = data * proj;
+    dataOut.copyMask(dataIn);
     
     return dataOut;
 }
@@ -484,6 +592,7 @@ DataTensor & SparseRandomProjection::operator()(const DataTensor & dataIn, DataT
     shape.d = this->k;
     dataOut.resize(shape);
     dataOut.data().noalias() = dataIn.data() * proj.transpose();
+    dataOut.copyMask(dataIn);
     
     return dataOut;
 }

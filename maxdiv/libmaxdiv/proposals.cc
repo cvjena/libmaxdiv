@@ -1,5 +1,6 @@
 #include "proposals.h"
 #include <algorithm>
+#include <vector>
 #include <cassert>
 #include "pointwise_detectors.h"
 using namespace MaxDiv;
@@ -22,14 +23,16 @@ ProposalGenerator::ProposalGenerator(IndexRange lengthRange)
 
 ProposalGenerator::~ProposalGenerator() {}
 
-void ProposalGenerator::init(const DataTensor & data)
+void ProposalGenerator::init(const std::shared_ptr<const DataTensor> & data)
 {
-    this->m_curStartPoint = data.makeIndexVector();
+    this->m_data = data;
+    this->m_curStartPoint = data->makeIndexVector();
     this->m_internalState.reset();
 }
 
 void ProposalGenerator::reset()
 {
+    this->m_data.reset();
     this->m_curStartPoint = IndexVector();
     this->m_internalState.reset();
 }
@@ -98,7 +101,7 @@ ProposalIterator ProposalGenerator::iteratePartial(unsigned int num_groups, unsi
 
 DenseProposalGenerator::DenseProposalGenerator() : ProposalGenerator() {}
 
-DenseProposalGenerator::DenseProposalGenerator(const DataTensor & data) : ProposalGenerator()
+DenseProposalGenerator::DenseProposalGenerator(const std::shared_ptr<const DataTensor> & data) : ProposalGenerator()
 {
     this->init(data);
 }
@@ -107,7 +110,7 @@ DenseProposalGenerator::DenseProposalGenerator(DataTensor::Index minLength, Data
 : ProposalGenerator(minLength, maxLength)
 {}
 
-DenseProposalGenerator::DenseProposalGenerator(DataTensor::Index minLength, DataTensor::Index maxLength, const DataTensor & data)
+DenseProposalGenerator::DenseProposalGenerator(DataTensor::Index minLength, DataTensor::Index maxLength, const std::shared_ptr<const DataTensor> & data)
 : ProposalGenerator(minLength, maxLength)
 {
     this->init(data);
@@ -115,7 +118,7 @@ DenseProposalGenerator::DenseProposalGenerator(DataTensor::Index minLength, Data
 
 DenseProposalGenerator::DenseProposalGenerator(IndexRange lengthRange) : ProposalGenerator(lengthRange) {}
 
-DenseProposalGenerator::DenseProposalGenerator(IndexRange lengthRange, const DataTensor & data)
+DenseProposalGenerator::DenseProposalGenerator(IndexRange lengthRange, const std::shared_ptr<const DataTensor> & data)
 : ProposalGenerator(lengthRange)
 {
     this->init(data);
@@ -128,7 +131,7 @@ void DenseProposalGenerator::initState(const ReflessIndexVector & startIndex, st
     rangeEndOffs->vec() = this->m_lengthRange.a.vec().max(1).min(this->m_curStartPoint.shape.vec()) - 1;
     rangeEndOffs->d = this->m_curStartPoint.shape.d - 1;
     
-    // Set shape to the available or maximal allowed length
+    // Set shape to the available or maximum allowed length
     rangeEndOffs->shape = this->m_lengthRange.b;
     rangeEndOffs->shape.d = this->m_curStartPoint.shape.d;
     
@@ -149,32 +152,40 @@ IndexRange DenseProposalGenerator::next(const ReflessIndexVector & startIndex, s
     if (this->m_curStartPoint.shape.t == 0 || startIndex.t >= this->m_curStartPoint.shape.t)
         return IndexRange();
     
+    IndexVector rangeStart, rangeEnd;
     IndexVector * rangeEndOffs;
-    if (!state)
+    IndexRange range;
+    do
     {
-        // first proposal
-        this->initState(startIndex, state);
-        rangeEndOffs = reinterpret_cast<IndexVector*>(state.get());
+        if (!state)
+        {
+            // first proposal
+            this->initState(startIndex, state);
+            rangeEndOffs = reinterpret_cast<IndexVector*>(state.get());
+        }
+        else
+        {
+            // Forward offset
+            rangeEndOffs = reinterpret_cast<IndexVector*>(state.get());
+            *rangeEndOffs += rangeEndOffs->shape.d;
+            // Respect minimum length
+            for (unsigned int i = 0; i < MAXDIV_INDEX_DIMENSION - 1; i++)
+                if (this->m_curStartPoint.shape.ind[i] > 1 && this->m_lengthRange.a.ind[i] > 0 && rangeEndOffs->ind[i] < this->m_lengthRange.a.ind[i] - 1)
+                    rangeEndOffs->ind[i] = this->m_lengthRange.a.ind[i] - 1;
+        }
+        
+        if ((rangeEndOffs->vec() >= rangeEndOffs->shape.vec()).any())
+            return IndexRange(); // Maximum length reached -> no proposals left
+        
+        rangeStart = startIndex;
+        rangeStart.d = 0;
+        rangeEnd = rangeStart + *rangeEndOffs;
+        rangeEnd.vec() += 1;
+        range = IndexRange(rangeStart, rangeEnd);
     }
-    else
-    {
-        // Forward offset
-        rangeEndOffs = reinterpret_cast<IndexVector*>(state.get());
-        *rangeEndOffs += rangeEndOffs->shape.d;
-        // Respect minimum length
-        for (unsigned int i = 0; i < MAXDIV_INDEX_DIMENSION - 1; i++)
-            if (this->m_curStartPoint.shape.ind[i] > 1 && this->m_lengthRange.a.ind[i] > 0 && rangeEndOffs->ind[i] < this->m_lengthRange.a.ind[i] - 1)
-                rangeEndOffs->ind[i] = this->m_lengthRange.a.ind[i] - 1;
-    }
+    while (this->m_data->isRangeReducable(range));
     
-    if ((rangeEndOffs->vec() >= rangeEndOffs->shape.vec()).any())
-        return IndexRange(); // Maximum length reached -> no proposals left
-    
-    IndexVector rangeStart = startIndex;
-    rangeStart.d = 0;
-    IndexVector rangeEnd = rangeStart + *rangeEndOffs;
-    rangeEnd.vec() += 1;
-    return IndexRange(rangeStart, rangeEnd);
+    return range;
 }
 
 
@@ -197,13 +208,13 @@ PointwiseProposalGenerator::PointwiseProposalGenerator(const Params & params)
 : DenseProposalGenerator(), m_params(params), m_scores(), m_th()
 {}
 
-PointwiseProposalGenerator::PointwiseProposalGenerator(const DataTensor & data)
+PointwiseProposalGenerator::PointwiseProposalGenerator(const std::shared_ptr<const DataTensor> & data)
 : DenseProposalGenerator(), m_params(defaultParams), m_scores(), m_th()
 {
     this->init(data);
 }
 
-PointwiseProposalGenerator::PointwiseProposalGenerator(const Params & params, const DataTensor & data)
+PointwiseProposalGenerator::PointwiseProposalGenerator(const Params & params, const std::shared_ptr<const DataTensor> & data)
 : DenseProposalGenerator(), m_params(params), m_scores(), m_th()
 {
     this->init(data);
@@ -217,13 +228,13 @@ PointwiseProposalGenerator::PointwiseProposalGenerator(DataTensor::Index minLeng
 : DenseProposalGenerator(minLength, maxLength), m_params(params), m_scores(), m_th()
 {}
 
-PointwiseProposalGenerator::PointwiseProposalGenerator(DataTensor::Index minLength, DataTensor::Index maxLength, const DataTensor & data)
+PointwiseProposalGenerator::PointwiseProposalGenerator(DataTensor::Index minLength, DataTensor::Index maxLength, const std::shared_ptr<const DataTensor> & data)
 : DenseProposalGenerator(minLength, maxLength), m_params(defaultParams), m_scores(), m_th()
 {
     this->init(data);
 }
 
-PointwiseProposalGenerator::PointwiseProposalGenerator(DataTensor::Index minLength, DataTensor::Index maxLength, const Params & params, const DataTensor & data)
+PointwiseProposalGenerator::PointwiseProposalGenerator(DataTensor::Index minLength, DataTensor::Index maxLength, const Params & params, const std::shared_ptr<const DataTensor> & data)
 : DenseProposalGenerator(minLength, maxLength), m_params(params), m_scores(), m_th()
 {
     this->init(data);
@@ -237,32 +248,26 @@ PointwiseProposalGenerator::PointwiseProposalGenerator(IndexRange lengthRange, c
 : DenseProposalGenerator(lengthRange), m_params(params), m_scores(), m_th()
 {}
 
-PointwiseProposalGenerator::PointwiseProposalGenerator(IndexRange lengthRange, const DataTensor & data)
+PointwiseProposalGenerator::PointwiseProposalGenerator(IndexRange lengthRange, const std::shared_ptr<const DataTensor> & data)
 : DenseProposalGenerator(lengthRange), m_params(defaultParams), m_scores(), m_th()
 {
     this->init(data);
 }
 
-PointwiseProposalGenerator::PointwiseProposalGenerator(IndexRange lengthRange, const Params & params, const DataTensor & data)
+PointwiseProposalGenerator::PointwiseProposalGenerator(IndexRange lengthRange, const Params & params, const std::shared_ptr<const DataTensor> & data)
 : DenseProposalGenerator(lengthRange), m_params(params), m_scores(), m_th()
 {
     this->init(data);
 }
 
-void PointwiseProposalGenerator::init(const DataTensor & data)
+void PointwiseProposalGenerator::init(const std::shared_ptr<const DataTensor> & data)
 {
     DenseProposalGenerator::init(data);
     
-    // Count non-singleton dimensions
-    this->m_numDim = 0;
-    for (unsigned int d = 0; d < MAXDIV_INDEX_DIMENSION - 1; ++d)
-        if (data.shape().ind[d] > 1)
-            ++(this->m_numDim);
-    
-    if (!data.empty())
+    if (!data->empty())
     {
         // Compute point-wise scores
-        this->m_scores = this->m_params.scorer(data);
+        this->m_scores = this->m_params.scorer(*data);
         
         // Apply gradient filter
         if (this->m_params.gradientFilter && this->m_scores.numEl() > 1)
@@ -272,7 +277,16 @@ void PointwiseProposalGenerator::init(const DataTensor & data)
         Scalar mean, sd, sd_th = this->m_params.sd_th;
         if (this->m_params.mad)
         {
-            Sample tmp = this->m_scores.asVector();
+            Sample tmp;
+            if (!this->m_scores.hasMissingSamples())
+                tmp = this->m_scores.asVector();
+            else
+            {
+                tmp.resize(this->m_scores.numValidSamples());
+                for (DataTensor::Index sample = 0, tmpSample = 0; tmpSample < static_cast<DataTensor::Index>(tmp.size()); ++sample)
+                    if (!this->m_scores.isMissingSample(sample))
+                        tmp(tmpSample++) = this->m_scores.sample(sample)(0);
+            }
             Sample::Index medianIndex = tmp.size() / 2;
             std::nth_element(tmp.data(), tmp.data() + medianIndex, tmp.data() + tmp.size());
             mean = tmp(medianIndex);
@@ -282,8 +296,15 @@ void PointwiseProposalGenerator::init(const DataTensor & data)
         }
         else
         {
-            mean = this->m_scores.data().mean();
-            sd = sqrt((this->m_scores.data().array() - mean).cwiseAbs2().mean());
+            mean = this->m_scores.data().sum() / this->m_scores.numValidSamples();
+            if (!this->m_scores.hasMissingSamples())
+                sd = std::sqrt((this->m_scores.data().array() - mean).cwiseAbs2().mean());
+            else
+            {
+                DataTensor centered = this->m_scores;
+                centered.data().array() -= mean;
+                sd = std::sqrt(centered.data().cwiseAbs2().sum() / centered.numValidSamples());
+            }
         }
         
         this->m_th = mean + sd_th * sd;
@@ -346,12 +367,9 @@ IndexRange PointwiseProposalGenerator::next(const ReflessIndexVector & startInde
     // start index is an isolated peak. If so, propose ranges based on a lower threshold.
     // (Currently available for data with 1 non-singleton spatio-temporal dimension only.)
     State * searchState = reinterpret_cast<State*>(state.get());
-    if (range.empty() && firstIteration && this->m_numDim == 1)
+    if (range.empty() && firstIteration && this->m_data->nonSingletonDim() >= 0)
     {
-        // Detect the non-singleton dimension
-        unsigned int d;
-        for (d = 0; this->m_curStartPoint.shape.ind[d] <= 1 && d < MAXDIV_INDEX_DIMENSION - 1; ++d);
-        
+        int d = this->m_data->nonSingletonDim();
         bool isolated = false;
         
         DataTensor::Index peakIndex = startIndex.ind[d],
@@ -413,24 +431,36 @@ void PointwiseProposalGenerator::computeGradient(DataTensor & data) const
 {
     assert(data.shape().d == 1);
     
-    if (this->m_numDim == 1)
+    if (this->m_data->nonSingletonDim() >= 0)
     {
         // Efficient shortcut for 1-d data
         DataTensor::Index numEl = data.numEl();
         Sample vec(numEl + 2);
+        // Remove missing sample mask, but remember it
+        std::vector<DataTensor::Index> missingSamples(data.getMissingSampleIndices().begin(), data.getMissingSampleIndices().end());
+        data.removeMask();
+        // Add padding
         vec.segment(1, numEl) = data.asVector();
         vec(0) = vec(1);
         vec(numEl + 1) = vec(numEl);
+        // Compute centralized gradient
         data.asVector() = (vec.tail(numEl) - vec.head(numEl)).cwiseAbs();
+        // Restore and adjust missing samples
+        for (const DataTensor::Index & missing : missingSamples)
+        {
+            data.setMissingSample((missing > 0) ? missing - 1 : 0);
+            data.setMissingSample(std::min(missing + 1, data.numSamples()));
+        }
     }
     else
     {
         // Compute the gradient magnitude for each point
         DataTensor grad(data.shape());
         IndexVector ind, prev, next;
+        DataTensor::Index sampleInd;
         unsigned int d;
         Scalar mag, val;
-        for (ind = grad.makeIndexVector(); ind.t < ind.shape.t; ++ind)
+        for (ind = grad.makeIndexVector(), sampleInd = 0; ind.t < ind.shape.t; ++ind, ++sampleInd)
         {
             mag = 0.0;
             for (d = 0; d < MAXDIV_INDEX_DIMENSION - 1; ++d)
@@ -441,10 +471,18 @@ void PointwiseProposalGenerator::computeGradient(DataTensor & data) const
                         prev.ind[d] -= 1;
                     if (next.ind[d] + 1 < ind.shape.ind[d])
                         next.ind[d] += 1;
-                    val = data(next) - data(prev);
-                    mag += val * val;
+                    if (!data.isMissingSample(prev) && !data.isMissingSample(next))
+                    {
+                        val = data(next) - data(prev);
+                        mag += val * val;
+                    }
+                    else
+                    {
+                        grad.setMissingSample(sampleInd);
+                        break;
+                    }
                 }
-            grad(ind) = mag;
+            grad.asVector()(sampleInd) = mag;
         }
         data.data() = grad.data().cwiseSqrt();
     }

@@ -33,6 +33,9 @@ DetectionList SearchStrategy::operator()(const std::shared_ptr<DataTensor> & dat
     DetectionList detections;
     if (data)
     {
+        // Mask missing values
+        data->mask();
+        
         // Apply pre-processing
         ReflessIndexVector borderSize;
         if (this->m_preproc && !this->m_preproc->empty())
@@ -63,11 +66,26 @@ DetectionList SearchStrategy::operator()(const std::shared_ptr<const DataTensor>
         // Apply pre-processing
         ReflessIndexVector borderSize;
         std::shared_ptr<const DataTensor> modData;
-        if (this->m_preproc && !this->m_preproc->empty())
+        bool hasMissingValues = data->hasMissingValues();
+        if ((this->m_preproc && !this->m_preproc->empty()) || hasMissingValues)
         {
-            borderSize = this->m_preproc->borderSize(*data);
-            DataTensor * md = new DataTensor();
-            (*(this->m_preproc))(*data, *md);
+            DataTensor * md = nullptr;
+            if (hasMissingValues)
+            {
+                md = new DataTensor(*data);
+                md->mask();
+            }
+            if (this->m_preproc && !this->m_preproc->empty())
+            {
+                borderSize = this->m_preproc->borderSize(*data);
+                if (md == nullptr)
+                {
+                    md = new DataTensor();
+                    (*(this->m_preproc))(*data, *md);
+                }
+                else
+                    (*(this->m_preproc))(*md);
+            }
             modData = std::shared_ptr<const DataTensor>(md);
         }
         else
@@ -117,7 +135,7 @@ DetectionList ProposalSearch::detect(const std::shared_ptr<const DataTensor> & d
     {
         // Initialize density estimator and proposal generator
         this->m_divergence->init(data);
-        this->m_proposals->init(*data);
+        this->m_proposals->init(data);
         
         // Score every proposed range
         if (data->numSamples() <= MAXDIV_NMP_LIMIT)

@@ -14,7 +14,7 @@ KLDivergence::KLDivergence(const std::shared_ptr<DensityEstimator> & densityEsti
 : m_mode(mode),
   m_densityEstimator(densityEstimator),
   m_gaussDensityEstimator(std::dynamic_pointer_cast<GaussianDensityEstimator>(densityEstimator)),
-  m_numSamples(0), m_numAttributes(0), m_chiMean(0), m_chiSD(1)
+  m_data(nullptr), m_chiMean(0), m_chiSD(1)
 {
     if (densityEstimator == nullptr)
         throw std::invalid_argument("densityEstimator must not be NULL.");
@@ -24,7 +24,7 @@ KLDivergence::KLDivergence(const std::shared_ptr<DensityEstimator> & densityEsti
 : m_mode(mode),
   m_densityEstimator(densityEstimator),
   m_gaussDensityEstimator(std::dynamic_pointer_cast<GaussianDensityEstimator>(densityEstimator)),
-  m_numSamples(0), m_numAttributes(0), m_chiMean(0), m_chiSD(1)
+  m_data(nullptr), m_chiMean(0), m_chiSD(1)
 {
     if (densityEstimator == nullptr)
         throw std::invalid_argument("densityEstimator must not be NULL.");
@@ -34,7 +34,7 @@ KLDivergence::KLDivergence(const std::shared_ptr<DensityEstimator> & densityEsti
 
 KLDivergence::KLDivergence(const std::shared_ptr<GaussianDensityEstimator> & densityEstimator, KLMode mode)
 : m_mode(mode), m_densityEstimator(densityEstimator), m_gaussDensityEstimator(densityEstimator),
-  m_numSamples(0), m_numAttributes(0), m_chiMean(0), m_chiSD(1)
+  m_data(nullptr), m_chiMean(0), m_chiSD(1)
 {
     if (densityEstimator == nullptr)
         throw std::invalid_argument("densityEstimator must not be NULL.");
@@ -42,7 +42,7 @@ KLDivergence::KLDivergence(const std::shared_ptr<GaussianDensityEstimator> & den
 
 KLDivergence::KLDivergence(const std::shared_ptr<GaussianDensityEstimator> & densityEstimator, const std::shared_ptr<const DataTensor> & data, KLMode mode)
 : m_mode(mode), m_densityEstimator(densityEstimator), m_gaussDensityEstimator(densityEstimator),
-  m_numSamples(0), m_numAttributes(0), m_chiMean(0), m_chiSD(1)
+  m_data(nullptr), m_chiMean(0), m_chiSD(1)
 {
     if (densityEstimator == nullptr)
         throw std::invalid_argument("densityEstimator must not be NULL.");
@@ -51,7 +51,7 @@ KLDivergence::KLDivergence(const std::shared_ptr<GaussianDensityEstimator> & den
 }
 
 KLDivergence::KLDivergence(const KLDivergence & other)
-: m_mode(other.m_mode), m_numSamples(other.m_numSamples), m_numAttributes(other.m_numAttributes), m_chiMean(other.m_chiMean), m_chiSD(other.m_chiSD)
+: m_mode(other.m_mode), m_data(other.m_data), m_chiMean(other.m_chiMean), m_chiSD(other.m_chiSD)
 {
     if (other.m_gaussDensityEstimator != nullptr)
         this->m_densityEstimator = this->m_gaussDensityEstimator = std::make_shared<GaussianDensityEstimator>(*(other.m_gaussDensityEstimator));
@@ -65,8 +65,7 @@ KLDivergence::KLDivergence(const KLDivergence & other)
 KLDivergence & KLDivergence::operator=(const KLDivergence & other)
 {
     this->m_mode = other.m_mode;
-    this->m_numSamples = other.m_numSamples;
-    this->m_numAttributes = other.m_numAttributes;
+    this->m_data = other.m_data;
     this->m_chiMean = other.m_chiMean;
     this->m_chiSD = other.m_chiSD;
     if (other.m_gaussDensityEstimator != nullptr)
@@ -87,22 +86,24 @@ std::shared_ptr<Divergence> KLDivergence::clone() const
 void KLDivergence::init(const std::shared_ptr<const DataTensor> & data)
 {
     this->m_densityEstimator->init(data);
-    this->m_numSamples = data->numSamples();
-    this->m_numAttributes = data->numAttrib();
-    this->m_chiMean = (this->m_numAttributes * (this->m_numAttributes + 3)) / 2;
+    this->m_data = data;
+    this->m_chiMean = (this->m_data->numAttrib() * (this->m_data->numAttrib() + 3)) / 2;
     this->m_chiSD = std::sqrt(2 * this->m_chiMean);
 }
 
 void KLDivergence::reset()
 {
     this->m_densityEstimator->reset();
+    this->m_data.reset();
 }
 
 Scalar KLDivergence::operator()(const IndexRange & innerRange)
 {
+    assert(this->m_data != nullptr);
+    
     // Estimate distributions
     this->m_densityEstimator->fit(innerRange);
-    DataTensor::Index numExtremes = innerRange.shape().prod(0, MAXDIV_INDEX_DIMENSION - 2);
+    DataTensor::Index numExtremes = innerRange.shape().prod(0, MAXDIV_INDEX_DIMENSION - 2) - this->m_data->numMissingSamplesInRange(innerRange);
     
     // Compute divergence
     Scalar score = 0;
@@ -118,7 +119,7 @@ Scalar KLDivergence::operator()(const IndexRange & innerRange)
             {
                 score += gde->getOuterCovChol().solve(gde->getInnerCov()).trace()
                          + gde->getOuterCovLogDet() - gde->getInnerCovLogDet()
-                         - this->m_numAttributes;
+                         - this->m_data->numAttrib();
             }
         }
         if (this->m_mode == KLMode::OMEGA_I || this->m_mode == KLMode::SYM)
@@ -128,7 +129,7 @@ Scalar KLDivergence::operator()(const IndexRange & innerRange)
             {
                 score += gde->getInnerCovChol().solve(gde->getOuterCov()).trace()
                          + gde->getInnerCovLogDet() - gde->getOuterCovLogDet()
-                         - this->m_numAttributes;
+                         - this->m_data->numAttrib();
             }
         }
         if (this->m_mode == KLMode::UNBIASED)
@@ -148,7 +149,7 @@ Scalar KLDivergence::operator()(const IndexRange & innerRange)
         if (this->m_mode == KLMode::OMEGA_I || this->m_mode == KLMode::SYM)
         {
             std::pair<Scalar, Scalar> ll = this->m_densityEstimator->logLikelihoodOuter();
-            score += (ll.second - ll.first) / (this->m_numSamples - numExtremes);
+            score += (ll.second - ll.first) / (this->m_data->numValidSamples() - numExtremes);
         }
         if (this->m_mode == KLMode::UNBIASED)
             score *= numExtremes;
@@ -168,9 +169,11 @@ std::shared_ptr<Divergence> CrossEntropy::clone() const
 
 Scalar CrossEntropy::operator()(const IndexRange & innerRange)
 {
+    assert(this->m_data != nullptr);
+    
     // Estimate distributions
     this->m_densityEstimator->fit(innerRange);
-    DataTensor::Index numExtremes = innerRange.shape().prod(0, MAXDIV_INDEX_DIMENSION - 2);
+    DataTensor::Index numExtremes = innerRange.shape().prod(0, MAXDIV_INDEX_DIMENSION - 2) - this->m_data->numMissingSamplesInRange(innerRange);
     
     // Compute cross-entropy
     Scalar score = 0;
@@ -188,10 +191,10 @@ Scalar CrossEntropy::operator()(const IndexRange & innerRange)
                     score += gde->getOuterCovChol().solve(gde->getInnerCov()).trace() + gde->getOuterCovLogDet();
                     break;
                 case GaussianDensityEstimator::CovMode::SHARED:
-                    score += this->m_numAttributes + gde->getOuterCovLogDet();
+                    score += this->m_data->numAttrib() + gde->getOuterCovLogDet();
                     break;
                 case GaussianDensityEstimator::CovMode::ID:
-                    score += this->m_numAttributes;
+                    score += this->m_data->numAttrib();
                     break;
             }
         }
@@ -204,10 +207,10 @@ Scalar CrossEntropy::operator()(const IndexRange & innerRange)
                     score += gde->getInnerCovChol().solve(gde->getOuterCov()).trace() + gde->getInnerCovLogDet();
                     break;
                 case GaussianDensityEstimator::CovMode::SHARED:
-                    score += this->m_numAttributes + gde->getInnerCovLogDet();
+                    score += this->m_data->numAttrib() + gde->getInnerCovLogDet();
                     break;
                 case GaussianDensityEstimator::CovMode::ID:
-                    score += this->m_numAttributes;
+                    score += this->m_data->numAttrib();
                     break;
             }
         }
@@ -228,7 +231,7 @@ Scalar CrossEntropy::operator()(const IndexRange & innerRange)
         if (this->m_mode == KLMode::OMEGA_I || this->m_mode == KLMode::SYM)
         {
             std::pair<Scalar, Scalar> ll = this->m_densityEstimator->logLikelihoodOuter();
-            score -= ll.first / (this->m_numSamples - numExtremes);
+            score -= ll.first / (this->m_data->numValidSamples() - numExtremes);
         }
     }
     return score;
@@ -240,14 +243,14 @@ Scalar CrossEntropy::operator()(const IndexRange & innerRange)
 //---------------------------//
 
 JSDivergence::JSDivergence(const std::shared_ptr<DensityEstimator> & densityEstimator)
-: m_densityEstimator(densityEstimator), m_numSamples(0)
+: m_densityEstimator(densityEstimator), m_data(nullptr)
 {
     if (densityEstimator == nullptr)
         throw std::invalid_argument("densityEstimator must not be NULL.");
 }
 
 JSDivergence::JSDivergence(const std::shared_ptr<DensityEstimator> & densityEstimator, const std::shared_ptr<const DataTensor> & data)
-: m_densityEstimator(densityEstimator), m_numSamples(0)
+: m_densityEstimator(densityEstimator), m_data(nullptr)
 {
     if (densityEstimator == nullptr)
         throw std::invalid_argument("densityEstimator must not be NULL.");
@@ -256,13 +259,13 @@ JSDivergence::JSDivergence(const std::shared_ptr<DensityEstimator> & densityEsti
 }
 
 JSDivergence::JSDivergence(const JSDivergence & other)
-: m_densityEstimator(other.m_densityEstimator->clone()), m_numSamples(other.m_numSamples)
+: m_densityEstimator(other.m_densityEstimator->clone()), m_data(other.m_data)
 {}
 
 JSDivergence & JSDivergence::operator=(const JSDivergence & other)
 {
     this->m_densityEstimator = other.m_densityEstimator->clone();
-    this->m_numSamples = other.m_numSamples;
+    this->m_data = other.m_data;
     return *this;
 }
 
@@ -274,12 +277,13 @@ std::shared_ptr<Divergence> JSDivergence::clone() const
 void JSDivergence::init(const std::shared_ptr<const DataTensor> & data)
 {
     this->m_densityEstimator->init(data);
-    this->m_numSamples = data->numSamples();
+    this->m_data = data;
 }
 
 void JSDivergence::reset()
 {
     this->m_densityEstimator->reset();
+    this->m_data.reset();
 }
 
 Scalar JSDivergence::operator()(const IndexRange & innerRange)
@@ -288,23 +292,24 @@ Scalar JSDivergence::operator()(const IndexRange & innerRange)
     this->m_densityEstimator->fit(innerRange);
     
     // Determine number of samples within and outside of the range
-    DataTensor::Index numExtremes = innerRange.shape().prod(0, MAXDIV_INDEX_DIMENSION - 2);
-    DataTensor::Index numNonExtremes = this->m_numSamples - numExtremes;
+    DataTensor::Index numExtremes = innerRange.shape().prod(0, MAXDIV_INDEX_DIMENSION - 2) - this->m_data->numMissingSamplesInRange(innerRange);
+    DataTensor::Index numNonExtremes = this->m_data->numValidSamples() - numExtremes;
     
     // Compute divergence
     DataTensor pdf = this->m_densityEstimator->pdf();
     Scalar scoreInner = 0, scoreOuter = 0, eps = std::numeric_limits<Scalar>::epsilon(), combined;
     IndexVector ind = pdf.makeIndexVector();
     ind.shape.d = 1;
-    for (DataTensor::Index sampleIndex = 0; sampleIndex < this->m_numSamples; ++ind, ++sampleIndex)
-    {
-        const auto sample = pdf.sample(sampleIndex);
-        combined = std::log(sample.mean() + eps);
-        if (innerRange.contains(ind))
-            scoreInner += std::log(sample(0) + eps) - combined;
-        else
-            scoreOuter += std::log(sample(1) + eps) - combined;
-    }
+    for (DataTensor::Index sampleIndex = 0; sampleIndex < this->m_data->numSamples(); ++ind, ++sampleIndex)
+        if (!this->m_data->isMissingSample(sampleIndex))
+        {
+            const auto sample = pdf.sample(sampleIndex);
+            combined = std::log(sample.mean() + eps);
+            if (innerRange.contains(ind))
+                scoreInner += std::log(sample(0) + eps) - combined;
+            else
+                scoreOuter += std::log(sample(1) + eps) - combined;
+        }
     
     return (scoreInner / numExtremes + scoreOuter / numNonExtremes) / (2 * std::log(2));
 }

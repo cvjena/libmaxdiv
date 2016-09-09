@@ -76,7 +76,7 @@ void cholesky(const Eigen::MatrixBase<Derived> & mat, Eigen::LLT<typename Derive
 }
 
 /**
-* Computes a Gaussian kernel: `k(x,y) = (1/(2 * pi * sigma^2))^(D/2) * exp(||x-y||^2 / (-2 * sigma^2))`
+* Computes a Gaussian kernel: \f$k(x,y) = \left( 2 \pi \sigma^2 \right)^{-D/2} \cdot \exp \left( - \frac{\left \| x-y \right \|^2}{2 \sigma^2} \right)\f$
 *
 * @param[in] X N-by-D-Matrix with N samples of dimensionality D.
 *
@@ -112,9 +112,11 @@ typename Derived::PlainObject gauss_kernel(const Eigen::MatrixBase<Derived> & X,
 }
 
 /**
-* Computes a Gaussian kernel: `k(x,y) = (1/(2 * pi * sigma^2))^(D/2) * exp(||x-y||^2 / (-2 * sigma^2))`
+* Computes a Gaussian kernel: \f$k(x,y) = \left( 2 \pi \sigma^2 \right)^{-D/2} \cdot \exp \left( - \frac{\left \| x-y \right \|^2}{2 \sigma^2} \right)\f$
 *
-* @param[in] data DataTensor with the samples to compute the Gaussian kernel for.
+* @param[in] data DataTensor with the samples to compute the Gaussian kernel for.  
+* If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`. Kernel values
+* involving a missing sample are defined to be 0.
 *
 * @param[in] kernel_sigma_sq The value of `sigma^2`.
 *
@@ -129,7 +131,10 @@ ScalarMatrix gauss_kernel(const DataTensor & data, Scalar kernel_sigma_sq = 1, b
 * @brief An implicit representation of a Gaussian kernel
 *
 * Given data samples x and y, the Gaussian kernel is defined as:
-* `k(x,y) = (1/(2 * pi * sigma^2))^(D/2) * exp(||x-y||^2 / (-2 * sigma^2))`
+*
+* \f[
+*   k(x,y) = \left( 2 \pi \sigma^2 \right)^{-D/2} \cdot \exp \left( - \frac{\left \| x-y \right \|^2}{2 \sigma^2} \right)
+* \f]
 *
 * As opposed to the `gauss_kernel` function, this class does not materialize the entire kernel at once,
 * but computes its values on demand. This can be used to save memory when dealing with a lot of samples.
@@ -141,7 +146,9 @@ public:
     /**
     * @param[in] data The DataTensor with the samples to compute the Gaussian kernel for.
     * Only a reference to this object will be stored, so its lifetime should be as least as long
-    * as the lifetime of this GaussKernel.
+    * as the lifetime of this GaussKernel.  
+    * If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`. Kernel values
+    * involving a missing sample are defined to be 0.
     *
     * @param[in] kernel_sigma_sq The value of `sigma^2`.
     *

@@ -13,6 +13,9 @@ def calc_distance_matrix(X, metric='sqeuclidean'):
     # results from pdist are usually not stored as a symmetric matrix,
     # therefore, we use squareform to convert it
     D = scipy.spatial.distance.squareform(scipy.spatial.distance.pdist(X.T, metric))
+    if np.ma.isMaskedArray(X):
+        D = np.ma.MaskedArray(D)
+        D[:,X.mask[0,:]] = D[X.mask[0,:],:] = np.ma.masked
     return D
 
 
@@ -62,17 +65,20 @@ def td_mutual_information(ts, k, T = 1):
     
     if (k < 2) or (T < 1):
         # Entropy as a special case of MI
-        cov = np.cov(ts)
+        cov = np.ma.cov(ts).filled(0)
         if d > 1:
             return (d * (np.log(2 * np.pi) + 1) + np.linalg.slogdet(cov)[1]) / 2
         else:
             return (np.log(2 * np.pi) + 1 + np.log(cov)) / 2
     
     # Time-Delay Embedding with the given embedding dimension and time lag
-    embed_func = np.vstack([ts[:, ((k - i - 1) * T):(n - i * T)] for i in range(k)])
+    if np.ma.isMaskedArray(ts):
+        embed_func = np.ma.mask_cols(np.ma.vstack([ts[:, ((k - i - 1) * T):(n - i * T)] for i in range(k)]))
+    else:
+        embed_func = np.vstack([ts[:, ((k - i - 1) * T):(n - i * T)] for i in range(k)])
     
     # Compute parameters of the joint and the marginal distributions assuming a normal distribution
-    cov = np.cov(embed_func)
+    cov = np.ma.cov(embed_func).filled(0)
     cov_indep = cov.copy()
     cov_indep[:d, d:] = 0
     cov_indep[d:, :d] = 0
@@ -114,13 +120,15 @@ def m_estimation(A, b, k = 1.345):
         el = (w <= k)
         w[el] = 1
         w[~el] = k / w[~el]
+        if np.ma.isMaskedArray(w):
+            w = w.filled(0)
         
         # Weighted Least Squares
         x_old = x.copy()
         W = np.diag(np.sqrt(w))
         x = np.linalg.lstsq(W.dot(A), W.dot(b))[0]
         
-        if np.linalg.norm(x - x_old) < 1e-6:
+        if np.sqrt(((x - x_old)**2).sum()) < 1e-6:
             break
 
     return x

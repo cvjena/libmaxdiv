@@ -57,7 +57,7 @@ int splitString(const std::string & str, const char * delimiters, std::vector<st
 
 /**
 * Reads a non-spatial time series from a CSV file, whose rows correspond to time steps and
-* whose columns correspond to attributes.
+* whose columns correspond to attributes. Missing values may be encoded as "nan".
 * 
 * @param[in] filename The path of the file.
 *

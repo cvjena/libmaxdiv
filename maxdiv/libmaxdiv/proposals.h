@@ -24,7 +24,7 @@ class ProposalIterator;
 *
 * This could also be parallelized by splitting the range of start points:
 *
-*     SomeProposalGenerator proposals(data);
+*     SomeProposalGenerator proposals();
 *     proposals.init(data);
 *     #pragma omp parallel
 *     {
@@ -72,8 +72,10 @@ public:
     
     /**
     * Initializes this proposal generator to make proposals for the data in @p data.
+    *
+    * @note If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     */
-    virtual void init(const DataTensor & data);
+    virtual void init(const std::shared_ptr<const DataTensor> & data);
     
     /**
     * Resets this proposal generator to its un-initialized state and releases any memory allocated
@@ -152,6 +154,7 @@ public:
 
 protected:
     
+    std::shared_ptr<const DataTensor> m_data; /**< Pointer to the data tensor passed to `init()`. */
     IndexRange m_lengthRange; /**< Minimum and maximum length of the proposed ranges. */
     IndexVector m_curStartPoint; /**< The current start point for internal iteration used by next(). */
 
@@ -287,9 +290,10 @@ public:
     /**
     * Constructs and initializes a proposal generator by calling `init(data)`.
     *
-    * @param[in] data The data to generate range proposals for.
+    * @param[in] data Pointer to the data to generate range proposals for.  
+    * If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     */
-    DenseProposalGenerator(const DataTensor & data);
+    DenseProposalGenerator(const std::shared_ptr<const DataTensor> & data);
     
     /**
     * Constructs an un-initialized proposal generator and specifies a minimum and a maximum length for
@@ -309,9 +313,10 @@ public:
     *
     * @param[in] maxLength The maximum length of proposed ranges in each dimension.
     *
-    * @param[in] data The data to generate range proposals for.
+    * @param[in] data Pointer to the data to generate range proposals for.  
+    * If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     */
-    DenseProposalGenerator(DataTensor::Index minLength, DataTensor::Index maxLength, const DataTensor & data);
+    DenseProposalGenerator(DataTensor::Index minLength, DataTensor::Index maxLength, const std::shared_ptr<const DataTensor> & data);
     
     /**
     * Constructs an un-initialized proposal generator and specifies a minimum and a maximum length for
@@ -331,9 +336,10 @@ public:
     * for each dimension and whose end specifies the maximum length. The attribute dimension will be
     * ignored.
     *
-    * @param[in] data The data to generate range proposals for.
+    * @param[in] data Pointer to the data to generate range proposals for.  
+    * If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     */
-    DenseProposalGenerator(IndexRange lengthRange, const DataTensor & data);
+    DenseProposalGenerator(IndexRange lengthRange, const std::shared_ptr<const DataTensor> & data);
     
     /**
     * Fetches the next proposal for a specific start point, based on a given state of iteration.
@@ -406,9 +412,10 @@ public:
     /**
     * Constructs and initializes a proposal generator by calling `init(data)`.
     *
-    * @param[in] data The data to generate range proposals for.
+    * @param[in] data Pointer to the data to generate range proposals for.  
+    * If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     */
-    PointwiseProposalGenerator(const DataTensor & data);
+    PointwiseProposalGenerator(const std::shared_ptr<const DataTensor> & data);
     
     /**
     * Constructs and initializes a proposal generator by calling `init(data)`.
@@ -416,9 +423,10 @@ public:
     * @param[in] params A structure with parameters for this proposal generator. Default parameters
     * can be found in `PointwiseProposalGenerator::defaultParams`.
     *
-    * @param[in] data The data to generate range proposals for.
+    * @param[in] data Pointer to the data to generate range proposals for.  
+    * If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     */
-    PointwiseProposalGenerator(const Params & params, const DataTensor & data);
+    PointwiseProposalGenerator(const Params & params, const std::shared_ptr<const DataTensor> & data);
     
     /**
     * Constructs an un-initialized proposal generator and specifies a minimum and a maximum length for
@@ -451,9 +459,10 @@ public:
     *
     * @param[in] maxLength The maximum length of proposed ranges in each dimension.
     *
-    * @param[in] data The data to generate range proposals for.
+    * @param[in] data Pointer to the data to generate range proposals for.  
+    * If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     */
-    PointwiseProposalGenerator(DataTensor::Index minLength, DataTensor::Index maxLength, const DataTensor & data);
+    PointwiseProposalGenerator(DataTensor::Index minLength, DataTensor::Index maxLength, const std::shared_ptr<const DataTensor> & data);
     
     /**
     * Constructs and initializes proposal generator and specifies a minimum and a maximum length for
@@ -466,9 +475,10 @@ public:
     * @param[in] params A structure with parameters for this proposal generator. Default parameters
     * can be found in `PointwiseProposalGenerator::defaultParams`.
     *
-    * @param[in] data The data to generate range proposals for.
+    * @param[in] data Pointer to the data to generate range proposals for.  
+    * If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     */
-    PointwiseProposalGenerator(DataTensor::Index minLength, DataTensor::Index maxLength, const Params & params, const DataTensor & data);
+    PointwiseProposalGenerator(DataTensor::Index minLength, DataTensor::Index maxLength, const Params & params, const std::shared_ptr<const DataTensor> & data);
     
     /**
     * Constructs an un-initialized proposal generator and specifies a minimum and a maximum length for
@@ -501,9 +511,10 @@ public:
     * for each dimension and whose end specifies the maximum length. The attribute dimension will be
     * ignored.
     *
-    * @param[in] data The data to generate range proposals for.
+    * @param[in] data Pointer to the data to generate range proposals for.  
+    * If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     */
-    PointwiseProposalGenerator(IndexRange lengthRange, const DataTensor & data);
+    PointwiseProposalGenerator(IndexRange lengthRange, const std::shared_ptr<const DataTensor> & data);
     
     /**
     * Constructs and initializes proposal generator and specifies a minimum and a maximum length for
@@ -516,14 +527,17 @@ public:
     * @param[in] params A structure with parameters for this proposal generator. Default parameters
     * can be found in `PointwiseProposalGenerator::defaultParams`.
     *
-    * @param[in] data The data to generate range proposals for.
+    * @param[in] data Pointer to the data to generate range proposals for.  
+    * If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     */
-    PointwiseProposalGenerator(IndexRange lengthRange, const Params & params, const DataTensor & data);
+    PointwiseProposalGenerator(IndexRange lengthRange, const Params & params, const std::shared_ptr<const DataTensor> & data);
     
     /**
     * Initializes this proposal generator to make proposals for the data in @p data.
+    *
+    * @note If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     */
-    virtual void init(const DataTensor & data);
+    virtual void init(const std::shared_ptr<const DataTensor> & data);
     
     /**
     * Resets this proposal generator to its un-initialized state and releases any memory allocated
@@ -553,7 +567,6 @@ public:
 protected:
 
     Params m_params; /**< Parameters of this instance */
-    unsigned int m_numDim; /**< Number of non-singleton spatio-temporal dimensions of the data */
     DataTensor m_scores; /**< Point-wise scores */
     Scalar m_th; /**< Threshold */
     Scalar m_fallback_th; /**< Lower threshold for isolated peaks */

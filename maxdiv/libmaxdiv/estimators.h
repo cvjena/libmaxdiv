@@ -42,12 +42,17 @@ public:
 
     /**
     * Initializes this density estimator with a given DataTensor @p data.
+    *
+    * @note If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     */
     virtual void init(const std::shared_ptr<const DataTensor> & data);
     
     /**
     * Fits the parameters of the inner and outer distribution to a sub-block of the
     * DataTensor passed to `init()` specified by the given @p range.
+    *
+    * The result of this function is undefined if the inner or the outer range consists of
+    * missing samples only.
     */
     virtual void fit(const IndexRange & range);
     
@@ -67,7 +72,7 @@ public:
     * will be ignored.
     * 
     * @return A pair with the pdf values for the given sample under the inner and the outer
-    * distribution.
+    * distribution. If the sample is a missing sample, it will be assigned a pdf of 1.
     */
     virtual std::pair<Scalar, Scalar> pdf(const ReflessIndexVector & ind) const =0;
     
@@ -78,7 +83,8 @@ public:
     * `init()` and `fit()` have to be called before this can be used.
     *
     * @return A DataTensor with two attributes which specify the values of the pdf of the
-    * inner and the outer distribution for all samples.
+    * inner and the outer distribution for all samples. A value of 1 will be assigned to
+    * the pdf of missing samples.
     */
     virtual DataTensor pdf() const;
     
@@ -91,7 +97,8 @@ public:
     * @param[in] range The block to compute the pdf for. The attribute dimension will be ignored.
     *
     * @return A DataTensor with two attributes which specify the values of the pdf of the
-    * inner and the outer distribution for all samples in the given sub-block.
+    * inner and the outer distribution for all samples in the given sub-block. A value of 1 will
+    * be assigned to the pdf of missing samples.
     */
     virtual DataTensor pdf(const IndexRange & range) const;
     
@@ -105,7 +112,7 @@ public:
     *
     * @return A matrix with as many rows as there are samples outside of the given sub-block and exactly two
     * columns which specify the values of the pdf of the inner and the outer distribution for all samples outside
-    * of the given sub-block.
+    * of the given sub-block. A value of 1 will be assigned to the pdf of missing samples.
     */
     virtual ScalarMatrix pdfOutsideRange(IndexRange range) const;
 
@@ -119,7 +126,7 @@ public:
     * will be ignored.
     * 
     * @return A pair with the logarithm of the pdf for the given sample under the inner and the
-    * outer distribution.
+    * outer distribution. If the sample is a missing sample, it will be assigned a log-pdf of 0.
     */
     virtual std::pair<Scalar, Scalar> logpdf(const ReflessIndexVector & ind) const;
     
@@ -130,7 +137,8 @@ public:
     * `init()` and `fit()` have to be called before this can be used.
     *
     * @return A DataTensor with two attributes which specify the logarithms of the pdf of the
-    * inner and the outer distribution for all samples.
+    * inner and the outer distribution for all samples. A value of 0 will be assigned to the
+    * log-pdf of missing samples.
     */
     virtual DataTensor logpdf() const;
     
@@ -143,7 +151,8 @@ public:
     * @param[in] range The block to compute the pdf for. The attribute dimension will be ignored.
     *
     * @return A DataTensor with two attributes which specify the logarithms of the pdf of the
-    * inner and the outer distribution for all samples in the given sub-block.
+    * inner and the outer distribution for all samples in the given sub-block. A value of 0 will
+    * be assigned to the log-pdf of missing samples.
     */
     virtual DataTensor logpdf(const IndexRange & range) const;
     
@@ -157,7 +166,7 @@ public:
     *
     * @return A matrix with as many rows as there are samples outside of the given sub-block and exactly two
     * columns which specify the logarithms of the pdf of the inner and the outer distribution for all samples outside
-    * of the given sub-block.
+    * of the given sub-block. A value of 0 will be assigned to the log-pdf of missing samples.
     */
     virtual ScalarMatrix logpdfOutsideRange(IndexRange range) const;
     
@@ -203,7 +212,7 @@ public:
     * @param[in] range The block to compute the log-likelihood for. The attribute dimension will be ignored.
     *
     * @return A pair with the log-likelihood of the samples for the inner (first) and the outer
-    * (second) distribution.
+    * (second) distribution. If the given range consists of missing samples only, 0 will be returned.
     */
     virtual std::pair<Scalar, Scalar> logLikelihood(const IndexRange & range) const;
     
@@ -217,7 +226,7 @@ public:
     * The attribute dimension will be ignored.
     *
     * @return A pair with the log-likelihood of the samples for the inner (first) and the outer
-    * (second) distribution.
+    * (second) distribution. If there are only missing samples outside of the given range, 0 will be returned.
     */
     virtual std::pair<Scalar, Scalar> logLikelihoodOutsideRange(IndexRange range) const;
 
@@ -225,9 +234,8 @@ public:
 protected:
 
     std::shared_ptr<const DataTensor> m_data; /**< Pointer to the DataTensor passed to `init()`. */
-    int m_nonSingletonDim; /**< Index of the non-singleton dimension if there is only one in the data, otherwise -1. */
     IndexRange m_extremeRange; /**< Range of inner block passed to `fit()`. */
-    DataTensor::Index m_numExtremes; /**< Number of samples in the block passed to `fit()`. */
+    DataTensor::Index m_numExtremes; /**< Number of non-missing samples in the block passed to `fit()`. */
 
 };
 
@@ -260,7 +268,8 @@ public:
     /**
     * Constructs and initializes a KernelDensityEstimator for a given data tensor.
     *
-    * @param[in] data Pointer to the DataTensor.
+    * @param[in] data Pointer to the DataTensor.  
+    * If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     *
     * @param[in] kernel_sigma_sq The "standard deviation" of the gaussian kernel.
     *
@@ -296,6 +305,8 @@ public:
     
     /**
     * Initializes this density estimator with a given DataTensor @p data.
+    *
+    * @note If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     */
     virtual void init(const std::shared_ptr<const DataTensor> & data) override;
     
@@ -315,7 +326,7 @@ public:
     * will be ignored.
     * 
     * @return A pair with the pdf values for the given sample under the inner and the outer
-    * distribution.
+    * distribution. If the given sample is a missing sample, it will be assigned a pdf of 1.
     */
     virtual std::pair<Scalar, Scalar> pdf(const ReflessIndexVector & ind) const override;
 
@@ -363,7 +374,8 @@ public:
     /**
     * Constructs and initializes a GaussianDensityEstimator for a given data tensor.
     *
-    * @param[in] data Pointer to the DataTensor.
+    * @param[in] data Pointer to the DataTensor.  
+    * If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     *
     * @param[in] mode Specifies how the covariance matrix should be estimated.
     */
@@ -396,12 +408,17 @@ public:
     
     /**
     * Initializes this density estimator with a given DataTensor @p data.
+    *
+    * @note If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     */
     virtual void init(const std::shared_ptr<const DataTensor> & data) override;
     
     /**
     * Fits the parameters of the inner and outer distribution to a sub-block of the
     * DataTensor passed to `init()` specified by the given @p range.
+    *
+    * The result of this function is undefined if the inner or the outer range consists of
+    * missing samples only.
     */
     virtual void fit(const IndexRange & range) override;
     
@@ -421,7 +438,7 @@ public:
     * will be ignored.
     * 
     * @return A pair with the pdf values for the given sample under the inner and the outer
-    * distribution.
+    * distribution. If the given sample is a missing sample, it will be assigned a pdf of 1.
     */
     virtual std::pair<Scalar, Scalar> pdf(const ReflessIndexVector & ind) const override;
     
@@ -432,7 +449,8 @@ public:
     * `init()` and `fit()` have to be called before this can be used.
     *
     * @return A DataTensor with two attributes which specify the values of the pdf of the
-    * inner and the outer distribution for all samples.
+    * inner and the outer distribution for all samples. A value of 1 will be assigned to
+    * the pdf of missing samples.
     */
     virtual DataTensor pdf() const override;
     
@@ -445,7 +463,8 @@ public:
     * @param[in] range The block to compute the pdf for. The attribute dimension will be ignored.
     *
     * @return A DataTensor with two attributes which specify the values of the pdf of the
-    * inner and the outer distribution for all samples in the given sub-block.
+    * inner and the outer distribution for all samples in the given sub-block. A value of 1 will
+    * be assigned to the pdf of missing samples.
     */
     virtual DataTensor pdf(const IndexRange & range) const override;
     
@@ -459,7 +478,7 @@ public:
     *
     * @return A matrix with as many rows as there are samples outside of the given sub-block and exactly two
     * columns which specify the values of the pdf of the inner and the outer distribution for all samples outside
-    * of the given sub-block.
+    * of the given sub-block. A value of 1 will be assigned to the pdf of missing samples.
     */
     virtual ScalarMatrix pdfOutsideRange(IndexRange range) const override;
     
@@ -473,7 +492,8 @@ public:
     * will be ignored.
     * 
     * @return A pair with the logarithm of the pdf for the given sample under the inner and the
-    * outer distribution.
+    * outer distribution. If the given sample is a missing sample, it will be assigned a log-pdf
+    * of 0.
     */
     virtual std::pair<Scalar, Scalar> logpdf(const ReflessIndexVector & ind) const override;
     
@@ -484,7 +504,8 @@ public:
     * `init()` and `fit()` have to be called before this can be used.
     *
     * @return A DataTensor with two attributes which specify the logarithms of the pdf of the
-    * inner and the outer distribution for all samples.
+    * inner and the outer distribution for all samples. A value of 0 will be assigned to the
+    * log-pdf of missing samples.
     */
     virtual DataTensor logpdf() const override;
     
@@ -498,6 +519,7 @@ public:
     *
     * @return A DataTensor with two attributes which specify the logarithms of the pdf of the
     * inner and the outer distribution for all samples in the given sub-block.
+    * A value of 0 will be assigned to the log-pdf of missing samples.
     */
     virtual DataTensor logpdf(const IndexRange & range) const override;
     
@@ -511,7 +533,7 @@ public:
     *
     * @return A matrix with as many rows as there are samples outside of the given sub-block and exactly two
     * columns which specify the logarithms of the pdf of the inner and the outer distribution for all samples outside
-    * of the given sub-block.
+    * of the given sub-block. A value of 0 will be assigned to the log-pdf of missing samples.
     */
     virtual ScalarMatrix logpdfOutsideRange(IndexRange range) const override;
     
@@ -535,7 +557,7 @@ public:
     * @param[in] range The block to compute the log-likelihood for. The attribute dimension will be ignored.
     *
     * @return A pair with the log-likelihood of the samples for the inner (first) and the outer
-    * (second) distribution.
+    * (second) distribution. If the given range consists of missing samples only, 0 will be returned.
     */
     virtual std::pair<Scalar, Scalar> logLikelihood(const IndexRange & range) const override;
     
@@ -549,7 +571,7 @@ public:
     * The attribute dimension will be ignored.
     *
     * @return A pair with the log-likelihood of the samples for the inner (first) and the outer
-    * (second) distribution.
+    * (second) distribution. If there are only missing samples outside of the given range, 0 will be returned.
     */
     virtual std::pair<Scalar, Scalar> logLikelihoodOutsideRange(IndexRange range) const override;
     
@@ -708,14 +730,16 @@ public:
     /**
     * Constructs and initializes a EnsembleOfRandomProjectionHistograms for a given data tensor with default parameters.
     *
-    * @param[in] data Pointer to the DataTensor.
+    * @param[in] data Pointer to the DataTensor.  
+    * If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     */
     EnsembleOfRandomProjectionHistograms(const std::shared_ptr<const DataTensor> & data);
     
     /**
     * Constructs and initializes a EnsembleOfRandomProjectionHistograms for a given data tensor.
     *
-    * @param[in] data Pointer to the DataTensor.
+    * @param[in] data Pointer to the DataTensor.  
+    * If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     *
     * @param[in] num_hist The number of histograms.
     *
@@ -754,12 +778,17 @@ public:
     
     /**
     * Initializes this density estimator with a given DataTensor @p data.
+    *
+    * @note If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     */
     virtual void init(const std::shared_ptr<const DataTensor> & data) override;
     
     /**
     * Fits the parameters of the inner and outer distribution to a sub-block of the
     * DataTensor passed to `init()` specified by the given @p range.
+    *
+    * The result of this function is undefined if the inner or the outer range consists of
+    * missing samples only.
     */
     virtual void fit(const IndexRange & range) override;
     
@@ -779,7 +808,7 @@ public:
     * will be ignored.
     * 
     * @return A pair with the pdf values for the given sample under the inner and the outer
-    * distribution.
+    * distribution. If the given sample is a missing sample, it will be assigned a pdf of 1.
     */
     virtual std::pair<Scalar, Scalar> pdf(const ReflessIndexVector & ind) const override;
     
@@ -793,7 +822,8 @@ public:
     * will be ignored.
     * 
     * @return A pair with the logarithm of the pdf for the given sample under the inner and the
-    * outer distribution.
+    * outer distribution. If the given sample is a missing sample, it will be assigned a log-pdf
+    * of 0.
     */
     virtual std::pair<Scalar, Scalar> logpdf(const ReflessIndexVector & ind) const override;
 

@@ -231,7 +231,7 @@ void maxdiv_free_pipeline(unsigned int handle)
 
 void maxdiv_exec(unsigned int pipeline, MaxDivScalar * data, const unsigned int * shape,
                  detection_t * detection_buf, unsigned int * detection_buf_size,
-                 bool const_data)
+                 bool const_data, bool custom_missing_value, MaxDivScalar missing_value)
 {
     if (detection_buf_size == NULL || *detection_buf_size == 0)
         return;
@@ -251,9 +251,23 @@ void maxdiv_exec(unsigned int pipeline, MaxDivScalar * data, const unsigned int 
     // Run detection pipeline
     DetectionList detections;
     if (const_data)
-        detections = (*(maxdiv_pipelines[pipeline - 1]))(std::make_shared<const DataTensor>(data, dataShape), *detection_buf_size);
+    {
+        if (custom_missing_value)
+        {
+            std::shared_ptr<DataTensor> data_tensor(new DataTensor(DataTensor(data, dataShape)));
+            data_tensor->mask(missing_value);
+            detections = (*(maxdiv_pipelines[pipeline - 1]))(data_tensor, *detection_buf_size);
+        }
+        else
+            detections = (*(maxdiv_pipelines[pipeline - 1]))(std::make_shared<const DataTensor>(data, dataShape), *detection_buf_size);
+    }
     else
-        detections = (*(maxdiv_pipelines[pipeline - 1]))(std::make_shared<DataTensor>(data, dataShape), *detection_buf_size);
+    {
+        std::shared_ptr<DataTensor> data_tensor(new DataTensor(data, dataShape));
+        if (custom_missing_value)
+            data_tensor->mask(missing_value);
+        detections = (*(maxdiv_pipelines[pipeline - 1]))(data_tensor, *detection_buf_size);
+    }
     
     // Copy detections to the buffer
     detection_t * raw_det = detection_buf;
@@ -269,7 +283,7 @@ void maxdiv_exec(unsigned int pipeline, MaxDivScalar * data, const unsigned int 
 
 void maxdiv(const maxdiv_params_t * params, MaxDivScalar * data, const unsigned int * shape,
             detection_t * detection_buf, unsigned int * detection_buf_size,
-            bool const_data)
+            bool const_data, bool custom_missing_value, MaxDivScalar missing_value)
 {
     if (detection_buf_size == NULL || *detection_buf_size == 0)
         return;
@@ -280,6 +294,6 @@ void maxdiv(const maxdiv_params_t * params, MaxDivScalar * data, const unsigned 
         *detection_buf_size = 0;
         return;
     }
-    maxdiv_exec(pipeline, data, shape, detection_buf, detection_buf_size, const_data);
+    maxdiv_exec(pipeline, data, shape, detection_buf, detection_buf_size, const_data, custom_missing_value, missing_value);
     maxdiv_free_pipeline(pipeline);
 }

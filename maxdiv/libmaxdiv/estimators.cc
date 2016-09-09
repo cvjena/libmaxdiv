@@ -2,6 +2,7 @@
 #include "config.h"
 #include <cassert>
 #include <cmath>
+#include <vector>
 #include <algorithm>
 #include <random>
 #include <limits>
@@ -9,158 +10,19 @@
 using namespace MaxDiv;
 
 
-//-----------//
-// Utilities //
-//-----------//
-
-namespace MaxDiv
-{
-
-/**
-* Computes the sum over a specific attribute of all elements in a given sub-block of a DataTensor based
-* on a pre-computed tensor of cumulative sums over all dimensions except the attribute dimension.
-*
-* @param[in] cumsum A DataTensor with the cumulative sums along all dimensions except the attribute dimension.
-*
-* @param[in] range The sub-block to compute the sum of. The attribute dimension will be ignored.
-*
-* @param[in] d The index of the attribute dimension to sum over.
-*
-* @return Sum over the given attribute over all elements in the given sub-block.
-*/
-template<typename Scalar>
-Scalar sumFromCumsum(const DataTensor_<Scalar> & cumsum, const IndexRange & range, typename DataTensor_<Scalar>::Index d)
-{
-    assert(!range.empty());
-    assert(d >= 0 && d < cumsum.shape().d);
-    
-    // Extracting the sum of a block from a tensor of cumulative sums follows the Inclusion-Exclusion Principle.
-    // For example, for two dimensions we have:
-    // sum([a1,b1), [a2,b2)) = cumsum(b1, b2) - cumsum(a1 - 1, b2) - cumsum(b1, a2 - 2) + cumsum(a1 - 1, a2 - 1)
-    Scalar sum = 0;
-    ReflessIndexVector ind;
-    ind.d = d;
-    unsigned int i, s, numSummands = 1 << (MAXDIV_INDEX_DIMENSION - 1);
-    bool isZeroBlock;
-    Eigen::Array<bool, MAXDIV_INDEX_DIMENSION - 1, 1> state; // Switches between first and last point of each range
-    state.setConstant(false);
-    for (s = 0; s < numSummands; ++s)
-    {
-        
-        // Determine index of the bottom right corner of the current block
-        for (i = 0, isZeroBlock = false; i < MAXDIV_INDEX_DIMENSION - 1 && !isZeroBlock; ++i)
-        {
-            ind.ind[i] = (state(i)) ? range.a.ind[i] : range.b.ind[i];
-            if (ind.ind[i] == 0)
-                isZeroBlock = true;
-            else
-                ind.ind[i] -= 1;
-        }
-        
-        // Add or subtract value of the block
-        if (!isZeroBlock)
-        {
-            if (state.count() % 2 == 0)
-                sum += cumsum(ind);
-            else
-                sum -= cumsum(ind);
-        }
-        
-        // Move on to next block
-        for (i = 0; state(i) && i < MAXDIV_INDEX_DIMENSION - 2; ++i)
-            state(i) = false;
-        state(i) = true;
-        
-    }
-    return sum;
-}
-
-/**
-* Computes the sum of all samples in a given sub-block of a DataTensor based on a pre-computed
-* tensor of cumulative sums over all dimensions except the attribute dimension.
-*
-* @param[in] cumsum A DataTensor with the cumulative sums along all dimensions except the attribute dimension.
-*
-* @param[in] range The sub-block to compute the sum of. The attribute dimension will be ignored.
-*
-* @return Sum over all samples in the given sub-block.
-*/
-template<typename Scalar>
-typename DataTensor_<Scalar>::Sample sumFromCumsum(const DataTensor_<Scalar> & cumsum, const IndexRange & range)
-{
-    assert(!range.empty());
-    
-    // Extracting the sum of a block from a tensor of cumulative sums follows the Inclusion-Exclusion Principle.
-    // For example, for two dimensions we have:
-    // sum([a1,b1), [a2,b2)) = cumsum(b1, b2) - cumsum(a1 - 1, b2) - cumsum(b1, a2 - 2) + cumsum(a1 - 1, a2 - 1)
-    typename DataTensor_<Scalar>::Sample sum = DataTensor_<Scalar>::Sample::Zero(cumsum.shape().d);
-    IndexVector ind = cumsum.makeIndexVector();
-    ind.shape.d = 1;
-    unsigned int i, s, numSummands = 1 << (MAXDIV_INDEX_DIMENSION - 1);
-    bool isZeroBlock;
-    Eigen::Array<bool, MAXDIV_INDEX_DIMENSION - 1, 1> state; // Switches between first and last point of each range
-    state.setConstant(false);
-    for (s = 0; s < numSummands; ++s)
-    {
-        
-        // Determine index of the bottom right corner of the current block
-        for (i = 0, isZeroBlock = false; i < MAXDIV_INDEX_DIMENSION - 1 && !isZeroBlock; ++i)
-        {
-            ind.ind[i] = (state(i)) ? range.a.ind[i] : range.b.ind[i];
-            if (ind.ind[i] == 0)
-                isZeroBlock = true;
-            else
-                ind.ind[i] -= 1;
-        }
-        
-        // Add or subtract value of the block
-        if (!isZeroBlock)
-        {
-            if (state.count() % 2 == 0)
-                sum += cumsum.sample(ind.linear());
-            else
-                sum -= cumsum.sample(ind.linear());
-        }
-        
-        // Move on to next block
-        for (i = 0; state(i) && i < MAXDIV_INDEX_DIMENSION - 2; ++i)
-            state(i) = false;
-        state(i) = true;
-        
-    }
-    return sum;
-}
-
-}
-
-
 //------------------//
 // DensityEstimator //
 //------------------//
 
-DensityEstimator::DensityEstimator() : m_data(nullptr), m_nonSingletonDim(-1), m_extremeRange() {}
+DensityEstimator::DensityEstimator() : m_data(nullptr), m_extremeRange() {}
 
 DensityEstimator::DensityEstimator(const DensityEstimator & other)
-: m_data(other.m_data), m_nonSingletonDim(other.m_nonSingletonDim),
-  m_extremeRange(other.m_extremeRange), m_numExtremes(other.m_numExtremes)
+: m_data(other.m_data), m_extremeRange(other.m_extremeRange), m_numExtremes(other.m_numExtremes)
 {}
 
 void DensityEstimator::init(const std::shared_ptr<const DataTensor> & data)
 {
     this->m_data = data;
-    this->m_nonSingletonDim = -1;
-    for (int d = 0; d < MAXDIV_INDEX_DIMENSION - 1; ++d)
-        if (data->shape().ind[d] > 1)
-        {
-            if (this->m_nonSingletonDim == -1)
-                this->m_nonSingletonDim = d;
-            else
-            {
-                this->m_nonSingletonDim = -1;
-                break;
-            }
-        }
-    
     this->m_extremeRange = IndexRange();
     this->m_numExtremes = 0;
 }
@@ -172,7 +34,7 @@ void DensityEstimator::fit(const IndexRange & range)
     this->m_extremeRange = range;
     this->m_extremeRange.a.d = 0;
     this->m_extremeRange.b.d = this->m_data->numAttrib();
-    this->m_numExtremes = range.shape().prod(0, MAXDIV_INDEX_DIMENSION - 2);
+    this->m_numExtremes = range.shape().prod(0, MAXDIV_INDEX_DIMENSION - 2) - this->m_data->numMissingSamplesInRange(range);
 }
 
 void DensityEstimator::reset()
@@ -249,6 +111,9 @@ ScalarMatrix DensityEstimator::pdfOutsideRange(IndexRange range) const
 
 std::pair<Scalar, Scalar> DensityEstimator::logpdf(const ReflessIndexVector & ind) const
 {
+    if (this->m_data == nullptr || this->m_data->isMissingSample(ind))
+        return std::pair<Scalar, Scalar>(0, 0);
+    
     Scalar eps = std::numeric_limits<Scalar>::epsilon();
     std::pair<Scalar, Scalar> pdf = this->pdf(ind);
     pdf.first = std::log(pdf.first + eps);
@@ -417,7 +282,6 @@ KernelDensityEstimator::KernelDensityEstimator(const KernelDensityEstimator & ot
 KernelDensityEstimator & KernelDensityEstimator::operator=(const KernelDensityEstimator & other)
 {
     this->m_data = other.m_data;
-    this->m_nonSingletonDim = other.m_nonSingletonDim;
     this->m_extremeRange = other.m_extremeRange;
     this->m_numExtremes = other.m_numExtremes;
     this->m_sigma_sq = other.m_sigma_sq;
@@ -465,6 +329,9 @@ std::pair<Scalar, Scalar> KernelDensityEstimator::pdf(const ReflessIndexVector &
     assert(this->m_data != nullptr && !this->m_data->empty() && !this->m_extremeRange.empty());
     assert((ind.vec() < this->m_data->shape().vec()).all());
     
+    if (this->m_data->isMissingSample(ind))
+        return std::pair<Scalar, Scalar>(1, 1);
+    
     // Compute the sum over the kernelized distances from this sample to all samples in the extremal
     // and non-extremal range
     ReflessIndexVector dataShape = this->m_data->shape();
@@ -476,16 +343,7 @@ std::pair<Scalar, Scalar> KernelDensityEstimator::pdf(const ReflessIndexVector &
         ReflessIndexVector lastIndex = dataShape;
         lastIndex.vec() -= 1;
         lastIndex.d = sampleIndex;
-        
-        if (this->m_nonSingletonDim >= 0)
-        {
-            // Shortcut for data with only one non-singleton dimension to avoid the rather expensive sumFromCumsum()
-            sum_extremes = this->m_cumKernel->data()(this->m_extremeRange.b.ind[this->m_nonSingletonDim] - 1, sampleIndex);
-            if (this->m_extremeRange.a.ind[this->m_nonSingletonDim] > 0)
-                sum_extremes -= this->m_cumKernel->data()(this->m_extremeRange.a.ind[this->m_nonSingletonDim] - 1, sampleIndex);
-        }
-        else
-            sum_extremes = sumFromCumsum(*(this->m_cumKernel), this->m_extremeRange, sampleIndex);
+        sum_extremes = this->m_cumKernel->sumFromCumsum(this->m_extremeRange, sampleIndex);
         sum_non_extremes = (*(this->m_cumKernel))(lastIndex) - sum_extremes;
     }
     else
@@ -504,7 +362,7 @@ std::pair<Scalar, Scalar> KernelDensityEstimator::pdf(const ReflessIndexVector &
     
     // Divide the two sums by the number of samples used for their computation
     sum_extremes /= this->m_numExtremes;
-    sum_non_extremes /= this->m_data->numSamples() - this->m_numExtremes;
+    sum_non_extremes /= this->m_data->numValidSamples() - this->m_numExtremes;
     
     return std::make_pair(sum_extremes, sum_non_extremes);
 }
@@ -540,7 +398,6 @@ GaussianDensityEstimator::GaussianDensityEstimator(const GaussianDensityEstimato
 GaussianDensityEstimator & GaussianDensityEstimator::operator=(const GaussianDensityEstimator & other)
 {
     this->m_data = other.m_data;
-    this->m_nonSingletonDim = other.m_nonSingletonDim;
     this->m_extremeRange = other.m_extremeRange;
     this->m_numExtremes = other.m_numExtremes;
     this->m_covMode = other.m_covMode;
@@ -614,10 +471,10 @@ void GaussianDensityEstimator::init(const std::shared_ptr<const DataTensor> & da
             this->m_outerCovChol = Eigen::LLT<ScalarMatrix>();
             
             // Compute global covariance matrix
-            Sample mean = this->m_cumsum->sample(this->m_cumsum->numSamples() - 1) / static_cast<Scalar>(this->m_cumsum->numSamples());
+            Sample mean = this->m_cumsum->sample(this->m_cumsum->numSamples() - 1) / static_cast<Scalar>(this->m_data->numValidSamples());
             DataTensor centered = *(this->m_data) - mean;
             this->m_innerCov.noalias() = centered.data().transpose() * centered.data();
-            this->m_innerCov /= static_cast<Scalar>(this->m_data->numSamples());
+            this->m_innerCov /= static_cast<Scalar>(this->m_data->numValidSamples());
             cholesky(this->m_innerCov, &(this->m_innerCovChol), &(this->m_innerCovLogDet));
             
             // Compute normalizing constant
@@ -660,10 +517,13 @@ void GaussianDensityEstimator::computeCumOuter(DataTensor::Index offset)
         ScalarMatrix singleProd(this->m_data->numAttrib(), this->m_data->numAttrib());
         Eigen::Map<const Sample> singleProdVec(singleProd.data(), outerShape.d);
         for (DataTensor::Index cumSample = 0, sample = offset * this->m_data->shape().prod(1, 3); cumSample < this->m_cumOuter->numSamples(); ++cumSample, ++sample)
-        {
-            singleProd.noalias() = this->m_data->sample(sample) * this->m_data->sample(sample).transpose();
-            this->m_cumOuter->sample(cumSample) = singleProdVec;
-        }
+            if (!this->m_data->isMissingSample(sample))
+            {
+                singleProd.noalias() = this->m_data->sample(sample) * this->m_data->sample(sample).transpose();
+                this->m_cumOuter->sample(cumSample) = singleProdVec;
+            }
+            else
+                this->m_cumOuter->sample(cumSample).setZero();
         
         // Compute cumulative sum of outer products
         this->m_cumOuter->cumsum(0, MAXDIV_INDEX_DIMENSION - 2);
@@ -684,8 +544,11 @@ ScalarMatrix GaussianDensityEstimator::computeOuterSum(const IndexRange & range)
         for (; offs.t < offs.shape.t; ++offs)
         {
             ind = range.a + offs;
-            const auto sample = this->m_data->sample(ind);
-            outerSum.noalias() += sample * sample.transpose();
+            if (!this->m_data->isMissingSample(ind))
+            {
+                const auto sample = this->m_data->sample(ind);
+                outerSum.noalias() += sample * sample.transpose();
+            }
         }
         return outerSum;
     }
@@ -698,16 +561,9 @@ void GaussianDensityEstimator::fit(const IndexRange & range)
     DensityEstimator::fit(range);
     
     // Compute the mean of the samples inside and outside of the given range
-    DataTensor::Index numNonExtremes = this->m_data->numSamples() - this->m_numExtremes;
-    if (this->m_nonSingletonDim >= 0)
-    {
-        // Shortcut for data with only one non-singleton dimension to avoid the rather expensive sumFromCumsum()
-        this->m_innerMean = this->m_cumsum->sample(range.b.ind[this->m_nonSingletonDim] - 1);
-        if (range.a.ind[this->m_nonSingletonDim] > 0)
-            this->m_innerMean -= this->m_cumsum->sample(range.a.ind[this->m_nonSingletonDim] - 1);
-    }
-    else
-        this->m_innerMean = sumFromCumsum(*(this->m_cumsum), range);
+    DataTensor::Index numNonExtremes = this->m_data->numValidSamples() - this->m_numExtremes;
+    assert(this->m_numExtremes > 0 && numNonExtremes > 0);
+    this->m_innerMean = this->m_cumsum->sumFromCumsum(range);
     this->m_outerMean = this->m_cumsum->sample(this->m_cumsum->numSamples() - 1) - this->m_innerMean;
     this->m_innerMean /= static_cast<Scalar>(this->m_numExtremes);
     this->m_outerMean /= static_cast<Scalar>(numNonExtremes);
@@ -715,7 +571,6 @@ void GaussianDensityEstimator::fit(const IndexRange & range)
     // Compute covariance matrices
     if (this->m_covMode == CovMode::FULL)
     {
-        Scalar eps = std::numeric_limits<Scalar>::epsilon();
         DataTensor::Index rangeLen = range.b.t - range.a.t, cumEnd = this->m_cumOuter_offset + this->m_cumOuter->length();
         
         if (!this->m_cumOuter || this->m_cumOuter->empty() || (rangeLen > this->m_cumOuter_maxLen && (range.b.t <= this->m_cumOuter_offset || range.a.t >= cumEnd)))
@@ -740,15 +595,7 @@ void GaussianDensityEstimator::fit(const IndexRange & range)
             assert(cumRange.b.t <= this->m_cumOuter->length());
             
             // Extract sum from the cumulative sum tensor
-            if (this->m_nonSingletonDim >= 0)
-            {
-                // Shortcut for data with only one non-singleton dimension to avoid the rather expensive sumFromCumsum()
-                innerCovVec = this->m_cumOuter->sample(cumRange.b.ind[this->m_nonSingletonDim] - 1);
-                if (cumRange.a.ind[this->m_nonSingletonDim] > 0)
-                    innerCovVec -= this->m_cumOuter->sample(cumRange.a.ind[this->m_nonSingletonDim] - 1);
-            }
-            else
-                innerCovVec = sumFromCumsum(*(this->m_cumOuter), cumRange);
+            innerCovVec = this->m_cumOuter->sumFromCumsum(cumRange);
             
             // Add sum over sub-range which is not covered by the cumulative sum
             if (range.a.t < this->m_cumOuter_offset)
@@ -805,6 +652,7 @@ DataTensor GaussianDensityEstimator::pdf() const
 {
     DataTensor pdf = this->logpdf();
     pdf.data() = pdf.data().array().cwiseMax(-700).exp(); // taking the maximum is just to prevent underflow
+    pdf.missingValuePlaceholder(1);
     return pdf;
 }
 
@@ -812,6 +660,7 @@ DataTensor GaussianDensityEstimator::pdf(const IndexRange & range) const
 {
     DataTensor pdf = this->logpdf(range);
     pdf.data() = pdf.data().array().cwiseMax(-700).exp(); // taking the maximum is just to prevent underflow
+    pdf.missingValuePlaceholder(1);
     return pdf;
 }
 
@@ -824,6 +673,9 @@ ScalarMatrix GaussianDensityEstimator::pdfOutsideRange(IndexRange range) const
 
 std::pair<Scalar, Scalar> GaussianDensityEstimator::logpdf(const ReflessIndexVector & ind) const
 {
+    if (this->m_data->isMissingSample(ind))
+        return std::pair<Scalar, Scalar>(0, 0);
+    
     IndexVector sampleInd = IndexVector(this->m_data->shape(), ind);
     sampleInd.shape.d = 1;
     sampleInd.d = 0;
@@ -884,6 +736,7 @@ DataTensor GaussianDensityEstimator::logpdf() const
     pdf.data() /= static_cast<Scalar>(-2);
     pdf.data().array().col(0) += this->m_innerLogNormalizer;
     pdf.data().array().col(1) += this->m_outerLogNormalizer;
+    pdf.copyMask(*(this->m_data));
     return pdf;
 }
 
@@ -901,16 +754,29 @@ DataTensor GaussianDensityEstimator::logpdf(const IndexRange & range) const
         shape.d = this->m_data->numAttrib();
         DataTensor centered(range.shape());
         IndexVector ind = pdf.makeIndexVector();
-        for (DataTensor::Index sample = 0; sample < pdf.numSamples(); ++sample, ++ind)
-            centered(sample) = (*(this->m_data))(range.a.t + ind.t, range.a.x + ind.x, range.a.y + ind.y, range.a.z + ind.z) - this->m_innerMean;
+        for (DataTensor::Index sample = 0; sample < pdf.numSamples(); ++sample, ind += ind.shape.d)
+        {
+            if (!this->m_data->isMissingSample(range.a + ind))
+                centered(sample) = this->m_data->sample(range.a + ind) - this->m_innerMean;
+            else
+            {
+                centered(sample).setZero();
+                pdf.setMissingSample(sample);
+            }
+        }
         if (this->m_covMode == CovMode::ID)
             pdf.data().col(0) = centered.data().rowwise().squaredNorm();
         else
             pdf.data().col(0) = centered.data().cwiseProduct(this->m_innerCovChol.solve(centered.data().transpose()).transpose()).rowwise().sum();
         
         ind = pdf.makeIndexVector();
-        for (DataTensor::Index sample = 0; sample < pdf.numSamples(); ++sample, ++ind)
-            centered(sample) = (*(this->m_data))(range.a.t + ind.t, range.a.x + ind.x, range.a.y + ind.y, range.a.z + ind.z) - this->m_outerMean;
+        for (DataTensor::Index sample = 0; sample < pdf.numSamples(); ++sample, ind += ind.shape.d)
+        {
+            if (!this->m_data->isMissingSample(range.a + ind))
+                centered(sample) = this->m_data->sample(range.a + ind) - this->m_outerMean;
+            else
+                centered(sample).setZero();
+        }
         if (this->m_covMode == CovMode::ID)
             pdf.data().col(1) = centered.data().rowwise().squaredNorm();
         else if (this->m_covMode == CovMode::SHARED)
@@ -936,6 +802,7 @@ ScalarMatrix GaussianDensityEstimator::logpdfOutsideRange(IndexRange range) cons
     ReflessIndexVector rangeShape = range.shape();
     
     ScalarMatrix pdf(this->m_data->numSamples() - rangeShape.prod(0, MAXDIV_INDEX_DIMENSION - 2), 2);
+    std::vector<DataTensor::Index> missingSamples;
     
     // Compute (x - mu)^T * S^-1 * (x - mu)
     {
@@ -943,9 +810,18 @@ ScalarMatrix GaussianDensityEstimator::logpdfOutsideRange(IndexRange range) cons
         
         IndexVector ind = this->m_data->makeIndexVector();
         ind.shape.d = 1;
-        for (DataTensor::Index pdfInd = 0; ind.t < ind.shape.t; ++ind)
+        for (DataTensor::Index pdfInd = 0, sampleInd = 0; ind.t < ind.shape.t; ++ind, ++sampleInd)
             if (!range.contains(ind))
-                centered.row(pdfInd++) = this->m_data->sample(ind.linear()) - this->m_innerMean;
+            {
+                if (!this->m_data->isMissingSample(sampleInd))
+                    centered.row(pdfInd) = this->m_data->sample(sampleInd) - this->m_innerMean;
+                else
+                {
+                    centered.row(pdfInd).setZero();
+                    missingSamples.push_back(pdfInd);
+                }
+                ++pdfInd;
+            }
         
         if (this->m_covMode == CovMode::ID)
             pdf.col(0) = centered.rowwise().squaredNorm();
@@ -954,9 +830,15 @@ ScalarMatrix GaussianDensityEstimator::logpdfOutsideRange(IndexRange range) cons
         
         ind = this->m_data->makeIndexVector();
         ind.shape.d = 1;
-        for (DataTensor::Index pdfInd = 0; ind.t < ind.shape.t; ++ind)
+        for (DataTensor::Index pdfInd = 0, sampleInd = 0; ind.t < ind.shape.t; ++ind, ++sampleInd)
             if (!range.contains(ind))
-                centered.row(pdfInd++) = this->m_data->sample(ind.linear()) - this->m_outerMean;
+            {
+                if (!this->m_data->isMissingSample(sampleInd))
+                    centered.row(pdfInd) = this->m_data->sample(sampleInd) - this->m_outerMean;
+                else
+                    centered.row(pdfInd).setZero();
+                ++pdfInd;
+            }
         
         if (this->m_covMode == CovMode::ID)
             pdf.col(1) = centered.rowwise().squaredNorm();
@@ -970,6 +852,11 @@ ScalarMatrix GaussianDensityEstimator::logpdfOutsideRange(IndexRange range) cons
     pdf /= static_cast<Scalar>(-2);
     pdf.array().col(0) += this->m_innerLogNormalizer;
     pdf.array().col(1) += this->m_outerLogNormalizer;
+    
+    // Set log-pdf of missing samples to 0
+    for (const DataTensor::Index & missing : missingSamples)
+        pdf.row(missing).setZero();
+    
     return pdf;
 }
 
@@ -1000,8 +887,8 @@ std::pair<Scalar, Scalar> GaussianDensityEstimator::logLikelihood() const
     
     // Compute sum over log-probabilities: (D * log(2*pi) + log(|S|) + (x - mu)^T * S^-1 * (x - mu)) / -2
     return std::pair<Scalar, Scalar>(
-        ll(0) / -2 + this->m_data->numSamples() * this->m_innerLogNormalizer,
-        ll(1) / -2 + this->m_data->numSamples() * this->m_outerLogNormalizer
+        ll(0) / -2 + this->m_data->numValidSamples() * this->m_innerLogNormalizer,
+        ll(1) / -2 + this->m_data->numValidSamples() * this->m_outerLogNormalizer
     );
 }
 
@@ -1012,31 +899,33 @@ std::pair<Scalar, Scalar> GaussianDensityEstimator::logLikelihood(const IndexRan
     
     // Compute sum over distances: (x - mu)^T * S^-1 * (x - mu)
     Sample ll = Sample::Zero(2), centered(this->m_data->numAttrib());
+    ReflessIndexVector::Index numSamples = 0;
     ReflessIndexVector shape = range.shape();
     shape.d = 1;
     for (IndexVector ind(shape, 0); ind.t < ind.shape.t; ++ind)
-    {
-        const auto sample = (*(this->m_data))(range.a.t + ind.t, range.a.x + ind.x, range.a.y + ind.y, range.a.z + ind.z);
-        
-        // inner distribution
-        centered = sample - this->m_innerMean;
-        if (this->m_covMode == CovMode::ID)
-            ll(0) += centered.squaredNorm();
-        else
-            ll(0) += centered.dot(this->m_innerCovChol.solve(centered));
-        
-        // outer distribution
-        centered = sample - this->m_outerMean;
-        if (this->m_covMode == CovMode::ID)
-            ll(1) += centered.squaredNorm();
-        else if (this->m_covMode == CovMode::SHARED)
-            ll(1) += centered.dot(this->m_innerCovChol.solve(centered));
-        else
-            ll(1) += centered.dot(this->m_outerCovChol.solve(centered));
-    }
+        if (!this->m_data->isMissingSample(range.a + ind))
+        {
+            ++numSamples;
+            const auto sample = this->m_data->sample(range.a + ind);
+            
+            // inner distribution
+            centered = sample - this->m_innerMean;
+            if (this->m_covMode == CovMode::ID)
+                ll(0) += centered.squaredNorm();
+            else
+                ll(0) += centered.dot(this->m_innerCovChol.solve(centered));
+            
+            // outer distribution
+            centered = sample - this->m_outerMean;
+            if (this->m_covMode == CovMode::ID)
+                ll(1) += centered.squaredNorm();
+            else if (this->m_covMode == CovMode::SHARED)
+                ll(1) += centered.dot(this->m_innerCovChol.solve(centered));
+            else
+                ll(1) += centered.dot(this->m_outerCovChol.solve(centered));
+        }
     
     // Compute sum over log-probabilities: (D * log(2*pi) + log(|S|) + (x - mu)^T * S^-1 * (x - mu)) / -2
-    ReflessIndexVector::Index numSamples = shape.prod();
     return std::pair<Scalar, Scalar>(
         ll(0) / -2 + numSamples * this->m_innerLogNormalizer,
         ll(1) / -2 + numSamples * this->m_outerLogNormalizer
@@ -1056,11 +945,11 @@ std::pair<Scalar, Scalar> GaussianDensityEstimator::logLikelihoodOutsideRange(In
     ReflessIndexVector::Index numSamples = 0;
     IndexVector ind = this->m_data->makeIndexVector();
     ind.shape.d = 1;
-    for (; ind.t < ind.shape.t; ++ind)
-        if (!range.contains(ind))
+    for (ReflessIndexVector::Index sampleInd = 0; ind.t < ind.shape.t; ++ind, ++sampleInd)
+        if (!range.contains(ind) && !this->m_data->isMissingSample(sampleInd))
         {
             ++numSamples;
-            const auto sample = this->m_data->sample(ind.linear());
+            const auto sample = this->m_data->sample(sampleInd);
             
             // inner distribution
             centered = sample - this->m_innerMean;
@@ -1146,7 +1035,6 @@ EnsembleOfRandomProjectionHistograms::EnsembleOfRandomProjectionHistograms(const
 EnsembleOfRandomProjectionHistograms & EnsembleOfRandomProjectionHistograms::operator=(const EnsembleOfRandomProjectionHistograms & other)
 {
     this->m_data = other.m_data;
-    this->m_nonSingletonDim = other.m_nonSingletonDim;
     this->m_extremeRange = other.m_extremeRange;
     this->m_numExtremes = other.m_numExtremes;
     this->m_num_hist = other.m_num_hist;
@@ -1184,25 +1072,25 @@ void EnsembleOfRandomProjectionHistograms::init(const std::shared_ptr<const Data
         ReflessIndexVector shape = this->m_data->shape();
         
         // Cache some logarithms
-        if (!this->m_log_cache || this->m_log_cache->size() < data->numSamples() + 1)
+        if (!this->m_log_cache || static_cast<DataTensor::Index>(this->m_log_cache->size()) < data->numValidSamples() + 1)
         {
             DataTensor::Index n;
             if (this->m_log_cache)
             {
                 n = this->m_log_cache->size();
-                this->m_log_cache->conservativeResize(data->numSamples() + 1);
+                this->m_log_cache->conservativeResize(data->numValidSamples() + 1);
             }
             else
             {
                 n = 0;
-                this->m_log_cache.reset(new Sample(data->numSamples() + 1));
+                this->m_log_cache.reset(new Sample(data->numValidSamples() + 1));
             }
             this->m_log_cache->segment(n, this->m_log_cache->size() - n)
-                = (Sample::LinSpaced(this->m_log_cache->size() - n, n, data->numSamples()).array() + this->m_discount).log();
+                = (Sample::LinSpaced(this->m_log_cache->size() - n, n, data->numValidSamples()).array() + this->m_discount).log();
         }
         
         // Generate random projection vectors
-        if (!this->m_proj || this->m_proj->cols() != shape.d)
+        if (!this->m_proj || static_cast<DataTensor::Index>(this->m_proj->cols()) != shape.d)
         {
             this->m_proj.reset(new SparseMatrix(this->m_num_hist, shape.d));
             DataTensor::Index numNonZero = static_cast<DataTensor::Index>(std::sqrt(shape.d) + 0.5);
@@ -1232,9 +1120,12 @@ void EnsembleOfRandomProjectionHistograms::init(const std::shared_ptr<const Data
         shape.d = this->m_num_hist;
         DataTensor projectedData(shape);
         projectedData.data().noalias() = this->m_data->data() * this->m_proj->transpose();
+        projectedData.copyMask(*this->m_data);
         
         // Transform projected attributes to be in range [0,1]
+        projectedData.missingValuePlaceholder(std::numeric_limits<Scalar>::max());
         projectedData -= projectedData.data().colwise().minCoeff();
+        projectedData.missingValuePlaceholder(0);
         projectedData /= projectedData.data().colwise().maxCoeff();
         
         // Determine optimal number of bins for each histogram
@@ -1257,11 +1148,12 @@ void EnsembleOfRandomProjectionHistograms::init(const std::shared_ptr<const Data
             const auto sample = projectedData.sample(i);
             auto ind = this->m_indices->sample(i);
             auto c = this->m_counts->sample(i);
-            for (j = 0; j < this->m_num_hist; ++j)
-            {
-                ind(j) = std::min(static_cast<DataTensor::Index>(sample(j) * this->m_hist_bins(j)), this->m_hist_bins(j) - 1);
-                c(this->m_hist_offsets(j) + ind(j)) = 1;
-            }
+            if (!projectedData.isMissingSample(i))
+                for (j = 0; j < this->m_num_hist; ++j)
+                {
+                    ind(j) = std::min(static_cast<DataTensor::Index>(sample(j) * this->m_hist_bins(j)), this->m_hist_bins(j) - 1);
+                    c(this->m_hist_offsets(j) + ind(j)) = 1;
+                }
         }
         this->m_counts->cumsum(0, MAXDIV_INDEX_DIMENSION - 2);
     }
@@ -1272,21 +1164,13 @@ void EnsembleOfRandomProjectionHistograms::fit(const IndexRange & range)
     DensityEstimator::fit(range);
     
     // Compute the histograms of the samples inside and outside of the given range
-    if (this->m_nonSingletonDim >= 0)
-    {
-        // Shortcut for data with only one non-singleton dimension to avoid the rather expensive sumFromCumsum()
-        this->m_hist_inner = this->m_counts->sample(range.b.ind[this->m_nonSingletonDim] - 1);
-        if (range.a.ind[this->m_nonSingletonDim] > 0)
-            this->m_hist_inner -= this->m_counts->sample(range.a.ind[this->m_nonSingletonDim] - 1);
-    }
-    else
-        this->m_hist_inner = sumFromCumsum(*(this->m_counts), range);
+    this->m_hist_inner = this->m_counts->sumFromCumsum(range);
     this->m_hist_outer = this->m_counts->sample(this->m_counts->numSamples() - 1) - this->m_hist_inner;
     
     // Compute logarithm of probability density estimates:
     // log( bins * (n_i + discount) / (N + bins * discount) ) = log(n_i + discount) - log( N/bins + discount )
     // We only compute log(n_i + discount) here and leave the denominator for being added later, since it does not depend on n_i.
-    for (DataTensor::Index i = 0; i < this->m_hist_inner.size(); ++i)
+    for (DataTensor::Index i = 0; i < static_cast<DataTensor::Index>(this->m_hist_inner.size()); ++i)
     {
         this->m_logprob_inner(i) = (*this->m_log_cache)(this->m_hist_inner(i));
         this->m_logprob_outer(i) = (*this->m_log_cache)(this->m_hist_outer(i));
@@ -1317,11 +1201,14 @@ std::pair<Scalar, Scalar> EnsembleOfRandomProjectionHistograms::logpdf(const Ref
     assert(this->m_indices != nullptr && this->m_logprob_inner.size() > 0 && this->m_logprob_outer.size() > 0);
     assert((ind.vec() < this->m_data->shape().vec()).all());
     
+    if (this->m_data->isMissingSample(ind))
+        return std::pair<Scalar, Scalar>(0, 0);
+    
     // Check if we still have to normalize the log-probabilities first, which we haven't done in fit().
     if (!this->m_logprob_normalized)
     {
         const Sample & logDenomInner = this->logDenomFromCache(this->m_numExtremes);
-        const Sample & logDenomOuter = this->logDenomFromCache(this->m_data->numSamples() - this->m_numExtremes);
+        const Sample & logDenomOuter = this->logDenomFromCache(this->m_data->numValidSamples() - this->m_numExtremes);
         for (DataTensor::Index i = 0; i < this->m_num_hist; ++i)
         {
             this->m_logprob_inner.segment(this->m_hist_offsets(i), this->m_hist_bins(i)).array() -= logDenomInner(i);
@@ -1356,7 +1243,7 @@ std::pair<Scalar, Scalar> EnsembleOfRandomProjectionHistograms::logLikelihoodInn
     if (!this->m_logprob_normalized)
     {
         ll.first  -= this->m_numExtremes * this->logDenomFromCache(this->m_numExtremes).sum();
-        ll.second -= this->m_numExtremes * this->logDenomFromCache(this->m_data->numSamples() - this->m_numExtremes).sum();
+        ll.second -= this->m_numExtremes * this->logDenomFromCache(this->m_data->numValidSamples() - this->m_numExtremes).sum();
     }
     
     ll.first /= this->m_num_hist;
@@ -1376,7 +1263,7 @@ std::pair<Scalar, Scalar> EnsembleOfRandomProjectionHistograms::logLikelihoodOut
     
     if (!this->m_logprob_normalized)
     {
-        DataTensor::Index numNonExtremes = this->m_data->numSamples() - this->m_numExtremes;
+        DataTensor::Index numNonExtremes = this->m_data->numValidSamples() - this->m_numExtremes;
         ll.first  -= numNonExtremes * this->logDenomFromCache(this->m_numExtremes).sum();
         ll.second -= numNonExtremes * this->logDenomFromCache(numNonExtremes).sum();
     }
@@ -1410,11 +1297,12 @@ EnsembleOfRandomProjectionHistograms::IntTensor::Sample EnsembleOfRandomProjecti
     
     // Optimize bins separately for each histogram in order to allow for early exit
     IntTensor::Sample bins = IntTensor::Sample::Constant(data.numAttrib(), 1);
-    DataTensor::Index maxBins = std::ceil(data.numSamples() / std::log(data.numSamples()));
+    DataTensor::Index maxBins = std::ceil(data.numValidSamples() / std::log(data.numValidSamples()));
     Scalar logLikelihood, penalty, pml, max_pml, eps = std::numeric_limits<Scalar>::epsilon();
     Sample last_ll_cache(20), last_pen_cache(20);
-    DataTensor::Index h, b, i, j;
-    for (h = 0; h < bins.size(); ++h)
+    DataTensor::Index h, b;
+    Sample::Index i, j;
+    for (h = 0; h < data.numAttrib(); ++h)
     {
         const auto channel = data.channel(h);
         max_pml = 0.0; // maximum penalized likelihood is always 0 for only 1 bin
@@ -1425,10 +1313,11 @@ EnsembleOfRandomProjectionHistograms::IntTensor::Sample EnsembleOfRandomProjecti
             IntTensor::Sample counts = IntTensor::Sample::Zero(b);
             for (i = 0; i < channel.rows(); ++i)
                 for (j = 0; j < channel.cols(); ++j)
-                    counts(std::min(static_cast<DataTensor::Index>(b * channel(i, j)), b - 1)) += 1;
+                    if (!data.hasMissingSamples() || !data.isMissingSample(i * channel.cols() + j))
+                        counts(std::min(static_cast<DataTensor::Index>(b * channel(i, j)), b - 1)) += 1;
             
             // Compute penalized maximum likelihood
-            Sample logprob = counts.cast<Scalar>() * static_cast<Scalar>(b) / data.numSamples();
+            Sample logprob = counts.cast<Scalar>() * static_cast<Scalar>(b) / data.numValidSamples();
             logprob = (logprob.array() + eps).log();
             logLikelihood = counts.cast<Scalar>().cwiseProduct(logprob).sum();
             if (penalties.size() <= b - 2)

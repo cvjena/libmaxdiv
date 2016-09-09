@@ -16,7 +16,7 @@ Dependencies
 ------------
 
 - A C++ compiler capable of C++11 and OpenMP 4.0 (e.g. g++ >= 4.9)
-- [Eigen](http://eigen.tuxfamily.org/) >= 3.2
+- [Eigen](http://eigen.tuxfamily.org/) >= 3.2.7
 - [CMake](https://cmake.org/) >= 3.1
 
 

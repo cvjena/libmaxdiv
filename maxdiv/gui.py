@@ -86,15 +86,15 @@ def readDataFromCSV(csvFile):
     delims = [',', ';', '\t', ' ']
     delim = None
     for d in delims:
-        if re.match('^"?\\s*[+-]?[0-9]+(\\.[0-9]*)?(e[+-]?[0-9]+)?\\s*"?(' + d + '"?\\s*[+-]?[0-9]+(\\.[0-9]*)?(e[+-]?[0-9]+)?\\s*"?)*$', secondLine):
+        if re.match('^"?\\s*([+-]?[0-9]+(\\.[0-9]*)?(e[+-]?[0-9]+)?|nan)\\s*"?(' + d + '"?\\s*([+-]?[0-9]+(\\.[0-9]*)?(e[+-]?[0-9]+)?|nan)\\s*"?)*$', secondLine):
             delim = d
             hasDatelines = False
             break
-        elif re.match('^"?\\s*[0-9]{4}-[01][0-9]-[0-3][0-9] [012][0-9]:[0-5][0-9]:[0-5][0-9]\\s*"?(' + d + '"?\\s*[+-]?[0-9]+(\\.[0-9]*)?(e[+-]?[0-9]+)?\\s*"?)*$', secondLine):
+        elif re.match('^"?\\s*[0-9]{4}-[01][0-9]-[0-3][0-9] [012][0-9]:[0-5][0-9]:[0-5][0-9]\\s*"?(' + d + '"?\\s*([+-]?[0-9]+(\\.[0-9]*)?(e[+-]?[0-9]+)?|nan)\\s*"?)*$', secondLine):
             delim = d
             hasDatelines = 'datetime'
             break
-        elif re.match('^"?\\s*[0-9]{4}-[01][0-9]-[0-3][0-9]\\s*"?(' + d + '"?\\s*[+-]?[0-9]+(\\.[0-9]*)?(e[+-]?[0-9]+)?\\s*"?)*$', secondLine):
+        elif re.match('^"?\\s*[0-9]{4}-[01][0-9]-[0-3][0-9]\\s*"?(' + d + '"?\\s*([+-]?[0-9]+(\\.[0-9]*)?(e[+-]?[0-9]+)?|nan)\\s*"?)*$', secondLine):
             delim = d
             hasDatelines = 'date'
             break
@@ -132,6 +132,10 @@ def readDataFromCSV(csvFile):
                 del varnames[0]
         else:
             timesteps = np.arange(data.shape[1])
+    
+    # Check for missing values
+    if np.isnan(data).any():
+        data = np.ma.masked_invalid(data)
     
     # Create artificial variable names if no header was available
     if len(varnames) == 0:
@@ -529,6 +533,13 @@ class MDIGUI(tkinter.Tk):
         """Shows and hides form fields specific to the deseasonalization method."""
         
         method = DETRENDING_METHODS[self.selDetrending.current()][0]
+        if (self.data.shape[1] > 0) and np.ma.isMaskedArray(self.data) and (method == 'deseasonalize_ft'):
+            messagebox.showerror(
+                title = 'Function not available',
+                message = 'Fourier Transform based deseasonalization is not available for data with missing values.'
+            )
+            self.selDetrending.current(0)
+            method = ''
         if method in ('deseasonalize_z', 'deseasonalize_ols'):
             self.lblPeriodNum.grid()
             self.txtPeriodNum.grid()
@@ -610,7 +621,17 @@ class MDIGUI(tkinter.Tk):
             preprocParams = (self.boolNormalize.get(), detrending, self.intPeriodNum.get(), self.intPeriodLen.get(), self.boolLinearTrend.get())
             if preprocParams != self._lastPreprocParams:
                 
-                self.preprocData = preproc.normalize_time_series(self.data) if self.boolNormalize.get() else self.data
+                if np.ma.isMaskedArray(self.data):
+                    self.preprocData = np.ma.mask_cols(self.data.copy())
+                    # Set masked values to 0, because NaNs cause some strange problems, even if they're masked
+                    mask = self.preprocData.mask.copy()                 # backup mask
+                    self.preprocData[:,self.preprocData.mask[0,:]] = 0  # set masked values to 0
+                    self.preprocData.mask = mask                        # restore mask
+                else:
+                    self.preprocData = self.data
+                
+                if self.boolNormalize.get():
+                    self.preprocData = preproc.normalize_time_series(self.preprocData)
                 
                 if detrending == 'deseasonalize_z':
                     self.preprocData = preproc.deseasonalize_zscore(self.preprocData, self.intPeriodNum.get())
@@ -642,6 +663,8 @@ class MDIGUI(tkinter.Tk):
             self.strFile.set(filename)
             
             # Reset dependent data
+            if np.ma.isMaskedArray(self.data) and (DETRENDING_METHODS[self.selDetrending.current()][0] == 'deseasonalize_ft'):
+                self.selDetrending.current(0)
             self.preprocData = np.ndarray((0, 0))
             self._lastPreprocParams = None
             self.resetDetections()
@@ -693,7 +716,8 @@ class MDIGUI(tkinter.Tk):
                                 'corresponds to a time step and lists the values of different attributes separated by commas.\n\n'\
                                 'The first attribute may be a continuous list of time steps which may also be given as date and time '\
                                 'in the following format:\nYYYY-MM-DD HH:MM:SS or YYYY-MM-DD\n\n'\
-                                'The first line in the file may be a comma-separated list of column names.')
+                                'The first line in the file may be a comma-separated list of column names.\n\n'
+                                'Missing values in the data can be encoded as "nan" (without the quotes).')
     
     
     def saveFigDlg(self, *args):
@@ -771,10 +795,16 @@ class MDIGUI(tkinter.Tk):
         """Tries to automatically detect the length of the main seasonal period in the time-series."""
         
         if self.data.shape[1] > 0:
-            periods, _ = preproc.detect_periods(self.data)
-            if len(periods) > 0:
-                self.intPeriodNum.set(int(round(periods[0])))
-                self.intPeriodLen.set(1)
+            if np.ma.isMaskedArray(self.data):
+                messagebox.showerror(
+                    title = 'Function not available',
+                    message = 'Automatic detection of the seasonality is not available for data with missing values.'
+                )
+            else:
+                periods, _ = preproc.detect_periods(self.data)
+                if len(periods) > 0:
+                    self.intPeriodNum.set(int(round(periods[0])))
+                    self.intPeriodLen.set(1)
     
     
     def runDetector(self):

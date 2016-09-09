@@ -331,7 +331,8 @@ protected:
     *
     * This function will be called by `operator()` after pre-processing to perform the actual detection.
     *
-    * @param[in] data The pre-processed spatio-temporal data.
+    * @param[in] data The pre-processed spatio-temporal data. If the data contain missing values, they must have been
+    * masked by calling `DataTensor::mask()`.
     *
     * @param[in] numDetections Maximum number of detections to return. Set this to `0` to retrieve all detections.
     *
@@ -411,7 +412,8 @@ protected:
     *
     * This function will be called by `operator()` after pre-processing to perform the actual detection.
     *
-    * @param[in] data The pre-processed spatio-temporal data.
+    * @param[in] data The pre-processed spatio-temporal data. If the data contain missing values, they must have been
+    * masked by calling `DataTensor::mask()`.
     *
     * @param[in] numDetections Maximum number of detections to return. Set this to `0` to retrieve all detections.
     *

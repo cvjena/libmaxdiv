@@ -28,6 +28,8 @@ public:
     
     /**
     * Initializes this divergence with a given DataTensor @p data.
+    *
+    * @note If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     */
     virtual void init(const std::shared_ptr<const DataTensor> & data) =0;
     
@@ -93,7 +95,8 @@ public:
     *
     * @param[in] densityEstimator The density estimator to be used. Must not be `NULL`.
     *
-    * @param[in] data The data tensor to initialize the density estimator for.
+    * @param[in] data The data tensor to initialize the density estimator for.  
+    * If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     *
     * @param[in] mode Specifies the polarity of the KL divergence.
     */
@@ -122,7 +125,8 @@ public:
     *
     * @param[in] densityEstimator The density estimator to be used. Must not be `NULL`.
     *
-    * @param[in] data The data tensor to initialize the density estimator for.
+    * @param[in] data The data tensor to initialize the density estimator for.  
+    * If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     *
     * @param[in] mode Specifies the polarity of the KL divergence.
     */
@@ -144,6 +148,8 @@ public:
     
     /**
     * Initializes the density estimator used by this divergence with a given DataTensor @p data.
+    *
+    * @note If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     */
     virtual void init(const std::shared_ptr<const DataTensor> & data) override;
     
@@ -177,8 +183,7 @@ protected:
     KLMode m_mode;
     std::shared_ptr<DensityEstimator> m_densityEstimator;
     std::shared_ptr<GaussianDensityEstimator> m_gaussDensityEstimator;
-    DataTensor::Index m_numSamples; /**< Number of samples in the DataTensor passed to `init()`. */
-    DataTensor::Index m_numAttributes; /**< Number of attributes in the DataTensor passed to `init()`. */
+    std::shared_ptr<const DataTensor> m_data; /**< Pointer to the DataTensor passed to `init()`. */
     Scalar m_chiMean; /**< The theoretical mean of the length-normalized scores. */
     Scalar m_chiSD; /**< The theoretical standard deviation of the length-normalized scores. */
 
@@ -267,7 +272,8 @@ public:
     *
     * @param[in] densityEstimator The density estimator to be used. Must not be `NULL`.
     *
-    * @param[in] data The data tensor to initialize the density estimator for.
+    * @param[in] data The data tensor to initialize the density estimator for.  
+    * If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     */
     JSDivergence(const std::shared_ptr<DensityEstimator> & densityEstimator, const std::shared_ptr<const DataTensor> & data);
     
@@ -287,6 +293,8 @@ public:
     
     /**
     * Initializes the density estimator used by this divergence with a given DataTensor @p data.
+    *
+    * @note If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     */
     virtual void init(const std::shared_ptr<const DataTensor> & data) override;
     
@@ -325,7 +333,7 @@ public:
 protected:
 
     std::shared_ptr<DensityEstimator> m_densityEstimator;
-    DataTensor::Index m_numSamples; /**< Number of samples in the DataTensor passed to `init()`. */
+    std::shared_ptr<const DataTensor> m_data; /**< Pointer to the DataTensor passed to `init()`. */
 
 };
 

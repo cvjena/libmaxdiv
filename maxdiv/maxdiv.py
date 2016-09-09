@@ -66,12 +66,20 @@ def maxdiv_parzen(K, intervals, mode = 'I_OMEGA', alpha = 1.0, score_merge_coeff
     """
 
     # compute integral sums for each column within the kernel matrix 
-    K_integral = np.cumsum(K, axis=0)
+    K_integral = np.cumsum(K if not np.ma.isMaskedArray(K) else K.filled(0), axis = 0)
     # the sum of all kernel values for each column
     # is now given in the last row
     sums_all = K_integral[-1,:]
     # n is the number of data points considered
     n = K_integral.shape[0]
+    if np.ma.isMaskedArray(K):
+        i = 0
+        while (K.mask[i,:].all()):
+            i += 1
+        mask = K.mask[i,:]
+        numValidSamples = n - mask.sum()
+    else:
+        numValidSamples = n
 
     # list of results
     scores = []
@@ -90,11 +98,14 @@ def maxdiv_parzen(K, intervals, mode = 'I_OMEGA', alpha = 1.0, score_merge_coeff
         extreme[:] = False
         extreme[a:b] = True
         non_extreme = np.logical_not(extreme)
+        if np.ma.isMaskedArray(K):
+            extreme[mask] = False
+            non_extreme[mask] = False
 
         # number of data points in the current interval
-        extreme_interval_length = b - a
+        extreme_interval_length = b - a if not np.ma.isMaskedArray(K) else b - a - mask[a:b].sum()
         # number of data points outside of the current interval
-        non_extreme_points = n - extreme_interval_length
+        non_extreme_points = numValidSamples - extreme_interval_length
         
         # compute the KL divergence
         # the mode parameter determines which KL divergence to use
@@ -145,6 +156,14 @@ def maxdiv_parzen(K, intervals, mode = 'I_OMEGA', alpha = 1.0, score_merge_coeff
             kl_integrand2 = np.mean(np.log(sums_extreme + eps))
             negative_kl_I_Omega = alpha * kl_integrand1 - kl_integrand2
             score += - negative_kl_I_Omega
+        
+        # Cross Entropy
+        if mode == "CROSSENT" or mode == "CROSSENT_TS":
+            sums_extreme = K_integral[b-1, extreme] - (K_integral[a-1, extreme] if a > 0 else 0)
+            sums_non_extreme = sums_all[extreme] - sums_extreme
+            sums_extreme /= extreme_interval_length
+            sums_non_extreme /= non_extreme_points
+            score -= np.sum(np.log(sums_non_extreme + eps)) if mode == "CROSSENT_TS" else np.mean(np.log(sums_non_extreme + eps))
         
         # Jensen-Shannon Divergence
         if mode == 'JSD':
@@ -212,20 +231,22 @@ def maxdiv_gaussian_globalcov(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'G
     """
 
     dimension, n = X.shape
+    numValidSamples = n if not np.ma.isMaskedArray(X) else X[0,:].count()
 
-    X_integral = np.cumsum(X, axis=1)
+    X_integral = np.cumsum(X if not np.ma.isMaskedArray(X) else X.filled(0), axis=1)
     sums_all = X_integral[:, -1]
     if (gaussian_mode == 'GLOBAL_COV') and (dimension > 1):
-        cov = np.cov(X)
+        cov = np.ma.cov(X).filled(0)
         cov_chol = cho_factor(cov)
+        logdet = slogdet(cov)[1]
 
     scores = []
 
     eps = 1e-7
     for a, b, base_score in intervals:
         
-        extreme_interval_length = b - a
-        non_extreme_points = n - extreme_interval_length
+        extreme_interval_length = b - a if not np.ma.isMaskedArray(X) else X[0,a:b].count()
+        non_extreme_points = numValidSamples - extreme_interval_length
         
         sums_extreme = X_integral[:, b-1] - (X_integral[:, a-1] if a > 0 else 0)
         sums_non_extreme = sums_all - sums_extreme
@@ -235,8 +256,12 @@ def maxdiv_gaussian_globalcov(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'G
         diff = sums_extreme - sums_non_extreme
         if (gaussian_mode == 'GLOBAL_COV') and (dimension > 1):
             score = diff.T.dot(cho_solve(cov_chol, diff))
+            if (mode == 'CROSSENT') or (mode == 'CROSSENT_TS'):
+                score += slogdet
         else:
             score = np.sum(diff * diff)
+        if (mode == 'CROSSENT') or (mode == 'CROSSENT_TS'):
+            score += dimension * (1 + np.log(2 * np.pi))
         scores.append((a, b, score, base_score) if score_merge_coeff is not None else (a, b, score))
 
     if score_merge_coeff is None:
@@ -282,13 +307,16 @@ def maxdiv_gaussian(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'COV', score
         return maxdiv_gaussian_globalcov(X, intervals, mode, gaussian_mode)
 
     dimension, n = X.shape
-    X_integral = np.cumsum(X, axis=1)
+    numValidSamples = n if not np.ma.isMaskedArray(X) else X[0,:].count()
+    X_integral = np.cumsum(X if not np.ma.isMaskedArray(X) else X.filled(0), axis=1)
     sums_all = X_integral[:, -1]
     scores = []
 
     # compute integral series of the outer products
     # we will use this to compute covariance matrices
     outer_X = np.apply_along_axis(lambda x: np.ravel(np.outer(x,x)), 0, X)
+    if np.ma.isMaskedArray(X):
+        outer_X[:,X.mask[0,:]] = 0
     outer_X_integral = np.cumsum(outer_X, axis=1)
     outer_sums_all = outer_X_integral[:, -1]
     
@@ -301,8 +329,8 @@ def maxdiv_gaussian(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'COV', score
         
         score = 0.0
         
-        extreme_interval_length = b - a
-        non_extreme_points = n - extreme_interval_length
+        extreme_interval_length = b - a if not np.ma.isMaskedArray(X) else X[0,a:b].count()
+        non_extreme_points = numValidSamples - extreme_interval_length
         
         sums_extreme = X_integral[:, b-1] - (X_integral[:, a-1] if a > 0 else 0)
         sums_non_extreme = sums_all - sums_extreme
@@ -353,16 +381,34 @@ def maxdiv_gaussian(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'COV', score
             else:
                 score += kl_I_Omega
         
+        # version for maximizing Cross Entropy
+        if mode in ("CROSSENT", "CROSSENT_TS"):
+            inv_cov_non_extreme = inv(cov_non_extreme)
+            # term for the mahalanobis distance
+            ce_I_Omega = np.dot(diff, np.dot(inv_cov_non_extreme, diff.T))
+            # trace term
+            ce_I_Omega += np.trace(np.dot(inv_cov_non_extreme, cov_extreme))
+            # logdet term
+            ce_I_Omega += logdet_non_extreme + dimension * np.log(2 * np.pi)
+            if mode == 'CROSSENT_TS':
+                score += (extreme_interval_length * ce_I_Omega - ts_mean) / ts_sd
+            else:
+                score += ce_I_Omega
+        
         # Jensen-Shannon Divergence
         if mode == 'JSD':
             # Compute probability densities
             pdf_extreme     = multivariate_normal.pdf(X.T, sums_extreme, cov_extreme)
             pdf_non_extreme = multivariate_normal.pdf(X.T, sums_non_extreme, cov_non_extreme)
             pdf_combined    = (pdf_extreme + pdf_non_extreme) / 2
+            if np.ma.isMaskedArray(X):
+                pdf_extreme = np.ma.MaskedArray(pdf_extreme, X.mask[0,:])
+                pdf_non_extreme = np.ma.MaskedArray(pdf_non_extreme, X.mask[0,:])
+                pdf_combined = np.ma.MaskedArray(pdf_combined, X.mask[0,:])
             # Compute JSD
-            jsd_extreme     = np.mean(np.log2(pdf_extreme[a:b] + eps) - np.log2(pdf_combined[a:b] + eps))
-            jsd_non_extreme = np.mean(np.log2(np.concatenate((pdf_non_extreme[:a], pdf_non_extreme[b:])) + eps)
-                                      - np.log2(np.concatenate((pdf_combined[:a], pdf_combined[b:])) + eps))
+            jsd_extreme     = (np.log2(pdf_extreme[a:b] + eps) - np.log2(pdf_combined[a:b] + eps)).mean()
+            jsd_non_extreme = (np.log2(np.concatenate((pdf_non_extreme[:a], pdf_non_extreme[b:])) + eps)
+                                      - np.log2(np.concatenate((pdf_combined[:a], pdf_combined[b:])) + eps)).mean()
             score += (jsd_extreme + jsd_non_extreme) / 2.0
         
         #print score, cov_extreme, cov_non_extreme, diff
@@ -417,6 +463,7 @@ def maxdiv_erph(X, intervals, mode = 'I_OMEGA', num_hist = 100, num_bins = None,
     """
 
     dimension, n = X.shape
+    numValidSamples = n if not np.ma.isMaskedArray(X) else X[0,:].count()
     scores = []
     
     if (num_bins is not None) and (num_bins < 1):
@@ -434,7 +481,7 @@ def maxdiv_erph(X, intervals, mode = 'I_OMEGA', num_hist = 100, num_bins = None,
         proj[i, dim_range[:proj_dims]] = np.random.randn(proj_dims)
     
     # Project data and initialize histograms
-    Xp = proj.dot(X)
+    Xp = proj.dot(X) if not np.ma.isMaskedArray(X) else np.ma.dot(proj, X)
     hist = [Histogram1D(Xp[i,:], num_bins, store_data = False) for i in range(num_hist)]
     ind = np.array([hist[i].indices(Xp[i,:]) for i in range(num_hist)])
     counts = [np.array([[1.0 if ind[i, j] == b else 0.0 for j in range(n)] for b in range(hist[i].num_bins)]).cumsum(axis = 1) for i in range(num_hist)]
@@ -454,9 +501,9 @@ def maxdiv_erph(X, intervals, mode = 'I_OMEGA', num_hist = 100, num_bins = None,
         non_extreme = np.logical_not(extreme)
 
         # number of data points in the current interval
-        extreme_interval_length = b - a
+        extreme_interval_length = b - a  if not np.ma.isMaskedArray(X) else X[0,a:b].count()
         # number of data points outside of the current interval
-        non_extreme_points = n - extreme_interval_length
+        non_extreme_points = numValidSamples - extreme_interval_length
         
         # Compute histograms and probability density estimates
         for i in range(num_hist):
@@ -476,17 +523,23 @@ def maxdiv_erph(X, intervals, mode = 'I_OMEGA', num_hist = 100, num_bins = None,
             for i in range(num_hist):
                 score += np.sum(counts_inner[i] * (logprob_inner[i] - logprob_outer[i])) / (extreme_interval_length * num_hist)
         
+        if mode == "CROSSENT" or mode == "CROSSENT_TS":
+            quotient = num_hist if mode == "CROSSENT_TS" else (extreme_interval_length * num_hist)
+            for i in range(num_hist):
+                score -= np.sum(counts_inner[i] * logprob_outer[i]) / quotient
+        
         if mode == 'JSD':
             jsd = 0.0
             
             for i in range(n):
-                p_I = sum(logprob_inner[h][ind[h,i]] for h in range(num_hist)) / num_hist
-                p_Omega = sum(logprob_outer[h][ind[h,i]] for h in range(num_hist)) / num_hist
-                logprob_combined = np.log((np.exp(p_I) + np.exp(p_Omega)) / 2)
-                if extreme[i]:
-                    jsd += (p_I - logprob_combined) / extreme_interval_length
-                else:
-                    jsd += (p_Omega - logprob_combined) / non_extreme_points
+                if not np.ma.is_masked(X[0,i]):
+                    p_I = sum(logprob_inner[h][ind[h,i]] for h in range(num_hist)) / num_hist
+                    p_Omega = sum(logprob_outer[h][ind[h,i]] for h in range(num_hist)) / num_hist
+                    logprob_combined = np.log((np.exp(p_I) + np.exp(p_Omega)) / 2)
+                    if extreme[i]:
+                        jsd += (p_I - logprob_combined) / extreme_interval_length
+                    else:
+                        jsd += (p_Omega - logprob_combined) / non_extreme_points
             
             score += jsd / (np.log(2.0) * 2.0)
 
@@ -516,7 +569,7 @@ class Histogram1D(object):
         """
 
         object.__init__(self)
-        self.vmin, self.vmax = np.min(X), np.max(X)
+        self.vmin, self.vmax = X.min(), X.max()
         
         if num_bins is None:
             
@@ -549,7 +602,7 @@ class Histogram1D(object):
         """ Reset the histogram and add the samples in X. """
         
         self.counts = np.zeros(self.num_bins, dtype = int)
-        self.N = len(X)
+        self.N = len(X) if not np.ma.isMaskedArray(X) else X.count()
         if not ind:
             X = self.indices(X)
         self.counts = np.array([(X == i).sum() for i in range(self.num_bins)])
@@ -559,7 +612,10 @@ class Histogram1D(object):
         
         if not ind:
             X = self.indices(X)
-        return self.num_bins * self.counts[X].astype(float) / self.N
+        prob = self.num_bins * self.counts[X].astype(float) / self.N
+        if np.ma.isMaskedArray(X):
+            prob = np.ma.MaskedArray(X, X.mask)
+        return prob
     
     def indices(self, X):
         """ Retrieve the indices of the bins for the samples in X. """
@@ -772,6 +828,9 @@ def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', u
             if useLibMaxDiv == True:
                 raise
     
+    if (not np.ma.isMaskedArray(X)) and np.isnan(X).any():
+        X = np.ma.mask_cols(np.ma.masked_invalid(X))
+    
     if 'preproc' in kwargs:
         preprocs = kwargs['preproc'] if isinstance(kwargs['preproc'], list) or isinstance(kwargs['preproc'], tuple) else [kwargs['preproc']]
         preprocMethods = {
@@ -875,5 +934,7 @@ def denseRegionProposals(func, extint_min_len = 20, extint_max_len = 150, **kwar
     
     n = func.shape[1]
     for i in range(n - extint_min_len + 1):
-        for j in range(i + extint_min_len, min(i + extint_max_len, n) + 1):
-            yield (i, j, 0.0)
+        if not np.ma.is_masked(func[0,i]):
+            for j in range(i + extint_min_len, min(i + extint_max_len, n) + 1):
+                if not np.ma.is_masked(func[0, j - 1]):
+                    yield (i, j, 0.0)

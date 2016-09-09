@@ -177,14 +177,16 @@ class _LibMaxDiv(object):
         
         # maxdiv_exec function
         self._register_func('maxdiv_exec',
-            (c_void_p, c_uint, maxdiv_scalar_p, index_vector_t, detection_p, c_uint_p, c_bool),
-            ((1, 'pipeline'), (1, 'data'), (1, 'shape'), (1, 'detection_buf'), (1, 'detection_buf_size'), (1, 'const_data', True))
+            (c_void_p, c_uint, maxdiv_scalar_p, index_vector_t, detection_p, c_uint_p, c_bool, c_bool, maxdiv_scalar),
+            ((1, 'pipeline'), (1, 'data'), (1, 'shape'), (1, 'detection_buf'), (1, 'detection_buf_size'),
+             (1, 'const_data', True), (1, 'custom_missing_value', False), (1, 'missing_value', 0))
         )
         
         # maxdiv function
         self._register_func('maxdiv',
-            (c_void_p, maxdiv_params_p, maxdiv_scalar_p, index_vector_t, detection_p, c_uint_p, c_bool),
-            ((1, 'params'), (1, 'data'), (1, 'shape'), (1, 'detection_buf'), (1, 'detection_buf_size'), (1, 'const_data', True))
+            (c_void_p, maxdiv_params_p, maxdiv_scalar_p, index_vector_t, detection_p, c_uint_p, c_bool, c_bool, maxdiv_scalar),
+            ((1, 'params'), (1, 'data'), (1, 'shape'), (1, 'detection_buf'), (1, 'detection_buf_size'),
+             (1, 'const_data', True), (1, 'custom_missing_value', False), (1, 'missing_value', 0))
         )
     
     
@@ -419,6 +421,8 @@ def maxdiv_exec(X, params, num_intervals = 1):
     det_buf = (detection_t * num_intervals)()
     
     # Prepare data
+    if np.ma.isMaskedArray(X):
+        X = X.filled(np.nan)
     X = np.require(X if isSpatioTemporal else X.T, np.float32 if maxdiv_scalar == c_float else np.float64, ['C_CONTIGUOUS'])
     if isSpatioTemporal:
         shape = index_vector_t()

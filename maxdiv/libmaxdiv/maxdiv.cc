@@ -14,6 +14,7 @@
 #include <iostream>
 #include <chrono>
 #include <cstdlib>
+#include <cmath>
 #include <getopt.h>
 
 //#undef __STRICT_ANSI__
@@ -149,7 +150,7 @@ int main(int argc, char * argv[])
                  td_embed = 1, td_lag = 1, period_num = 0, period_len = 1,
                  pca_dims = 0, random_projection_dims = 0,
                  first_row = 0, first_col = 0, last_col = -1;
-    Scalar overlap_th = 0.0, kernel_sigma_sq = 1.0, discount = 1.0, prop_th = 1.5;
+    Scalar overlap_th = 0.0, kernel_sigma_sq = 1.0, discount = 1.0, prop_th = 1.5, missing_value = std::numeric_limits<Scalar>::quiet_NaN();
     int prop_mad = 0, prop_filter = 1, normalize = 0, linear_trend = 0, linear_season_trend = 0, timing = 0;
     char delimiter = ',';
     
@@ -200,12 +201,13 @@ int main(int argc, char * argv[])
             {"first_row",           required_argument,  NULL,       'r'},
             {"first_col",           required_argument,  NULL,       'c'},
             {"last_col",            required_argument,  NULL,       'z'},
+            {"missing_value",       required_argument,  NULL,       'm'},
             
             {0, 0, 0, 0}
         };
         
         int option_index = 0;
-        c = getopt_long(argc, argv, "a:b:c:d:e:f:g:hi:j:l:n:o:p:q:r:st::u:w:x:z:P:Q:", long_options, &option_index);
+        c = getopt_long(argc, argv, "a:b:c:d:e:f:g:hi:j:l:m:n:o:p:q:r:st::u:w:x:z:P:Q:", long_options, &option_index);
         switch (c)
         {
             case 'h':
@@ -466,6 +468,14 @@ int main(int argc, char * argv[])
                     return 1;
                 }
                 break;
+            case 'm':
+                missing_value = strtod(optarg, &conv_end);
+                if (conv_end == NULL || *conv_end != '\0')
+                {
+                    cerr << "Invalid value specified for option --missing_value" << endl;
+                    return 1;
+                }
+                break;
         }
     }
     
@@ -499,6 +509,8 @@ int main(int argc, char * argv[])
         cerr << "Could not read file: " << argv[optind] << endl;
         return 2;
     }
+    if (!isnan(missing_value))
+        data->mask(missing_value);
     
     // Apply MaxDiv algorithm
     auto start = high_resolution_clock::now();
@@ -630,5 +642,9 @@ void printHelp(const char * progName)
          << endl
          << "    --last_col <int>, -z <int>" << endl
          << "        The last column in the CSV file to be read." << endl
+         << endl
+         << "    --missing_value <float>, -m <float>" << endl
+         << "        If missing values in the CSV file are not encoded as 'nan', but as a special floating" << endl
+         << "        point value, that missing value may be specified using this option." << endl
          << endl;
 }

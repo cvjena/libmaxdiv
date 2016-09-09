@@ -7,17 +7,19 @@ from .maxdiv_util import calc_gaussian_kernel, IoU
 def hotellings_t(X):
     """ Global version of hotellings_t """
     
-    mu = np.mean(X, axis = 1)
-    cov = np.cov(X)
+    mu = X.mean(axis = 1)
+    cov = np.ma.cov(X).filled(0)
     zeromean_X = (X.T - mu).T
     if X.shape[0]==1:
         norm_X = zeromean_X/cov
         scores = zeromean_X*norm_X
-        scores = np.ravel(scores)
+        scores = scores.ravel()
     else:
         invcov = np.linalg.inv(cov)
-        norm_X = np.dot(invcov, zeromean_X)
-        scores = np.sum(norm_X * zeromean_X, axis=0)
+        norm_X = np.dot(invcov, zeromean_X) if not np.ma.isMaskedArray(zeromean_X) else np.ma.dot(invcov, zeromean_X)
+        scores = (norm_X * zeromean_X).sum(axis=0)
+    if np.ma.isMaskedArray(X):
+        scores.mask = X.mask[0,:]
     return scores
 
 
@@ -30,7 +32,10 @@ def pointwiseKDE(X, kernel_sigma_sq = 1.0):
     # Compute kernel matrix
     K = calc_gaussian_kernel(X, kernel_sigma_sq, False)
     # Score points by their unlikelihood
-    return (1.0 - K.mean(axis = 0))
+    prob = K.mean(axis = 0)
+    if np.ma.isMaskedArray(X):
+        prob.mask = X.mask[0,:] if X.ndim > 1 else X.mask
+    return (1.0 - prob)
 
 
 def gmm_scores(X, n_components = 2):
@@ -45,9 +50,12 @@ def gmm_scores(X, n_components = 2):
     gmm.fit(X.T)
     nominal_component = gmm.weights_.argmax()
     if n_components == 2:
-        return gmm.score_samples(X.T)[1][:, 1 - nominal_component]
+        scores = gmm.score_samples(X.T)[1][:, 1 - nominal_component]
     else:
-        return (1.0 - gmm.score_samples(X.T)[1][:, nominal_component])
+        scores = (1.0 - gmm.score_samples(X.T)[1][:, nominal_component])
+    if np.ma.isMaskedArray(X):
+        scores = np.ma.MaskedArray(scores, X.mask[0,:] if X.ndim > 1 else X.mask)
+    return scores
 
 
 def rkde(X, kernel_sigma_sq = 1.0, type = 'hampel'):
@@ -153,9 +161,8 @@ def rkde(X, kernel_sigma_sq = 1.0, type = 'hampel'):
 
 def pointwiseScoresToIntervals(scores, min_length = 0):
     
-    sorted_scores = sorted(scores)
-    first_th = sorted_scores[int(len(scores) * 0.7)]
-    max_score = sorted_scores[-1]
+    first_th = np.percentile(scores, 0.7)
+    max_score = np.max(scores)
     
     thresholds = np.linspace(first_th, max_score, 10, endpoint = False)
     scores = np.array(scores)
@@ -216,25 +223,30 @@ def pointwiseRegionProposals(func, extint_min_len = 20, extint_max_len = 150,
     # Filter scores
     if filter is not None:
         pad = (len(filter) - 1) // 2
-        padded_scores = np.concatenate((scores[:pad], scores, scores[-pad:]))
-        scores = np.abs(np.convolve(padded_scores, filter, 'valid'))
+        padded_scores = np.ma.concatenate((scores[:pad], scores, scores[-pad:]))
+        conv_scores = np.abs(np.convolve(padded_scores, filter, 'valid'))
+        if np.ma.isMaskedArray(scores) and (np.asarray(filter) == [-1, 0, 1]).all():
+            scores = np.ma.MaskedArray(conv_scores, ((scores.mask[max(0, i - 1)] or scores.mask[min(len(scores) - 1, i + 1)]) for i in range(len(scores))))
+        else:
+            scores = conv_scores
     
     # Determine threshold
     if useMAD:
-        score_mean = np.median(scores)
-        score_sd = 1.4826 * np.median(np.abs(scores - score_mean)) # robust MAD estimation for the standard deviation
+        score_mean = np.ma.median(scores).filled(0)
+        score_sd = 1.4826 * np.ma.median(np.abs(scores - score_mean)).filled(0) # robust MAD estimation for the standard deviation
     else:
-        score_mean = np.mean(scores)
-        score_sd = np.std(scores)
-    score_max = np.max(scores)
+        score_mean = scores.mean()
+        score_sd = scores.std()
+    score_max = scores.max()
     if score_max <= 1e-16:
         return
     th = score_mean + sd_th * score_sd
-    while not np.any(scores >= th):
+    while not (scores >= th).any():
         sd_th *= 0.8
         th = score_mean + sd_th * score_sd
     
     # Generate inter-peak proposals
+    scores = scores.filled(min(0, scores.min()))
     n = func.shape[1]
     visited = np.zeros(n, dtype = int)
     for i in range(n - extint_min_len + 1):

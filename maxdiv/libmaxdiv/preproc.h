@@ -72,12 +72,14 @@ DataTensor_<Scalar> time_delay_embedding(const DataTensor_<Scalar> & data, int k
     typename DataTensor_<Scalar>::Index samplesPerTime = data.shape().prod(1, 3),
                                         nAttr = data.shape().d,
                                         nAttrEx = newShape.d;
+    IndexVector missingInd(data.shape(), 0);
+    missingInd.shape.d = 1;
     
     // Copy data
     int t, pt, d;
     typename DataTensor_<Scalar>::Index s, newCol, oldCol;
-    for (t = 0; t < newTM.rows(); t++)
-        for (d = 0; d < k; d++)
+    for (t = 0; t < newTM.rows(); ++t)
+        for (d = 0; d < k; ++d)
         {
             // Determine index of previous time step
             if (borders == BorderPolicy::MIRROR)
@@ -92,6 +94,16 @@ DataTensor_<Scalar> time_delay_embedding(const DataTensor_<Scalar> & data, int k
             // Copy sample by sample
             for (s = 0, oldCol = 0, newCol = d * nAttr; s < samplesPerTime; s++, oldCol += nAttr, newCol += nAttrEx)
                 newTM.block(t, newCol, 1, nAttr) = tm.block(pt, oldCol, 1, nAttr);
+            
+            // Propagate missing values
+            if (data.hasMissingSamples())
+            {
+                missingInd.t = pt;
+                missingInd.x = missingInd.y = missingInd.z = 0;
+                for (; missingInd.t == pt; ++missingInd)
+                    if (data.isMissingSample(missingInd))
+                        xdata.setMissingSample(t, missingInd.x, missingInd.y, missingInd.z);
+            }
         }
     
     return xdata;
@@ -157,7 +169,8 @@ DataTensor_<Scalar> spatial_neighbour_embedding(const DataTensor_<Scalar> & data
     // Set up some variables
     typename DataTensor_<Scalar>::Index nLocations = data.shape().prod(1, 3),
                                         nAttr = data.shape().d,
-                                        nAttrEx = newShape.d;
+                                        nAttrEx = newShape.d,
+                                        missingTime;
     
     // Copy data
     IndexVector loc = xdata.makeIndexVector(); // current location
@@ -216,6 +229,12 @@ DataTensor_<Scalar> spatial_neighbour_embedding(const DataTensor_<Scalar> & data
                     
                     // Copy attributes for all time steps
                     locMat.block(0, attr, locMat.rows(), nAttr) = data.location(neighbour.x, neighbour.y, neighbour.z);
+                    
+                    // Propagate missing values
+                    if (data.hasMissingSamples())
+                        for (missingTime = 0; missingTime < newShape.t; ++missingTime)
+                            if (data.isMissingSample(missingTime, neighbour.x, neighbour.y, neighbour.z))
+                                xdata.setMissingSample(missingTime, loc.x, loc.y, loc.z);
                 }
             }
         }
@@ -237,6 +256,8 @@ public:
     * Applies some pre-processing to @p dataIn and stores the result in @p dataOut.
     * The input and output tensor are allowed to be identical; a temporary copy will be
     * made in this case if necessary.
+    *
+    * @note If the data contain missing values, they must have been masked by calling `DataTensor::mask()`.
     *
     * @return Reference to `dataOut` in order to allow for chaining.
     */
@@ -265,6 +286,8 @@ public:
 
     /**
     * Applies some pre-processing to @p data in-place.
+    *
+    * @note If the data contain missing values, they must have been masked by calling `DataTensor::mask()`.
     *
     * @return Reference to `data` in order to allow for chaining.
     */
@@ -301,6 +324,8 @@ public:
     /**
     * Applies each pre-processor in the pipeline sequentially to @p data.
     *
+    * @note If the data contain missing values, they must have been masked by calling `DataTensor::mask()`.
+    *
     * @return Reference to `data`.
     */
     virtual DataTensor & operator()(DataTensor & data) const;
@@ -308,6 +333,8 @@ public:
     /**
     * Applies each pre-processor in the pipeline sequentially to @p dataIn and stores
     * the result in @p dataOut.
+    *
+    * @note If the data contain missing values, they must have been masked by calling `DataTensor::mask()`.
     *
     * @return Reference to `dataOut`.
     */
@@ -380,7 +407,8 @@ public:
     *
     * Otherwise, it will determine appropriate values automatically based on Mutual Information.
     *
-    * @param[in] data The data tensor to perform time-delay embedding on.
+    * @param[in] data The data tensor to perform time-delay embedding on. If the data contain
+    * missing values, they must have been masked by calling `DataTensor::mask()`.
     *
     * @return Returns a pair with the values of the parameters `k` and `T` to be used for
     * the time-delay embedding of the given data.
@@ -400,6 +428,8 @@ public:
     *
     * @return Returns the number of timesteps contained in the context for a sample in the time-series
     * (including that sample itself).
+    *
+    * @note If the data contain missing values, they must have been masked by calling `DataTensor::mask()`.
     */
     virtual int determineContextWindowSize(const DataTensor & data) const;
 
@@ -720,6 +750,8 @@ public:
     * Computes the first `k` principal components of the samples in @p dataIn and stores them in
     * @p dataOut.
     *
+    * @note If the data contain missing values, they must have been masked by calling `DataTensor::mask()`.
+    *
     * @return Reference to `dataOut` in order to allow for chaining.
     */
     virtual DataTensor & operator()(const DataTensor & dataIn, DataTensor & dataOut) const override;
@@ -751,6 +783,8 @@ public:
 
     /**
     * Applies the random projections to @p dataIn and stores the result in @p dataOut.
+    *
+    * @note If the data contain missing values, they must have been masked by calling `DataTensor::mask()`.
     *
     * @return Reference to `dataOut` in order to allow for chaining.
     */

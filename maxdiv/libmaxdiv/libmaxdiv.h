@@ -219,10 +219,16 @@ void maxdiv_free_pipeline(unsigned int handle);
 * pointed to will be set to the actual number of elements written to the buffer.
 *
 * @param[in] const_data If `false`, the given data may be modified. Otherwise, a copy will be made.
+*
+* @param[in] custom_missing_value If missing values in the given data aren't encoded as `NaN`, but another special
+* floating point value, set this to `true` and specify the missing value in `missing_value`.
+*
+* @param[in] missing_value A special floating point value which is used to encode missing values in the data.
+* This parameter has no effect if `custom_missing_value` is set to `false`.
 */
 void maxdiv_exec(unsigned int pipeline, MaxDivScalar * data, const unsigned int * shape,
                  detection_t * detection_buf, unsigned int * detection_buf_size,
-                 bool const_data = true);
+                 bool const_data = true, bool custom_missing_value = false, MaxDivScalar missing_value = 0);
 
 
 /**
@@ -254,10 +260,16 @@ void maxdiv_exec(unsigned int pipeline, MaxDivScalar * data, const unsigned int 
 * pointed to will be set to the actual number of elements written to the buffer.
 *
 * @param[in] const_data If `false`, the given data may be modified. Otherwise, a copy will be made.
+*
+* @param[in] custom_missing_value If missing values in the given data aren't encoded as `NaN`, but another special
+* floating point value, set this to `true` and specify the missing value in `missing_value`.
+*
+* @param[in] missing_value A special floating point value which is used to encode missing values in the data.
+* This parameter has no effect if `custom_missing_value` is set to `false`.
 */
 void maxdiv(const maxdiv_params_t * params, MaxDivScalar * data, const unsigned int * shape,
             detection_t * detection_buf, unsigned int * detection_buf_size,
-            bool const_data = true);
+            bool const_data = true, bool custom_missing_value = false, MaxDivScalar missing_value = 0);
 
 
 #ifdef __cplusplus

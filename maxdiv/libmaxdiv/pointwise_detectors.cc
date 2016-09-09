@@ -9,13 +9,13 @@ DataTensor MaxDiv::hotellings_t(const DataTensor & data)
         return DataTensor();
     
     // Subtract the mean from the data
-    DataTensor centered = data - data.data().colwise().mean();
+    DataTensor centered = data - (data.data().colwise().sum() / data.numValidSamples());
     
     if (data.shape().d == 1)
     {
         // Univariate case: score = (x - mu)^2 / variance
         centered.data() = centered.data().cwiseAbs2();
-        centered.data() /= centered.data().mean();
+        centered.data() /= centered.data().sum() / centered.numValidSamples();
         return centered;
     }
     else
@@ -27,7 +27,7 @@ DataTensor MaxDiv::hotellings_t(const DataTensor & data)
             // Compute covariance matrix S
             ScalarMatrix cov;
             cov.noalias() = centered.data().transpose() * centered.data();
-            cov /= static_cast<Scalar>(centered.numSamples());
+            cov /= static_cast<Scalar>(centered.numValidSamples());
             
             // Compute S^-1 * (x - mu)
             Eigen::LLT<ScalarMatrix> llt;
@@ -40,6 +40,7 @@ DataTensor MaxDiv::hotellings_t(const DataTensor & data)
         scoresShape.d = 1;
         DataTensor scores(scoresShape);
         scores.data() = centered.data().transpose().cwiseProduct(normed).colwise().sum().transpose();
+        scores.copyMask(data);
         return scores;
     }
 }
@@ -56,5 +57,6 @@ DataTensor MaxDiv::pointwise_kde(const DataTensor & data, Scalar kernel_sigma_sq
     scores.data() = GaussKernel(data, kernel_sigma_sq, false).rowwiseMean();
     scores.data().array() -= static_cast<Scalar>(1);
     scores.data() *= -1;
+    scores.copyMask(data);
     return scores;
 }
