@@ -25,7 +25,7 @@ if (len(sys.argv) < 2) or (sys.argv[1].lower() == 'noplot'):
     min_len = 10
     max_len = 100
     N = 1000
-    dims = np.arange(1, 50)
+    dims = np.arange(1, 51)
     times = np.ndarray((len(dims), 3), dtype = np.float64)
 
     # Prepare libmaxdiv pipelines
@@ -33,6 +33,9 @@ if (len(sys.argv) < 2) or (sys.argv[1].lower() == 'noplot'):
     libmaxdiv_wrapper.libmaxdiv.maxdiv_init_params(params)
     params.min_size[0] = min_len
     params.max_size[0] = max_len
+    params.preproc.embedding.kt = 1
+    params.erph.num_hist = 100
+    params.erph.num_bins = 5
 
     params.estimator = libmaxdiv_wrapper.enums['MAXDIV_GAUSSIAN']
     pipeline_gaussian = libmaxdiv_wrapper.libmaxdiv.maxdiv_compile_pipeline(params)
