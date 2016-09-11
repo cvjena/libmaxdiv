@@ -25,7 +25,7 @@ if (len(sys.argv) < 2) or (sys.argv[1].lower() == 'noplot'):
     min_len = 10
     max_len = 100
     N = 1000
-    dims = np.arange(1, 51)
+    dims = np.arange(1, 26)
     times = np.ndarray((len(dims), 3), dtype = np.float64)
 
     # Prepare libmaxdiv pipelines
@@ -86,11 +86,11 @@ else:
 # Plot results
 if (len(sys.argv) < 2) or (sys.argv[1].lower() != 'noplot'):
     import matplotlib.pylab as plt
-    plt.plot(N, times[:, 0] * 1000, 'b-', label = 'Gaussian')
-    plt.plot(N, times[:, 1] * 1000, 'r-', label = 'KDE')
-    plt.plot(N, times[:, 2] * 1000, 'g-', label = 'ERPH')
+    plt.plot(dims, times[:, 0], 'b-', label = 'Gaussian')
+    plt.plot(dims, times[:, 1], 'r-', label = 'KDE')
+    plt.plot(dims, times[:, 2], 'g-', label = 'ERPH')
     plt.xlabel('Dimensionality of Time Series')
     plt.ylabel('Algorithm Run-Time in Seconds')
     plt.grid(True)
-    plt.legend(loc = 'lower right')
+    plt.legend(loc = 'upper left')
     plt.show()
