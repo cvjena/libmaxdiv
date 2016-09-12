@@ -246,7 +246,8 @@ def pointwiseRegionProposals(func, extint_min_len = 20, extint_max_len = 150,
         th = score_mean + sd_th * score_sd
     
     # Generate inter-peak proposals
-    scores = scores.filled(min(0, scores.min()))
+    if np.ma.isMaskedArray(scores):
+        scores = scores.filled(min(0, scores.min()))
     n = func.shape[1]
     visited = np.zeros(n, dtype = int)
     for i in range(n - extint_min_len + 1):
