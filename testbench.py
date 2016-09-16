@@ -249,9 +249,9 @@ if __name__ == '__main__':
         n = X.shape[1]
         zeroy = np.zeros(n)
         numf = 100
-        numattr = 100
-        numstates = 10
-        numcorr = 3
+        numattr = 1000
+        numstates = 50
+        numcorr = 7
         sigma = 0.01
 
         print ("Generating time series of length {} with {} attributes reflecting {} hidden states".format(n, numattr, numstates))

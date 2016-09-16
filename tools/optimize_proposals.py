@@ -12,7 +12,7 @@ import datasets
 # Constants
 PROPMETHODS = ['hotellings_t', 'kde']
 METHOD = 'gaussian_cov'
-MODE = 'I_OMEGA'
+MODE = 'CROSSENT'
 
 MAD = [True, False]
 FILTERED = [True, False]
