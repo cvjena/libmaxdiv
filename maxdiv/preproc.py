@@ -7,7 +7,7 @@ from . import maxdiv_util
 
 
 def get_available_methods():
-    return ['local_linear', 'td']
+    return ['local_linear', 'td', 'normalize', 'deseasonalize', 'deseasonalize_ft', 'detrend_linear']
 
 
 def local_linear_regression(X, window_size=5):

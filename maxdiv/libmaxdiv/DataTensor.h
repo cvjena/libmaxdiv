@@ -1122,8 +1122,11 @@ public:
         }
         if (this->m_cumMissingCounts != NULL)
             this->m_cumMissingCounts->resize(ReflessIndexVector());
-        this->m_dirty = true;
-        this->setMissingValues();
+        if (!this->m_missingValues.empty())
+        {
+            this->m_dirty = true;
+            this->setMissingValues();
+        }
     };
     
     /**
@@ -1200,14 +1203,16 @@ public:
     {
         if (this->m_dirty)
         {
-            assert(this->m_data_p != NULL);
             DataTensor_<Scalar> * me = const_cast<DataTensor_<Scalar>*>(this);
             if (!this->m_missingValues.empty())
+            {
+                assert(this->m_data_p != NULL);
                 for (std::unordered_set<Index>::const_iterator missingIt = this->m_missingValues.begin(); missingIt != this->m_missingValues.end(); ++missingIt)
                 {
                     assert(*missingIt < this->numSamples());
                     me->m_data.row(*missingIt).setConstant(this->m_missingValuePlaceholder);
                 }
+            }
             me->m_dirty = false;
         }
     };

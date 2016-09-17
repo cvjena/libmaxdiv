@@ -509,7 +509,7 @@ int main(int argc, char * argv[])
         cerr << "Could not read file: " << argv[optind] << endl;
         return 2;
     }
-    if (!isnan(missing_value))
+    if (!std::isnan(missing_value))
         data->mask(missing_value);
     
     // Apply MaxDiv algorithm
