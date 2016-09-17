@@ -7,18 +7,22 @@ import datasets
 
 
 # Settings
-METHODS = [('KDE', 'I_OMEGA'), ('KDE', 'JSD'), ('GAUSSIAN', 'I_OMEGA'), ('GAUSSIAN', 'OMEGA_I'), ('GAUSSIAN', 'UNBIASED'), ('GAUSSIAN_GLOBAL_COV', 'I_OMEGA')]
+METHODS = [('KDE', 'I_OMEGA'), ('KDE', 'JSD'), ('GAUSSIAN', 'I_OMEGA'), ('GAUSSIAN', 'UNBIASED'), ('GAUSSIAN', 'CROSSENT'), ('GAUSSIAN_GLOBAL_COV', 'I_OMEGA')]
 PERIOD_LEN = 24
-PROPOSALS = sys.argv[1] if len(sys.argv) > 1 else 'dense'
-TD_DIM = int(sys.argv[2]) if len(sys.argv) > 2 else 6
-TD_LAG = int(sys.argv[3]) if len(sys.argv) > 3 else 2
+DATASET = sys.argv[1] if len(sys.argv) > 1 else 'yahoo_real'
+PROPOSALS = sys.argv[2] if len(sys.argv) > 2 else 'dense'
+TD_DIM = int(sys.argv[3]) if len(sys.argv) > 3 else 6
+TD_LAG = int(sys.argv[4]) if len(sys.argv) > 4 else 2
 
 if PROPOSALS == 'help':
-    print('Usage: {} [<proposals = dense>] [<td-dim = 6>] [<td-lag = 2>]'.format(sys.argv[0]))
+    print('Usage: {} <dataset = yahoo | synthetic> <proposals = dense> <td-dim = 6> <td-lag = 2>'.format(sys.argv[0]))
     exit()
 
 # Load test data
-data = datasets.loadDatasets('yahoo_real')['A1Benchmark']
+if DATASET == 'synthetic':
+    data = datasets.loadDatasets('synthetic_seasonal')['diurnal']
+else:
+    data = datasets.loadDatasets('yahoo_real')['A1Benchmark']
 
 # Check libmaxdiv
 if libmaxdiv_wrapper.libmaxdiv is None:
@@ -31,8 +35,8 @@ pipelines['OLS'] = []
 pipelines['Z-Score'] = []
 params = libmaxdiv_wrapper.maxdiv_params_t()
 libmaxdiv_wrapper.libmaxdiv.maxdiv_init_params(params)
-params.min_size[0] = 10
-params.max_size[0] = 120
+params.min_size[0] = 20 if DATASET == 'synthetic' else 10
+params.max_size[0] = 100 if DATASET == 'synthetic' else 120
 params.proposal_generator = libmaxdiv_wrapper.enums['MAXDIV_DENSE_PROPOSALS'] if PROPOSALS == 'dense' else libmaxdiv_wrapper.enums['MAXDIV_POINTWISE_PROPOSALS_' + PROPOSALS.upper()]
 params.preproc.normalization = libmaxdiv_wrapper.enums['MAXDIV_NORMALIZE_MAX']
 params.preproc.embedding.kt = TD_DIM
@@ -50,6 +54,9 @@ for method, mode in METHODS:
         params.gaussian_cov_mode = libmaxdiv_wrapper.enums['MAXDIV_GAUSSIAN_COV_FULL']
     if mode == 'JSD':
         params.divergence = libmaxdiv_wrapper.enums['MAXDIV_JS_DIVERGENCE']
+    elif mode == 'CROSSENT':
+        params.divergence = libmaxdiv_wrapper.enums['MAXDIV_CROSS_ENTROPY']
+        params.kl_mode = libmaxdiv_wrapper.enums['MAXDIV_KL_I_OMEGA']
     else:
         params.divergence = libmaxdiv_wrapper.enums['MAXDIV_KL_DIVERGENCE']
         params.kl_mode = libmaxdiv_wrapper.enums['MAXDIV_KL_' + mode]

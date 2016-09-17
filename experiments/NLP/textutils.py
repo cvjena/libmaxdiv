@@ -37,10 +37,9 @@ def text2mat(text, model):
     if not isinstance(model, Word2Vec):
         model = Word2Vec.load(model)
     
-    feat = np.zeros((model.vector_size, len(text)))
+    feat = np.ndarray((model.vector_size, len(text)))
     for i, w in enumerate(text):
-        if w.lower() in model:
-            feat[:,i] = model[w.lower()]
+        feat[:,i] = model[w.lower()] if w.lower() in model else np.nan
     return feat
 
 
