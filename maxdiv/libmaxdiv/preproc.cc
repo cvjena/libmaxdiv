@@ -353,7 +353,7 @@ DataTensor & OLSDetrending::operator()(const DataTensor & dataIn, DataTensor & d
     }
     
     // Construct the design matrix
-    ScalarMatrix A(dataIn.length(), numParams);
+    ScalarMatrix A = ScalarMatrix::Zero(dataIn.length(), numParams);
     A.col(0).setConstant(1); // intercept term
     if (this->linear_trend)
         A.col(1).setLinSpaced(static_cast<Scalar>(0), static_cast<Scalar>(dataIn.length() - 1));
