@@ -136,7 +136,7 @@ Scalar KLDivergence::operator()(const IndexRange & innerRange)
         {
             score *= numExtremes;
             if (gde->getMode() == GaussianDensityEstimator::CovMode::FULL)
-                score = score - this->m_chiMean / this->m_chiSD;
+                score = (score - this->m_chiMean) / this->m_chiSD;
         }
     }
     else
@@ -218,7 +218,7 @@ Scalar CrossEntropy::operator()(const IndexRange & innerRange)
         {
             score *= numExtremes;
             if (gde->getMode() == GaussianDensityEstimator::CovMode::FULL)
-                score = score - this->m_chiMean / this->m_chiSD;
+                score = (score - this->m_chiMean) / this->m_chiSD;
         }
     }
     else
