@@ -776,7 +776,7 @@ class MDIGUI(tkinter.Tk):
             writer.writeheader()
             writer.writerows({
                 'Start' : str(self.timesteps[a]),
-                'End' : str(self.timesteps[b]),
+                'End' : str(self.timesteps[b-1]),
                 'Score' : '{:.6f}'.format(score)
             } for a, b, score in self.detections)
     
