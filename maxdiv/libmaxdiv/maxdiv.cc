@@ -40,7 +40,7 @@ DetectionList apply_maxdiv(const std::shared_ptr<DataTensor> & data,
                            Scalar kernel_sigma_sq, unsigned int num_hist, unsigned int num_bins, Scalar discount,
                            Scalar prop_th, bool prop_mad, bool prop_filter,
                            bool normalize, unsigned int td_embed, unsigned int td_lag, BorderPolicy borders,
-                           unsigned int period_num, unsigned int period_len, bool linear_trend, bool linear_season_trend,
+                           bool zscore_deseas, unsigned int period_num, unsigned int period_len, bool linear_trend, bool linear_season_trend,
                            unsigned int pca_dims, unsigned int random_projection_dims)
 {
     DetectionList detections;
@@ -113,12 +113,15 @@ DetectionList apply_maxdiv(const std::shared_ptr<DataTensor> & data,
     if (normalize)
         preproc->push_back(std::make_shared<Normalizer>());
     
-    if (period_num > 1 && period_len > 0)
+    if (period_num > 1 && period_len > 0 && !zscore_deseas)
         preproc->push_back(std::make_shared<OLSDetrending>(
             OLSDetrending::Period{period_num, period_len}, linear_trend, linear_season_trend
         ));
     else if (linear_trend)
         preproc->push_back(std::make_shared<LinearDetrending>());
+    
+    if (period_num > 1 && zscore_deseas)
+        preproc->push_back(std::make_shared<ZScoreDeseasonalization>(period_num));
     
     if (td_embed != 1)
         preproc->push_back(std::make_shared<TimeDelayEmbedding>(td_embed, td_lag, borders));
@@ -151,7 +154,7 @@ int main(int argc, char * argv[])
                  pca_dims = 0, random_projection_dims = 0,
                  first_row = 0, first_col = 0, last_col = -1;
     Scalar overlap_th = 0.0, kernel_sigma_sq = 1.0, discount = 1.0, prop_th = 1.5, missing_value = std::numeric_limits<Scalar>::quiet_NaN();
-    int prop_mad = 0, prop_filter = 1, normalize = 0, linear_trend = 0, linear_season_trend = 0, timing = 0;
+    int prop_mad = 0, prop_filter = 1, normalize = 0, zscore_deseas = 0, linear_trend = 0, linear_season_trend = 0, timing = 0;
     char delimiter = ',';
     
     // Parse options
@@ -191,6 +194,7 @@ int main(int argc, char * argv[])
             {"borders",             required_argument,  NULL,       'x'},
             {"period_num",          required_argument,  NULL,       'i'},
             {"period_len",          required_argument,  NULL,       'j'},
+            {"zscore",              no_argument,        &zscore_deseas, 1},
             {"linear_trend",        no_argument,        &linear_trend, 1},
             {"linear_season_trend", no_argument,        &linear_season_trend, 1},
             {"pca_dims",            required_argument,  NULL,       'P'},
@@ -517,7 +521,8 @@ int main(int argc, char * argv[])
     DetectionList detections = apply_maxdiv(data, divergence, estimator, proposals, kl_mode, gauss_cov_mode,
                                             min_len, max_len, num_intervals, overlap_th, kernel_sigma_sq, num_hist, num_bins, discount,
                                             prop_th, prop_mad, prop_filter,
-                                            normalize, td_embed, td_lag, borders, period_num, period_len, linear_trend, linear_season_trend,
+                                            normalize, td_embed, td_lag, borders,
+                                            zscore_deseas, period_num, period_len, linear_trend, linear_season_trend,
                                             pca_dims, random_projection_dims);
     auto stop = high_resolution_clock::now();
     if (timing)
@@ -614,10 +619,14 @@ void printHelp(const char * progName)
          << endl
          << "    --period_num <int>, -i <int>" << endl
          << "        Apply deseasonalization by Ordinary Least Squares estimation assuming the given" << endl
-         << "        number of seasonal units." << endl
+         << "        number of seasonal units. Z-Score deseasonalization will be used instead if" << endl
+         << "        --zscore is specified." << endl
          << endl
          << "    --period_len <int>, -j <int> (default: 1)" << endl
          << "        The length of each seasonal unit for OLS deseasonalization." << endl
+         << endl
+         << "    --zscore" << endl
+         << "        Use Z-Score deseasonalization instead of OLS." << endl
          << endl
          << "    --linear_trend" << endl
          << "        Fit a line to the data to remove a simple linear trend from the data." << endl
