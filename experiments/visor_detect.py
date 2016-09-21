@@ -12,10 +12,10 @@ data = np.load('../../visor_cnn_16.npy')
 params = maxdiv_params_t()
 libmaxdiv.maxdiv_init_params(params)
 params.kl_mode = enums['MAXDIV_KL_UNBIASED']
-params.min_size[0] = 72
+params.min_size[0] = 75
 params.min_size[1] = 10
-params.min_size[2] = 10
-params.max_size[0] = 288
+params.min_size[2] = 5
+params.max_size[0] = 300
 params.preproc.normalization = enums['MAXDIV_NORMALIZE_MAX']
 params.preproc.embedding.kt = 3
 params.preproc.embedding.dt = 4

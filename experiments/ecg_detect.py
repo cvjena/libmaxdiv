@@ -120,7 +120,7 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--method', help='maxdiv method', choices=maxdiv.get_available_methods(), default = 'gaussian_cov')
-    parser.add_argument('--mode', help='Mode for KL divergence computation', choices=['OMEGA_I', 'SYM', 'I_OMEGA', 'TS', 'LAMBDA', 'IS_I_OMEGA', 'JSD'], default='TS')
+    parser.add_argument('--mode', help='Mode for KL divergence computation', choices=['OMEGA_I', 'SYM', 'I_OMEGA', 'TS', 'LAMBDA', 'IS_I_OMEGA', 'CROSSENT', 'CROSSENT_TS', 'JSD'], default='TS')
     parser.add_argument('--kernel_sigma_sq', help='kernel sigma square hyperparameter for Parzen estimation', type=float, default=1.0)
     parser.add_argument('--extint_min_len', help='minimum length of the extreme interval', default=200, type=int)
     parser.add_argument('--extint_max_len', help='maximum length of the extreme interval', default=400, type=int)
