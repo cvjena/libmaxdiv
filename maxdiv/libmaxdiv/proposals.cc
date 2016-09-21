@@ -449,7 +449,7 @@ void PointwiseProposalGenerator::computeGradient(DataTensor & data) const
         for (const DataTensor::Index & missing : missingSamples)
         {
             data.setMissingSample((missing > 0) ? missing - 1 : 0);
-            data.setMissingSample(std::min(missing + 1, data.numSamples()));
+            data.setMissingSample(std::min(missing + 1, data.numSamples() - 1));
         }
     }
     else
