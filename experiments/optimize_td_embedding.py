@@ -74,6 +74,39 @@ def td_from_mi_gradient(func, method, td_lag, th = 0.15):
     return detections, k
 
 
+def td_from_relative_ce(func, method, td_lag, th = 0.005):
+    
+    # Determine Time Lag based on "normalized" Mutual Information
+    rce = np.array([conditional_entropy(func['ts'], d, td_lag) for d in range(1, int(0.05 * func['ts'].shape[1] / td_lag))])
+    rce /= rce[0]
+    drce = np.convolve(rce, [-1, 0, 1], 'valid')
+    if np.any(drce <= th):
+        k = (np.where(drce <= th)[0][0] + 2)
+    else:
+        k = (drce.argmin() + 2)
+    # Detect regions
+    detections = maxdiv.maxdiv(func['ts'], method = method, mode = 'I_OMEGA',
+                               extint_min_len = 20, extint_max_len = 100, num_intervals = None,
+                               td_dim = k, td_lag = td_lag)
+    return detections, k
+
+
+def td_from_ce_gradient(func, method, td_lag, th = 0.01):
+    
+    # Determine Time Lag based on the steepness of decrease of conditional entropy
+    ce = np.array([conditional_entropy(func['ts'], d, td_lag) for d in range(1, int(0.05 * func['ts'].shape[1] / td_lag))])
+    dce = np.convolve(ce, [-1, 0, 1], 'valid')
+    if np.any(dce <= th):
+        k = (np.where(dce <= th)[0][0] + 2)
+    else:
+        k = (dce.argmin() + 2)
+    # Detect regions
+    detections = maxdiv.maxdiv(func['ts'], method = method, mode = 'I_OMEGA',
+                               extint_min_len = 20, extint_max_len = 100, num_intervals = None,
+                               td_dim = k, td_lag = td_lag)
+    return detections, k
+
+
 def td_from_length_scale(func, method, td_lag, factor = 0.3):
     
     # Determine Length Scale of Gaussian Process
@@ -145,6 +178,29 @@ def mutual_information(ts, k, T = 1):
     return (np.linalg.inv(cov_indep).dot(cov).trace() + np.linalg.slogdet(cov_indep)[1] - np.linalg.slogdet(cov)[1] - embed_func.shape[0]) / 2
 
 
+def conditional_entropy(ts, k, T = 1):
+    
+    d, n = ts.shape
+    
+    if (k < 2) or (T < 1):
+        # Entropy as a special case
+        cov = np.cov(ts)
+        if d > 1:
+            return (d * (np.log(2 * np.pi) + 1) + np.linalg.slogdet(cov)[1]) / 2
+        else:
+            return (d * (np.log(2 * np.pi) + 1) + np.log(cov)) / 2
+    
+    # Time-Delay Embedding with the given embedding dimension and time lag
+    embed_func = np.vstack([ts[:, ((k - i - 1) * T):(n - i * T)] for i in range(k)])
+    
+    # Compute parameters of the joint and the conditioned distributions assuming a normal distribution
+    cov = np.cov(embed_func)
+    cond_cov = cov[:d, :d] - cov[:d, d:].dot(np.linalg.inv(cov[d:, d:]).dot(cov[d:, :d]))
+    
+    # Compute the conditional entropy H(x_t | x_(t-T), ..., x_(t - (k-1)*T))
+    return (d * (np.log(2 * np.pi) + 1) + np.linalg.slogdet(cond_cov)[1]) / 2
+
+
 def length_scale(ts):
     
     X = np.linspace(0, 1, ts.shape[1], endpoint = True).reshape(ts.shape[1], 1)
@@ -154,11 +210,20 @@ def length_scale(ts):
 
 
 # Constants
-optimizers = { 'best_k' : find_best_k, 'mi' : td_from_mi, 'rmi' : td_from_relative_mi, 'dmi' : td_from_mi_gradient, 'gp_ls' : td_from_length_scale, 'fnn' : td_from_false_neighbors }
+optimizers = {
+    'best_k'    : find_best_k,
+    'mi'        : td_from_mi,
+    'rmi'       : td_from_relative_mi,
+    'dmi'       : td_from_mi_gradient,
+    'ce'        : td_from_ce_gradient,
+    'rce'       : td_from_relative_ce,
+    'gp_ls'     : td_from_length_scale,
+    'fnn'   : td_from_false_neighbors
+}
 
 # Parameters
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('--method', help='MaxDiv method', choices = maxdiv.get_available_methods() + ['gaussian_ts'], default = 'gaussian_cov')
+parser.add_argument('--method', help='MaxDiv method', choices = maxdiv.get_available_methods() + ['gaussian_ts'], default = 'gaussian_ts')
 parser.add_argument('--optimizer', help='Optimization method for Time-Delay Embedding', choices = optimizers.keys(), default = 'best_k')
 parser.add_argument('--plot', action='store_true', help='Plot histograms of embedding dimensions for each extreme type')
 parser.add_argument('--datasets', help='datasets to be loaded', nargs='+', default=['synthetic'])
