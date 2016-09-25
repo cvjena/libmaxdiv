@@ -1,4 +1,6 @@
 import sys, re, imageio
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 
 
 def readDetections(filename):
@@ -13,7 +15,9 @@ def readDetections(filename):
     return detections
 
 
-def drawDetections(videoIn, videoOut, detections, color = [255, 0, 0], cellSize = 16):
+def drawDetections(videoIn, videoOut, detections, color = (255, 0, 0), cellSize = 16):
+    
+    font = ImageFont.truetype('arial.ttf', 28)
     
     reader = imageio.get_reader(videoIn, 'ffmpeg')
     
@@ -25,12 +29,14 @@ def drawDetections(videoIn, videoOut, detections, color = [255, 0, 0], cellSize 
     try:
         for num, frame in enumerate(reader):
             try:
-                for a, b in detections:
+                for numDet, (a, b) in enumerate(detections):
                     if (num >= a[0]) and (num <= b[0]):
-                        frame[a[2]:min(b[2], frame.shape[0]), a[1], :] = color
-                        frame[a[2]:min(b[2], frame.shape[0]), min(b[1], frame.shape[1]) - 1, :] = color
-                        frame[a[2], a[1]:min(b[1], frame.shape[1]), :] = color
-                        frame[min(b[2], frame.shape[0]) - 1, a[1]:min(b[1], frame.shape[1]), :] = color
+                        img = Image.fromarray(frame)
+                        draw = ImageDraw.Draw(img)
+                        draw.rectangle([a[1], a[2], b[1], b[2]], outline = color )
+                        draw.text([a[1] + 10, a[2] + 10], str(numDet + 1), fill = color, font = font)
+                        frame = np.array(img)
+                        del draw, img
                 writer.append_data(frame)
             except Exception as e:
                 print(str(e))
