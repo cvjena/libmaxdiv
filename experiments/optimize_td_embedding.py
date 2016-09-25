@@ -91,7 +91,7 @@ def td_from_relative_ce(func, method, td_lag, th = 0.005):
     return detections, k
 
 
-def td_from_ce_gradient(func, method, td_lag, th = 0.01):
+def td_from_ce_gradient(func, method, td_lag, th = 0.001):
     
     # Determine Time Lag based on the steepness of decrease of conditional entropy
     ce = np.array([conditional_entropy(func['ts'], d, td_lag) for d in range(1, int(0.05 * func['ts'].shape[1] / td_lag))])

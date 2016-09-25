@@ -11,6 +11,8 @@ data = np.load('../../visor_cnn_16.npy')
 
 params = maxdiv_params_t()
 libmaxdiv.maxdiv_init_params(params)
+#params.divergence = enums['MAXDIV_CROSS_ENTROPY']
+#params.kl_mode = enums['MAXDIV_KL_I_OMEGA']
 params.kl_mode = enums['MAXDIV_KL_UNBIASED']
 params.min_size[0] = 75
 params.min_size[1] = 10
