@@ -1272,13 +1272,8 @@ public:
     /**
     * Marks a specific sample as *missing sample* and replaces the values of its attributes with zero.
     * 
-    * @param[in] t The index of the sample along the temporal axis.
-    *
-    * @param[in] x The index of the sample along the first spatial axis.
-    *
-    * @param[in] y The index of the sample along the second spatial axis.
-    *
-    * @param[in] z The index of the sample along the third spatial axis.
+    * @param[in] index The index vector with the coordinates of the sample.
+    * The attribute dimension will be ignored.
     */
     void setMissingSample(const ReflessIndexVector & index)
     {
@@ -1328,13 +1323,8 @@ public:
     /**
     * Assigns values to the attributes of a *missing sample* and removes it from the mask.
     * 
-    * @param[in] t The index of the sample along the temporal axis.
-    *
-    * @param[in] x The index of the sample along the first spatial axis.
-    *
-    * @param[in] y The index of the sample along the second spatial axis.
-    *
-    * @param[in] z The index of the sample along the third spatial axis.
+    * @param[in] index The index vector with the coordinates of the sample.
+    * The attribute dimension will be ignored.
     *
     * @param[in] values The new values for the sample's attributes.
     */
