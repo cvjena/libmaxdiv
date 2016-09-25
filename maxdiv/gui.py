@@ -226,6 +226,7 @@ class MDIGUI(tkinter.Tk):
         self._resizeAfterId = None
         self._preprocAfterId = None
         self._lastPreprocParams = None
+        self._detectionLabels = []
         self._lastFigSize = (0, 0)
         self._shownDetection = -1
         self._lastMousePosition = None
@@ -1017,6 +1018,7 @@ class MDIGUI(tkinter.Tk):
         """Re-draws the plot."""
         
         self.fig.clear()
+        self._detectionLabels = []
         
         # Create plot
         plt = self.fig.add_subplot(111)
@@ -1053,15 +1055,23 @@ class MDIGUI(tkinter.Tk):
                 maxScore = max(score for a, b, score in self.detections)
                 minScore = min(score for a, b, score in self.detections)
                 cm = matplotlib.pyplot.cm.autumn
-                for plt in plots:
+                for pltInd, plt in enumerate(plots):
                     ymin, ymax = plt.get_ylim()
                     plt.set_ylim(ymin, ymax)
-                    for a, b, score in self.detections:
+                    for detInd, (a, b, score) in enumerate(self.detections):
                         ta, tb = self.timesteps[a], self.timesteps[b - 1]
                         #col = cm(1.0 - (score - minScore) / (maxScore - minScore)) if maxScore != minScore else cm(0.0)
                         intensity = float(score - minScore) / (maxScore - minScore) if minScore < maxScore else 1.0
                         col = (1.0, 0.8 - intensity * 0.8, 0.8 - intensity * 0.8)
                         plt.fill([ta, ta, tb, tb], [ymin, ymax, ymax, ymin], color = col, alpha = 0.3)
+                        if (pltInd == 0) and (detInd < 9) and (len(self.detections) > 1):
+                            self._detectionLabels.append(plt.text(
+                                ta + min((tb - ta) / 4, 10),
+                                ymax - (ymax - ymin) / 20,
+                                str(detInd + 1),
+                                color = 'r',
+                                verticalalignment = 'top'
+                            ))
             
             # Show legend
             if (not self.boolExpandPlot.get()) and (self.data.shape[0] > 1) and (self.data.shape[0] <= 10):
@@ -1083,6 +1093,14 @@ class MDIGUI(tkinter.Tk):
         if not self._destroyed:
             w, h = self.lblTS.winfo_width(), self.lblTS.winfo_height()
             if (w > 20) and (h > 20) and (force or (abs(w - self._lastFigSize[0]) >= 10) or (abs(h - self._lastFigSize[1]) >= 10)):
+            
+                # Show/hide detection labels depending on the display size of the detected interval
+                for det, lbl in zip(self.detections, self._detectionLabels):
+                    pix_a, _ = self.fig.gca().transData.transform((self.timesteps[det[0]], 0))
+                    pix_b, _ = self.fig.gca().transData.transform((self.timesteps[det[1] - 1], 0))
+                    lbl.set_visible(pix_b - pix_a > 10)
+                
+                # Draw image
                 self.lblTS._img = ImageTk.PhotoImage(figure2img(self.fig, w, h))
                 self.lblTS['image'] = self.lblTS._img
                 self._lastFigSize = (w, h)
