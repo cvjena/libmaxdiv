@@ -113,7 +113,7 @@ for i, meth in enumerate(methods):
 
 if method in ('gaussian_id_cov', 'gaussian_global_cov'):
     # Plot theoretical means and variances of the chi^2 distributions
-    scales = 1.0 / X - 1.0 / (pts.shape[1] - X)
+    scales = 1.0 / X + 1.0 / (pts.shape[1] - X)
     plt.plot(X, pts.shape[0] * scales, '--r', label = 'Theoretical chi^2 mean')
     if td_embed <= 1:
         plt.plot(X, pts.shape[0] * scales + 2 * pts.shape[0] * (scales ** 2), '--', color = '#A0A0A0', label = 'Theoretical chi^2 variance')
@@ -127,7 +127,7 @@ elif method == 'gaussian_cov_ts':
     plt.plot(X, [mean - variance] * len(X), '--', color = '#A0A0A0')
 elif method not in ('compare', 'gaussian_id_cov_normalized'):
     # Try to estimate the functional form of the mean and variance based on the scores
-    mean = 1.0 / X - 1.0 / (pts.shape[1] - X)
+    mean = 1.0 / X + 1.0 / (pts.shape[1] - X)
     scale, offs = np.linalg.lstsq(np.vstack((mean, np.ones(len(mean)))).T, avg_scores)[0]
     vscale, voffs = np.linalg.lstsq(np.vstack((mean ** 2, np.ones(len(mean)))).T, var_scores)[0]
     plt.plot(X, mean * scale + offs, '--r', label = 'Guessed mean')
@@ -172,13 +172,13 @@ if method != 'compare':
         X = np.linspace(axes.get_xlim()[0], axes.get_xlim()[1], 250)
         if method in ['gaussian_id_cov', 'gaussian_global_cov']:
             # scores are chi2 distributed
-            axes.plot(X, scipy.stats.chi2.pdf(X, pts.shape[0], scale = (1.0/l + 1.0/(l - pts.shape[1]))), '-r', lw = 2)
+            axes.plot(X, scipy.stats.chi2.pdf(X, pts.shape[0], scale = (1.0/l + 1.0/(pts.shape[1] - l))), '-r', lw = 2)
         elif method == 'gaussian_cov_ts':
             # scores are chi2 distributed independent of the length of the intervals
             axes.plot(X, scipy.stats.chi2.pdf(X, (pts.shape[0] * (pts.shape[0] + 3)) / 2), '-r', lw = 2)
         else:
             # scores are gamma distributed
-            # [memo: just a wild guess for the scale parameter: (td_embed + 1) * (1/l + 1/(l - n))]
+            # [memo: just a wild guess for the scale parameter: (td_embed + 1) * (1/l + 1/(n - l))]
             gamma_params = scipy.stats.gamma.fit([score for a, b, score in scores if b - a == l], floc = pts.shape[0])
             print(gamma_params)
             axes.plot(X, scipy.stats.gamma.pdf(X, *gamma_params), '-r', lw = 2)
