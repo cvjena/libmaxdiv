@@ -45,18 +45,20 @@ def average_precision(ygt, regions, overlap = 0.5, plot = False):
     The `regions` list must have the same length as `ygt` and contains an arbitrary number of detected intervals for each
     time series.
     
+    Alternatively, `ygt` may be the total number of ground-truth intervals and the detections in `regions` must then
+    be 4-tuples `(a, b, score, tp)`, where `tp` specifies whether they are a true positive detection or not.
+    
     `overlap` is a threshold for the Intersection over Union (IoU) criterion. Detections must have an IoU with
     a ground-truth region greater than this threshold for being considered a true positive.
     
     If `plot` is set to true, a recall/precision curve will be plotted and shown.
     """
     
-    # Check parameters
-    if len(ygt) != len(regions):
-        raise ValueError('Different number of time series for ground-truth and detections.')
-    
     # Convert ground-truth to intervals if given as pointwise labels
-    ygt = [gt if (isinstance(gt[0], tuple) or isinstance(gt[0], list)) else pointwiseLabelsToIntervals(gt) for gt in ygt]
+    if isinstance(ygt, list):
+        if len(ygt) != len(regions):
+            raise ValueError('Different number of time series for ground-truth and detections.')
+        ygt = [gt if (isinstance(gt[0], tuple) or isinstance(gt[0], list)) else pointwiseLabelsToIntervals(gt) for gt in ygt]
     
     # Determine recall and precision for all thresholds and compute interpolated AP
     recall, precision = recall_precision(ygt, regions, overlap, 'all')
@@ -88,6 +90,9 @@ def recall_precision(ygt, regions, overlap = 0.5, th = None, multiAsFP = True):
     The `regions` list must have the same length as `ygt` and contains an arbitrary number of detected
     intervals for each time series.
     
+    Alternatively, `ygt` may be the total number of ground-truth intervals and the detections in `regions`
+    must then be 4-tuples `(a, b, score, tp)`, where `tp` specifies whether they are a true positive detection or not.
+    
     `overlap` is a threshold for the Intersection over Union (IoU) criterion. Detections must have an IoU with
     a ground-truth region greater than this threshold for being considered a true positive.
     
@@ -104,69 +109,92 @@ def recall_precision(ygt, regions, overlap = 0.5, th = None, multiAsFP = True):
     """
     
     # Wrap ygt and regions in a lists if there is only one time series
-    if not (isinstance(ygt[0], list) and ((len(ygt[0]) == 0) or isinstance(ygt[0][0], list) or isinstance(ygt[0][0], tuple))):
+    if isinstance(ygt, list) and (not (isinstance(ygt[0], list) and ((len(ygt[0]) == 0) or isinstance(ygt[0][0], list) or isinstance(ygt[0][0], tuple)))):
         ygt = [ygt]
     if not (isinstance(regions[0], list) and ((len(regions[0]) == 0) or isinstance(regions[0][0], list) or isinstance(regions[0][0], tuple))):
         regions = [regions]
-    if len(ygt) != len(regions):
+    if isinstance(ygt, list) and (len(ygt) != len(regions)):
         raise ValueError('Different number of time series for ground-truth and detections.')
     
     if th == 'all':
     
-        # Flatten regions array after associating each region with its time series and sort them descendingly by their score
-        sorted_regions = sorted((tuple(region) + (ts,) for ts, detections in enumerate(regions) for region in detections), key = lambda r: r[2], reverse = True)
+        if not isinstance(ygt, list):
         
-        # Indicators for true and fals positives
-        tp = np.zeros(len(sorted_regions))
-        fp = np.zeros(len(sorted_regions))
-        
-        # Determine for each detection if it is a true or a false positive
-        region_detected = [[False] * len(gt) for gt in ygt] # prevent multiple detections of the same interval
-        for i, (a, b, score, ts) in enumerate(sorted_regions):
+            # Flatten regions array and sort detections descendingly by their score
+            sorted_regions = sorted((region for detections in regions for region in detections), key = lambda r: r[2], reverse = True)
             
-            isTP, isSubsequentDetection = False, False
-            for i_gt, (a_gt, b_gt) in enumerate(ygt[ts]):
-                if (not (region_detected[ts][i_gt] and multiAsFP)) and (IoU(a, b - a, a_gt, b_gt - a_gt) >= overlap):
-                    if region_detected[ts][i_gt]:
-                        isSubsequentDetection = True
-                    isTP = True
-                    region_detected[ts][i_gt] = True
-                    break
+            # Count true positives for all thresholds
+            tp = np.array([int(isTP) for a, b, score, isTP in sorted_regions]).cumsum()
             
-            if not isSubsequentDetection:
-                if isTP:
-                    tp[i] = 1
-                else:
-                    fp[i] = 1
+            # Compute recall and precision
+            return (tp / ygt, tp / np.arange(1, len(sorted_regions) + 1) if len(sorted_regions) > 0 else tp)
         
-        # Compute recall and precision
-        tp = tp.cumsum()
-        fp = fp.cumsum()
-        return (tp / sum(len(gt) for gt in ygt), tp / (tp + fp) if len(regions) > 0 else tp)
+        else:
+        
+            # Flatten regions array after associating each region with its time series and sort them descendingly by their score
+            sorted_regions = sorted((tuple(region) + (ts,) for ts, detections in enumerate(regions) for region in detections), key = lambda r: r[2], reverse = True)
+        
+            # Indicators for true and false positives
+            tp = np.zeros(len(sorted_regions))
+            fp = np.zeros(len(sorted_regions))
+            
+            # Determine for each detection if it is a true or a false positive
+            region_detected = [[False] * len(gt) for gt in ygt] # prevent multiple detections of the same interval
+            for i, (a, b, score, ts) in enumerate(sorted_regions):
+                
+                isTP, isSubsequentDetection = False, False
+                for i_gt, (a_gt, b_gt) in enumerate(ygt[ts]):
+                    if (not (region_detected[ts][i_gt] and multiAsFP)) and (IoU(a, b - a, a_gt, b_gt - a_gt) >= overlap):
+                        if region_detected[ts][i_gt]:
+                            isSubsequentDetection = True
+                        isTP = True
+                        region_detected[ts][i_gt] = True
+                        break
+                
+                if not isSubsequentDetection:
+                    if isTP:
+                        tp[i] = 1
+                    else:
+                        fp[i] = 1
+        
+            # Compute recall and precision
+            tp = tp.cumsum()
+            fp = fp.cumsum()
+            return (tp / sum(len(gt) for gt in ygt), tp / (tp + fp) if len(regions) > 0 else tp)
     
     else:
     
-        # Count true and false positives for a specific threshold
-        tp, fp = 0, 0
-        region_detected = [[False] * len(gt) for gt in ygt] # prevent multiple detections of the same interval
-        for i in range(len(regions)):
-            for a, b, score in regions[i]:
-                if (th is None) or (score >= th):
-                
-                    isTP = False
-                    for i_gt, (a_gt, b_gt) in enumerate(ygt[i]):
-                        if (not region_detected[i][i_gt]) and (IoU(a, b - a, a_gt, b_gt - a_gt) >= overlap):
-                            isTP = True
-                            region_detected[i][i_gt] = True
-                            break
-                    
-                    if isTP:
-                        tp += 1
-                    else:
-                        fp += 1
+        if not isinstance(ygt, list):
         
-        # Calculate recall and precision
-        return (float(tp) / sum(len(gt) for gt in ygt), float(tp) / (tp + fp) if tp + fp > 0 else 1.0)
+            # Count true positives for a specific threshold
+            tp = sum(int(isTP) for detections in regions for a, b, score, isTP in detections if score >= th)
+            
+            # Compute recall and precision
+            return (float(tp) / ygt, float(tp) / max(1, sum(len(detections) for detections in regions)))
+        
+        else:
+    
+            # Count true and false positives for a specific threshold
+            tp, fp = 0, 0
+            region_detected = [[False] * len(gt) for gt in ygt] # prevent multiple detections of the same interval
+            for i in range(len(regions)):
+                for a, b, score in regions[i]:
+                    if (th is None) or (score >= th):
+                    
+                        isTP = False
+                        for i_gt, (a_gt, b_gt) in enumerate(ygt[i]):
+                            if (not region_detected[i][i_gt]) and (IoU(a, b - a, a_gt, b_gt - a_gt) >= overlap):
+                                isTP = True
+                                region_detected[i][i_gt] = True
+                                break
+                        
+                        if isTP:
+                            tp += 1
+                        else:
+                            fp += 1
+            
+            # Calculate recall and precision
+            return (float(tp) / sum(len(gt) for gt in ygt), float(tp) / (tp + fp) if tp + fp > 0 else 1.0)
 
 
 def plotDetections(func, regions, gt = [], ticks = None, export = None, silent = True, detailedvis = False):

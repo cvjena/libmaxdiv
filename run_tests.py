@@ -11,6 +11,7 @@ parser.add_argument('--datasets', help='datasets to be loaded', nargs='+', defau
 parser.add_argument('--subsets', help='subsets of the datasets to be tested', nargs='+',default=[])
 parser.add_argument('--extremetypes', help='types of extremes to be tested', nargs='+',default=datasets.TYPES)
 parser.add_argument('--demomode', help='show results with a given delay and store images to disk', action='store_true')
+parser.add_argument('--dump', help='Dump detections for each time-series to the specified CSV file', default='')
 
 maxdiv_tools.add_algorithm_parameters(parser)
 
@@ -37,6 +38,7 @@ detailedvis = False
 
 aucs = {}
 aps = {}
+all_ids = []
 all_gt = []
 all_regions = []
 num = 0
@@ -48,10 +50,12 @@ for ftype in data:
     
     print('-- {} --'.format(ftype))
 
+    func_ids = []
     ygts = []
     regions = []
     aucs[ftype] = []
     for i, func in enumerate(data[ftype]):
+        func_ids.append('{}_{:03d}'.format(ftype, i))
         ygts.append(func['gt'])
         regions.append(maxdiv.maxdiv(func['ts'], **parameters))
 
@@ -78,9 +82,11 @@ for ftype in data:
     aps[ftype] = eval.average_precision(ygts, regions, plot = detailedvis and not args.novis)
     print ("AP: {}".format(aps[ftype]))
     
+    all_ids += func_ids
     all_regions += regions
     all_gt += ygts
 
+# Print results
 print('-- Aggregated AUC --')
 for ftype in canonical_order:
     if ftype in aucs:
@@ -92,3 +98,11 @@ for ftype in canonical_order:
         print ("{}: {}".format(ftype, aps[ftype]))
 print ("MEAN AP: {}".format(np.mean(list(aps.values()))))
 print ("OVERALL AP: {}".format(eval.average_precision(all_gt, all_regions)))
+
+# Dump detections
+if args.dump:
+    with open(args.dump, 'w') as dumpFile:
+        dumpFile.write('Func,Start,End,Score\n')
+        for id, regions in zip(all_ids, all_regions):
+            for a, b, score in regions:
+                dumpFile.write('{},{},{},{}\n'.format(id, a, b, score))

@@ -229,6 +229,7 @@ parser.add_argument('--plot', action='store_true', help='Plot histograms of embe
 parser.add_argument('--datasets', help='datasets to be loaded', nargs='+', default=['synthetic'])
 parser.add_argument('--subsets', help='subsets of the datasets to be tested', nargs='+',default=[])
 parser.add_argument('--td_lag', help='Time-Lag for Time-Delay Embedding', default=1, type=int)
+parser.add_argument('--dump', help='Dump detections for each time-series to the specified CSV file', default='')
 args = parser.parse_args()
 
 # Load data
@@ -238,17 +239,20 @@ ftypes = args.subsets if len(args.subsets) > 0 else data.keys()
 # Find the best embedding dimension for every single time series
 aucs = {}
 aps = {}
+all_ids = []
 all_gt = []
 all_regions = []
 best_k = {}
 for ftype in ftypes:
     print('-- {} --'.format(ftype))
 
+    func_ids = []
     ygts = []
     regions = []
     aucs[ftype] = []
     best_k[ftype] = Counter()
     for i, func in enumerate(data[ftype]):
+        func_ids.append('{}_{:03d}'.format(ftype, i))
         ygts.append(func['gt'])
         
         det, k_best = optimizers[args.optimizer](func, args.method, args.td_lag)
@@ -271,6 +275,7 @@ for ftype in ftypes:
         plt.title(ftype)
         plt.show()
     
+    all_ids += func_ids
     all_regions += regions
     all_gt += ygts
 
@@ -286,3 +291,11 @@ print('-- Average Precision --')
 for ftype in aps:
     print ("{}: {}".format(ftype, aps[ftype]))
 print ("OVERALL AP: {}".format(eval.average_precision(all_gt, all_regions)))
+
+# Dump detections
+if args.dump:
+    with open(args.dump, 'w') as dumpFile:
+        dumpFile.write('Func,Start,End,Score\n')
+        for id, regions in zip(all_ids, all_regions):
+            for a, b, score in regions:
+                dumpFile.write('{},{},{},{}\n'.format(id, a, b, score))
