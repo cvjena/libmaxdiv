@@ -29,6 +29,49 @@ def find_best_k(func, method, td_lag):
     return regions_best, k_best
 
 
+def rank_aggregation(func, method, td_lag):
+    
+    # Collect scores for all intervals with various embedding dimensions
+    regions = {}
+    for k in range(3, 21):
+        detections = maxdiv.maxdiv(func['ts'], method = method, mode = 'I_OMEGA',
+                                   extint_min_len = 20, extint_max_len = 100, num_intervals = None, overlap_th = 1.0,
+                                   td_dim = k, td_lag = td_lag)
+        for a, b, score in detections:
+            if (a, b) not in regions:
+                regions[(a, b)] = np.zeros(18)
+            regions[(a, b)][k - 3] = score
+    
+    # Sort detections by Approximate Kemeny Rank Aggregation
+    # (an interval is preferred over another one if the majority of rankers does so)
+    detections = sorted(regions.keys(), key = lambda intvl: KemenyCompare(regions, intvl), reverse = True)
+    
+    # Assign inverse rank as detection score
+    for i, (a, b) in enumerate(detections):
+        detections[i] = (a, b, len(detections) - i)
+    
+    return detections, 0
+
+class KemenyCompare:
+    def __init__(self, regions, intvl):
+        self.regions = regions
+        self.intvl = intvl
+    def cmp(self, other):
+        return (self.regions[self.intvl] > self.regions[other.intvl]).sum() - (self.regions[self.intvl] < self.regions[other.intvl]).sum()
+    def __lt__(self, other):
+        return self.cmp(other) < 0
+    def __gt__(self, other):
+        return self.cmp(other) > 0
+    def __eq__(self, other):
+        return self.cmp(other) == 0
+    def __le__(self, other):
+        return self.cmp(other) <= 0
+    def __ge__(self, other):
+        return self.cmp(other) >= 0
+    def __ne__(self, other):
+        return self.cmp(other) != 0
+
+
 def td_from_mi(func, method, td_lag):
     
     # Determine Time Lag with minimum Mutual Information
@@ -211,14 +254,15 @@ def length_scale(ts):
 
 # Constants
 optimizers = {
-    'best_k'    : find_best_k,
-    'mi'        : td_from_mi,
-    'rmi'       : td_from_relative_mi,
-    'dmi'       : td_from_mi_gradient,
-    'ce'        : td_from_ce_gradient,
-    'rce'       : td_from_relative_ce,
-    'gp_ls'     : td_from_length_scale,
-    'fnn'   : td_from_false_neighbors
+    'best_k'            : find_best_k,
+    'rank_aggregation'  : rank_aggregation,
+    'mi'                : td_from_mi,
+    'rmi'               : td_from_relative_mi,
+    'dmi'               : td_from_mi_gradient,
+    'ce'                : td_from_ce_gradient,
+    'rce'               : td_from_relative_ce,
+    'gp_ls'             : td_from_length_scale,
+    'fnn'               : td_from_false_neighbors
 }
 
 # Parameters
