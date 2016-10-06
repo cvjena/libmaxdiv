@@ -50,7 +50,7 @@ def rank_aggregation(func, method, td_lag):
     for i, (a, b) in enumerate(detections):
         detections[i] = (a, b, len(detections) - i)
     
-    return detections, 0
+    return maxdiv.find_max_regions(detections), 0
 
 class KemenyCompare:
     def __init__(self, regions, intvl):
