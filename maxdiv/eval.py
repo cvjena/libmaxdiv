@@ -125,9 +125,16 @@ def recall_precision(ygt, regions, overlap = 0.5, th = None, multiAsFP = True):
             
             # Count true positives for all thresholds
             tp = np.array([int(isTP) for a, b, score, isTP in sorted_regions]).cumsum()
+            numDet = np.arange(1, len(sorted_regions) + 1)
+
+            # Account for detections with exactly the same score
+            mask = np.array([((i >= len(tp) - 1) or (sorted_regions[i][2] != sorted_regions[i+1][2])) for i in range(len(tp))])
+            if not mask.all():
+                tp = tp[mask]
+                numDet = numDet[mask]
             
             # Compute recall and precision
-            return (tp / ygt, tp / np.arange(1, len(sorted_regions) + 1) if len(sorted_regions) > 0 else tp)
+            return (tp / ygt, tp / numDet if len(sorted_regions) > 0 else tp)
         
         else:
         
@@ -137,6 +144,7 @@ def recall_precision(ygt, regions, overlap = 0.5, th = None, multiAsFP = True):
             # Indicators for true and false positives
             tp = np.zeros(len(sorted_regions))
             fp = np.zeros(len(sorted_regions))
+            mask = np.ones(len(sorted_regions), dtype = bool)
             
             # Determine for each detection if it is a true or a false positive
             region_detected = [[False] * len(gt) for gt in ygt] # prevent multiple detections of the same interval
@@ -156,11 +164,15 @@ def recall_precision(ygt, regions, overlap = 0.5, th = None, multiAsFP = True):
                         tp[i] = 1
                     else:
                         fp[i] = 1
+                
+                # Account for detections with exactly the same score
+                if (i < len(sorted_regions) - 1) and (score == sorted_regions[i+1][2]):
+                    mask[i] = False
         
             # Compute recall and precision
-            tp = tp.cumsum()
-            fp = fp.cumsum()
-            return (tp / sum(len(gt) for gt in ygt), tp / (tp + fp) if len(regions) > 0 else tp)
+            tp = tp.cumsum()[mask]
+            fp = fp.cumsum()[mask]
+            return (tp / sum(len(gt) for gt in ygt), tp / (tp + fp) if len(sorted_regions) > 0 else tp)
     
     else:
     
