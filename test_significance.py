@@ -37,6 +37,8 @@ def testSignificance(det, numSamples = 1000, printProgress = False):
         - `map_bootstrap_ci99`: 99% Confidence Interval for `map_diff` according to the bootstrap test
         - `map_ttest`: p-Value for `map_diff` according to Student's paired t-test
     
+    The `map_*` items will only be present if there is more than one function type.
+    
     Note that `map_ttest` takes only the AP for each function type into account, while `map_bootstrap_p` and
     `map_permutation_p` resample from the set of all functions, regardless of their type.
     """
@@ -62,18 +64,19 @@ def testSignificance(det, numSamples = 1000, printProgress = False):
     results['ap_bootstrap_ci99'] = conf[2]
     
     # Run tests for Mean AP
-    if printProgress:
-        print('Running Permutation Test for Mean AP...')
-    p, conf = permutationTest(det, lambda d: mapDiff(d)[-1], map_diff, numSamples)
-    results['map_permutation_p'] = p
-    results['map_permutation_ci'] = conf
-    if printProgress:
-        print('Running Bootstrap Test for Overall AP...')
-    conf = bootstrapTest(det, lambda d: mapDiff(d)[-1], numSamples)
-    results['map_bootstrap_ci90'] = conf[0]
-    results['map_bootstrap_ci95'] = conf[1]
-    results['map_bootstrap_ci99'] = conf[2]
-    results['map_ttest'] = scipy.stats.ttest_rel(aps1, aps2)[1]
+    if len(aps1) > 1:
+        if printProgress:
+            print('Running Permutation Test for Mean AP...')
+        p, conf = permutationTest(det, lambda d: mapDiff(d)[-1], map_diff, numSamples)
+        results['map_permutation_p'] = p
+        results['map_permutation_ci'] = conf
+        if printProgress:
+            print('Running Bootstrap Test for Mean AP...')
+        conf = bootstrapTest(det, lambda d: mapDiff(d)[-1], numSamples)
+        results['map_bootstrap_ci90'] = conf[0]
+        results['map_bootstrap_ci95'] = conf[1]
+        results['map_bootstrap_ci99'] = conf[2]
+        results['map_ttest'] = scipy.stats.ttest_rel(aps1, aps2)[1]
     
     return results
 
@@ -91,26 +94,28 @@ def printSignificanceResults(results):
         ci = results['ap_bootstrap_ci{}'.format(alpha)]
         print('    {}% Confidence Interval: [{:.5f}, {:8.5f}]{}'.format(alpha, ci[0], ci[1], ' - significant difference' if (ci[0] > 0) or (ci[1] < 0) else ''))
     
-    print('\n--- Mean AP ---\n')
-    print('{:.5f} vs. {:.5f} (Difference: {:.5f})\n'.format(results['map1'], results['map2'], results['map_diff']))
-    print('Student\'s T:  p = {:.5f}'.format(results['map_ttest']))
-    print('Permutation:  p = {:.5f} (99% Confidence Interval: [{:.5f}, {:.5f}])'.format(results['map_permutation_p'], *results['map_permutation_ci']))
-    print('Bootstrap:')
-    for alpha in (90, 95, 99):
-        ci = results['map_bootstrap_ci{}'.format(alpha)]
-        print('    {}% Confidence Interval: [{:.5f}, {:8.5f}]{}'.format(alpha, ci[0], ci[1], ' - significant difference' if (ci[0] > 0) or (ci[1] < 0) else ''))
+    if 'map_permutation_p' in results:
+        print('\n--- Mean AP ---\n')
+        print('{:.5f} vs. {:.5f} (Difference: {:.5f})\n'.format(results['map1'], results['map2'], results['map_diff']))
+        print('Student\'s T:  p = {:.5f}'.format(results['map_ttest']))
+        print('Permutation:  p = {:.5f} (99% Confidence Interval: [{:.5f}, {:.5f}])'.format(results['map_permutation_p'], *results['map_permutation_ci']))
+        print('Bootstrap:')
+        for alpha in (90, 95, 99):
+            ci = results['map_bootstrap_ci{}'.format(alpha)]
+            print('    {}% Confidence Interval: [{:.5f}, {:8.5f}]{}'.format(alpha, ci[0], ci[1], ' - significant difference' if (ci[0] > 0) or (ci[1] < 0) else ''))
     
     print('\n--- Summary ---\n')
     print(' Significance Level | 10% |  5% |  1%')
     print('--------------------------------------')
     print('AP, Permutation     |{:^5s}|{:^5s}|{:^5s}'.format(*tuple(indicators[results['ap_permutation_ci'][1] < th] for th in (0.1, 0.05, 0.01))))
     print('AP, Bootstrap       |{:^5s}|{:^5s}|{:^5s}'.format(*tuple(indicators[(results['ap_bootstrap_ci{}'.format(alpha)][0] > 0) or (results['ap_bootstrap_ci{}'.format(alpha)][1] < 0)] for alpha in (90, 95, 99))))
-    print('--------------------------------------')
-    print('MAP, Permutation    |{:^5s}|{:^5s}|{:^5s}'.format(*tuple(indicators[results['map_permutation_ci'][1] < th] for th in (0.1, 0.05, 0.01))))
-    print('MAP, Bootstrap      |{:^5s}|{:^5s}|{:^5s}'.format(*tuple(indicators[(results['map_bootstrap_ci{}'.format(alpha)][0] > 0) or (results['map_bootstrap_ci{}'.format(alpha)][1] < 0)] for alpha in (90, 95, 99))))
-    print('MAP, Student\'s T    |{:^5s}|{:^5s}|{:^5s}'.format(*tuple(indicators[results['map_ttest'] < th] for th in (0.1, 0.05, 0.01))))
+    if 'map_permutation_p' in results:
+        print('--------------------------------------')
+        print('MAP, Permutation    |{:^5s}|{:^5s}|{:^5s}'.format(*tuple(indicators[results['map_permutation_ci'][1] < th] for th in (0.1, 0.05, 0.01))))
+        print('MAP, Bootstrap      |{:^5s}|{:^5s}|{:^5s}'.format(*tuple(indicators[(results['map_bootstrap_ci{}'.format(alpha)][0] > 0) or (results['map_bootstrap_ci{}'.format(alpha)][1] < 0)] for alpha in (90, 95, 99))))
+        print('MAP, Student\'s T    |{:^5s}|{:^5s}|{:^5s}'.format(*tuple(indicators[results['map_ttest'] < th] for th in (0.1, 0.05, 0.01))))
     
-    if ((results['ap_permutation_ci'][0] < 0.05) and (results['ap_permutation_ci'][1] > 0.05)) or ((results['map_permutation_ci'][0] < 0.05) and (results['map_permutation_ci'][1] > 0.05)):
+    if ((results['ap_permutation_ci'][0] < 0.05) and (results['ap_permutation_ci'][1] > 0.05)) or (('map_permutation_ci' in results) and (results['map_permutation_ci'][0] < 0.05) and (results['map_permutation_ci'][1] > 0.05)):
         print('\nNOTE: To increase the accuracy of the p-Value computed by the permutation test, increase --num_samples.')
 
 
@@ -250,7 +255,7 @@ def loadDetectionDump(dumpFile):
     return det
 
 
-def alignDetections(det1, det2, funcs, addMissingFuncs = True):
+def alignDetections(det1, det2, funcs, addMissingFuncs = True, quiet = True):
     """ Associates functions in two sets of detections with each other and with the ground-truth from a given dataset.
     
     `det1` and `det2` must be dictionaries mapping unique function IDs to lists of detections given as (a, b, score) tuples
@@ -259,6 +264,9 @@ def alignDetections(det1, det2, funcs, addMissingFuncs = True):
     
     If `addMissingFuncs` is true, functions that are contained in the dataset `funcs`, but neither in `det1` nor in `det2` will
     be added to the resulting list with their number of ground-truth intervals, but with empty lists of detections.
+    
+    If `quiet` is set to False, errors about functions missing in the dataset or in the list of detections will be printed to
+    stdout.
     
     This function returns a list of dictionaries with the following elements:
     - `ftype`: the type identifier of the function
@@ -280,6 +288,7 @@ def alignDetections(det1, det2, funcs, addMissingFuncs = True):
             hits[ftype][fnum] = True
             gt = funcs[ftype][fnum]['gt']
         else:
+            print('Function not found in dataset: {}'.format(id))
             gt = []
         
         det.append({
@@ -294,6 +303,7 @@ def alignDetections(det1, det2, funcs, addMissingFuncs = True):
         for ftype, hit in hits.items():
             for i, h in enumerate(hits):
                 if not h:
+                    print('Adding missing function: {}_{:03d}'.format(ftype, i))
                     det.append({ 'ftype' : ftype, 'fnum'  : i, 'det1'  : [], 'det2'  : [], 'num_gt': len(funcs[ftype][i]['gt']) })
     
     return det
@@ -338,6 +348,7 @@ if __name__ == '__main__':
     parser.add_argument('--dump2', help = 'CSV file with the detections of the second algorithm', required = True)
     parser.add_argument('--datasets', help = 'The dataset which the detection dumps refer to', nargs = '+', default = ['synthetic'])
     parser.add_argument('--extremetypes', help = 'Types of extremes which have been tested', nargs = '+', default = datasets.TYPES)
+    parser.add_argument('--ignore_missing', help = 'Ignore functions from the dataset which no detections are present for', action = 'store_true')
     parser.add_argument('--num_samples', help = 'Number of samples for permutation and bootstrap test', type = int, default = 1000)
 
     args = parser.parse_args()
@@ -350,7 +361,7 @@ if __name__ == '__main__':
     det2 = loadDetectionDump(args.dump2)
     
     # Associate detections with each other and with ground-truth
-    det = alignDetections(det1, det2, data)
+    det = alignDetections(det1, det2, data, not args.ignore_missing, quiet = False)
     
     # Run significance tests and print results
     results = testSignificance(det, args.num_samples, printProgress = True)
