@@ -250,12 +250,15 @@ def loadDetectionDump(dumpFile):
     return det
 
 
-def alignDetections(det1, det2, funcs):
+def alignDetections(det1, det2, funcs, addMissingFuncs = True):
     """ Associates functions in two sets of detections with each other and with the ground-truth from a given dataset.
     
     `det1` and `det2` must be dictionaries mapping unique function IDs to lists of detections given as (a, b, score) tuples
     and `funcs` must be a dataset as returned from `datasets.loadDatasets()`. Function IDs must consist of two parts, a type
     identifier and an index, separated by an underscore, e.g. 'meanshift_hard_005'.
+    
+    If `addMissingFuncs` is true, functions that are contained in the dataset `funcs`, but neither in `det1` nor in `det2` will
+    be added to the resulting list with their number of ground-truth intervals, but with empty lists of detections.
     
     This function returns a list of dictionaries with the following elements:
     - `ftype`: the type identifier of the function
@@ -265,14 +268,19 @@ def alignDetections(det1, det2, funcs):
     """
     
     func_ids = set(det1.keys()) | set(det2.keys())
+    hits = { ftype : [False] * len(functions) for ftype, functions in funcs.items() }
     det = []
     for id in func_ids:
         
         tok = id.split('_')
         ftype = '_'.join(tok[:-1])
         fnum = int(tok[-1], 10)
-
-        gt = funcs[ftype][fnum]['gt'] if ftype in funcs else []
+        
+        if (ftype in funcs) and (len(funcs[ftype]) > fnum):
+            hits[ftype][fnum] = True
+            gt = funcs[ftype][fnum]['gt']
+        else:
+            gt = []
         
         det.append({
             'ftype' : ftype,
@@ -281,6 +289,12 @@ def alignDetections(det1, det2, funcs):
             'det2'  : annotateDetections(det2[id], gt) if id in det2 else [],
             'num_gt': len(gt)
         })
+    
+    if addMissingFuncs:
+        for ftype, hit in hits.items():
+            for i, h in enumerate(hits):
+                if not h:
+                    det.append({ 'ftype' : ftype, 'fnum'  : i, 'det1'  : [], 'det2'  : [], 'num_gt': len(funcs[ftype][i]['gt']) })
     
     return det
 
