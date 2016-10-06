@@ -64,7 +64,7 @@ def loadDatasets(datasets = None, types = None):
         elif ds.startswith('yahoo_'):
             data.update(loadYahooDataset(subset = ds[6:], types = types, minAnomalyLength = 10))
         else:
-            raise ValueError('Unknown datasat: {}'.format(ds))
+            raise ValueError('Unknown dataset: {}'.format(ds))
     
     return data
 
@@ -139,7 +139,8 @@ def loadNabDataset(annotations = BASEPATH + '/../../datasets/NAB-1.0/labels/comb
         metadata = json.load(af)
     
     data = {}
-    for filename, regions in metadata.items():
+    for filename in sorted(metadata.keys()):
+        regions = metadata[filename]
         setName, tsName = filename.split('/')
         if (len(regions) > 0) and ((subset is None) or (setName.startswith(subset))):
             
@@ -240,7 +241,9 @@ def loadYahooDataset(datadir = BASEPATH + '/../../datasets/yahoo-s5-v1_0/', minA
         with open(os.path.join(datadir, dir, 'anom_intervals.json')) as af:
             metadata = json.load(af)
         
-        for filename, regions in metadata.items():
+        for filename in sorted(metadata.keys()):
+            
+            regions = metadata[filename]
             
             # Load data
             timestamps, values = [], []
