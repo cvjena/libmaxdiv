@@ -1,3 +1,5 @@
+""" Compares the performance of the MDI algorithm on time-series with a varying ratio of anomalies. """
+
 import sys
 sys.path.append('..')
 

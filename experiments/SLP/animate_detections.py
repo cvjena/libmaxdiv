@@ -1,3 +1,5 @@
+""" Creates a video file showing detections on the SLP dataset. """
+
 from mpl_toolkits.basemap import Basemap
 import numpy as np
 import matplotlib.pyplot as plt

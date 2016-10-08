@@ -1,5 +1,9 @@
 """ Checks the difference between two dumps of detections created by run_tests.py for significance. """
 
+import sys
+sys.path.append('..')
+sys.path.append('../experiments')
+
 import numpy as np
 import scipy.stats
 import random, csv, argparse

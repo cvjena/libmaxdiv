@@ -6,7 +6,7 @@ import nltk
 from glob import glob
 from gensim.models.word2vec import Word2Vec
 from maxdiv import eval
-import maxdiv_tools
+import cli_tools
 from textutils import *
 
 
@@ -63,7 +63,7 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     args_dict = vars(args)
-    parameters = {parameter_name: args_dict[parameter_name] for parameter_name in maxdiv_tools.get_algorithm_parameters() if parameter_name in args_dict}
+    parameters = {parameter_name: args_dict[parameter_name] for parameter_name in cli_tools.get_algorithm_parameters() if parameter_name in args_dict}
     if ('num_intervals' in parameters) and (parameters['num_intervals'] <= 0):
         parameters['num_intervals'] = None
     parameters['kernelparameters'] = { 'kernel_sigma_sq' : args.kernel_sigma_sq }

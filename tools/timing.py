@@ -1,3 +1,5 @@
+""" Compares the run-time of the Python and the libmaxdiv implementation of the MDI algorithm on time-series of varying length. """
+
 import sys
 sys.path.append('..')
 

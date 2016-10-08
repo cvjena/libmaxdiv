@@ -1,3 +1,5 @@
+""" Compares the performance of the MDI algorithm with ERPH models for different numbers of histograms and bins. """
+
 import sys, os.path
 import subprocess
 import numpy as np
@@ -19,7 +21,8 @@ for i, num_hist in enumerate(NUM_HIST):
         for k in range(NUM_IT):
             
             output = subprocess.run([
-                'python', os.path.join('..', 'run_tests.py'), '--novis', '--datasets', 'synthetic_hd', '--td_dim', '6', '--td_lag', '2',
+                'python', os.path.join('..', 'experiments', 'synthetic', 'run_tests.py'),
+                '--novis', '--datasets', 'synthetic_hd', '--td_dim', '6', '--td_lag', '2',
                 '--method', 'erph', '--mode', mode, '--num_hist', str(num_hist), '--num_bins', str(num_bins)],
                 stdout = subprocess.PIPE, universal_newlines = True, check = True).stdout
         

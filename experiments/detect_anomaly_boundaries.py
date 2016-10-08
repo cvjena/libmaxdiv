@@ -1,3 +1,5 @@
+""" Plots point-wise scores and their gradients for time-series from a given dataset. """
+
 import sys
 sys.path.append('..')
 

@@ -1,3 +1,5 @@
+""" Creates a mixed-language text from the Europarl corpus and runs the MDI algorithm on it. """
+
 import sys
 sys.path.append('../..')
 

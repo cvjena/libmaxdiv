@@ -1,5 +1,7 @@
+""" Plots the average mutual information for different time lags on a given dataset. """
+
 import sys
-sys.path.append('..')
+sys.path.append('../experiments')
 
 import numpy as np
 import matplotlib.pylab as plt
@@ -58,9 +60,8 @@ if __name__ == '__main__':
 
     # Parse arguments
     if (len(sys.argv) > 1) and (sys.argv[1] == 'help'):
+        print('Plots the average mutual information for different time lags on a given dataset.\n')
         print('Usage: {} [<subset>]'.format(sys.argv[0]))
-        print()
-        print('Plots the average mutual information for different time lags on a given dataset.')
         exit()
     subset = sys.argv[1] if len(sys.argv) > 1 else None
 

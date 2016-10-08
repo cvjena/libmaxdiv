@@ -1,5 +1,8 @@
+""" Computes the AP of interval proposals alone. """
+
 import sys
 sys.path.append('..')
+sys.path.append('../experiments')
 
 import numpy as np
 

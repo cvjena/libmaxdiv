@@ -1,3 +1,5 @@
+""" Draws detection bounding boxes onto a video and exports frames as still images. """
+
 import sys, os, re, imageio
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont

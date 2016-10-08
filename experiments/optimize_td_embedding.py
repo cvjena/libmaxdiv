@@ -1,3 +1,6 @@
+""" Evaluates various methods for automatic optimization of time-delay embedding parameters. """
+
+
 import sys
 sys.path.append('..')
 
@@ -266,7 +269,8 @@ optimizers = {
 }
 
 # Parameters
-parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser = argparse.ArgumentParser(description = 'Evaluate various methods for automatic optimization of time-delay embedding parameters.',
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--method', help='MaxDiv method', choices = maxdiv.get_available_methods() + ['gaussian_ts'], default = 'gaussian_ts')
 parser.add_argument('--optimizer', help='Optimization method for Time-Delay Embedding', choices = optimizers.keys(), default = 'best_k')
 parser.add_argument('--plot', action='store_true', help='Plot histograms of embedding dimensions for each extreme type')

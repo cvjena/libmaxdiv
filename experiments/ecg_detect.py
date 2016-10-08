@@ -1,3 +1,8 @@
+""" Script used for the ECG detection experiment.
+
+Databases are available here: http://physionet.org/physiobank/database/#ecg
+"""
+
 import sys
 sys.path.append('..')
 
@@ -116,7 +121,7 @@ def average_precision(detections, numPositive, plotFilename = None, plotTitle = 
 
 
 if __name__ == '__main__':
-    import argparse, maxdiv_tools
+    import argparse, cli_tools
     
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--method', help='maxdiv method', choices=maxdiv.get_available_methods(), default = 'gaussian_cov')
@@ -131,7 +136,7 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     args_dict = vars(args)
-    parameters = {parameter_name: args_dict[parameter_name] for parameter_name in maxdiv_tools.get_algorithm_parameters() if parameter_name in args_dict}
+    parameters = {parameter_name: args_dict[parameter_name] for parameter_name in cli_tools.get_algorithm_parameters() if parameter_name in args_dict}
     if ('num_intervals' in parameters) and (parameters['num_intervals'] <= 0):
         parameters['num_intervals'] = None
     parameters['kernelparameters'] = { 'kernel_sigma_sq' : args.kernel_sigma_sq }

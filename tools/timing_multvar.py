@@ -1,3 +1,5 @@
+""" Compares the performance of different variants of the MDI algorithm on time-series of varying dimensionality. """
+
 import sys
 sys.path.append('..')
 

@@ -1,7 +1,9 @@
-""" Synthetic Test Bench for MaxDiv """
+""" Creates Synthetic Test Bench for MaxDiv """
+
+import sys
+sys.path.append('../..')
 
 from maxdiv import maxdiv_util
-import sys
 import numpy as np
 import matplotlib.pylab as plt
 try:
@@ -84,6 +86,7 @@ def attributes_from_states(gps, numattr, numcorr):
 if __name__ == '__main__':
     
     if (len(sys.argv) < 2) or (sys.argv[1] not in ('large', 'small', 'hd', 'seasonal', 'nominal')):
+        print('Creates a Synthetic Test Bench\n')
         print('Usage: {} <type = large|small|hd|seasonal|nominal>'.format(sys.argv[0]))
         exit()
     type = sys.argv[1]

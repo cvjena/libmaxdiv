@@ -1,3 +1,5 @@
+""" Runs the MDI algorithm on the Sea Level Pressure dataset. """
+
 import os.path
 from utils import *
 from maxdiv.libmaxdiv_wrapper import *

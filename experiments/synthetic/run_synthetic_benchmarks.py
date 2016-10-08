@@ -1,6 +1,12 @@
+""" Tests different combinations of probability density models and divergences on the synthetic dataset. """
+
+import sys
+sys.path.append('..')
+sys.path.append('../..')
+
 import numpy as np
 from maxdiv import maxdiv, preproc, eval
-import maxdiv_tools, datasets
+import cli_tools, datasets
 import sys, argparse, time
 
 # Constants
@@ -11,7 +17,8 @@ canonical_order = ['meanshift', 'meanshift_hard', 'meanshift5', 'meanshift5_hard
                    'meanshift_multvar', 'amplitude_change_multvar', 'frequency_change_multvar', 'mixed_multvar']
 
 # Set up CLI argument parser
-parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser = argparse.ArgumentParser(description = 'Test different combinations of probability density models and divergences on the synthetic dataset.',
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--extremetypes', help='types of extremes to be tested', nargs='+',default=[])
 parser.add_argument('--kernel_sigma_sq', help='kernel sigma square hyperparameter for Parzen estimation', type=float, default=1.0)
 parser.add_argument('--extint_min_len', help='minimum length of the extreme interval', default=20, type=int)
@@ -26,7 +33,7 @@ args = parser.parse_args()
 
 # Prepare parameters for calling maxdiv
 args_dict = vars(args)
-parameters = {parameter_name: args_dict[parameter_name] for parameter_name in maxdiv_tools.get_algorithm_parameters() if (parameter_name in args_dict) and (parameter_name != 'td_dim')}
+parameters = {parameter_name: args_dict[parameter_name] for parameter_name in cli_tools.get_algorithm_parameters() if (parameter_name in args_dict) and (parameter_name != 'td_dim')}
 if ('num_intervals' in parameters) and (parameters['num_intervals'] <= 0):
     parameters['num_intervals'] = None
 

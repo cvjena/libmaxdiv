@@ -1,3 +1,5 @@
+""" Runs the MDI algorithm on CNN features extracted from a video an reduced to 16 dimensions using PCA. """
+
 import sys
 sys.path.append('..')
 

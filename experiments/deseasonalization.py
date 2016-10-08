@@ -1,3 +1,5 @@
+""" Compares several deseasonalization methods on pre-defined time-series from the Yahoo! dataset. """
+
 import sys
 sys.path.append('..')
 

@@ -1,3 +1,8 @@
+""" Runs the MDI algorithm on the Hurricane time-series. """
+
+import sys
+sys.path.append('..')
+
 import numpy as np
 import matplotlib.pylab as plt
 import csv, datetime
@@ -23,22 +28,22 @@ def read_hpw_csv(csvFile):
     
     ts = []
     dates = []
+    mask = []
     with open(csvFile) as f:
         reader = csv.reader(f)
         for i, line in enumerate(reader):
             if i == 0:
                 continue
             fields = [float(x) for x in line[1:]]
-            for j in range(len(fields)):
-                if np.isnan(fields[j]):
-                    if len(ts) == 0:
-                        continue
-                    else:
-                        fields[j] = ts[-1][j]
-            ts.append(fields)
+            if np.isnan(fields).any():
+                ts.append([0] * len(fields))
+                mask.append(True)
+            else:
+                ts.append(fields)
+                mask.append(False)
             dates.append(datetime.datetime(*[int(x) for i, x in enumerate(line[0].split('-'))]))
     
-    return np.array(ts).T, dates
+    return np.ma.MaskedArray(np.array(ts).T, np.array(mask).reshape(1, len(mask)).repeat(3, axis = 0)), dates
 
 
 def read_reduced_hpw_csv(csvFile):
@@ -86,8 +91,8 @@ def datetime_diff(a, b):
 if __name__ == '__main__':
 
     import sys
-    method = sys.argv[1] if len(sys.argv) > 1 else 'gaussian_cov'
-    propmeth = sys.argv[2] if len(sys.argv) > 2 else 'kde'
+    method = sys.argv[1] if len(sys.argv) > 1 else 'parzen'
+    propmeth = sys.argv[2] if len(sys.argv) > 2 else 'hotellings_t'
 
     # Load data
     data, dates = read_hpw_csv('HPW_2012_41046.csv')

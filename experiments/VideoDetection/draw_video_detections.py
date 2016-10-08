@@ -1,3 +1,5 @@
+""" Draws detection bounding boxes onto a video. """
+
 import sys, re, imageio
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont

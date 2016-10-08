@@ -1,3 +1,5 @@
+""" Creates animated GIF files showing detections on the coastDat dataset. """
+
 import matplotlib
 matplotlib.use('Agg') # non-interactive backend for terminal sessions
 

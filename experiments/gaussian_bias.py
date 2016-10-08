@@ -1,3 +1,5 @@
+""" Create an example for the small-interval bias of the KL divergence. """
+
 import sys
 sys.path.append('..')
 

@@ -1,3 +1,5 @@
+""" Provides functions for loading several datasets. """
+
 import csv, json, datetime, os.path
 import numpy as np
 from maxdiv.eval import pointwiseLabelsToIntervals
@@ -52,11 +54,11 @@ def loadDatasets(datasets = None, types = None):
         if (ds == 'synthetic') and ('interval' in types):
             data.update(loadSyntheticTestbench())
         elif (ds == 'synthetic_small') and ('interval' in types):
-            data.update(loadSyntheticTestbench(BASEPATH + '/testcube_small.pickle'))
+            data.update(loadSyntheticTestbench(BASEPATH + '/synthetic/testcube_small.pickle'))
         elif (ds == 'synthetic_hd') and ('interval' in types):
-            data.update(loadSyntheticTestbench(BASEPATH + '/testcube_hd.pickle'))
+            data.update(loadSyntheticTestbench(BASEPATH + '/synthetic/testcube_hd.pickle'))
         elif (ds == 'synthetic_seasonal') and ('interval' in types):
-            data.update(loadSyntheticTestbench(BASEPATH + '/testcube_seasonal.pickle'))
+            data.update(loadSyntheticTestbench(BASEPATH + '/synthetic/testcube_seasonal.pickle'))
         elif ds == 'synthetic_normal':
             data.update(loadSyntheticNormalTestbench())
         elif ds.startswith('nab_'):
@@ -69,7 +71,7 @@ def loadDatasets(datasets = None, types = None):
     return data
 
 
-def loadSyntheticTestbench(filename = BASEPATH + '/testcube.pickle'):
+def loadSyntheticTestbench(filename = BASEPATH + '/synthetic/testcube.pickle'):
     """ Loads a synthetic test bench with different types of anomalous intervals.
     
     The testbench can be generated using `testbench.py`.
@@ -91,7 +93,7 @@ def loadSyntheticTestbench(filename = BASEPATH + '/testcube.pickle'):
     } for i, (func, ygt) in enumerate(zip(f[ftype], y[ftype]))] for ftype in f }
 
 
-def loadSyntheticNormalTestbench(filename = BASEPATH + '/testcube_normal.pickle'):
+def loadSyntheticNormalTestbench(filename = BASEPATH + '/synthetic/testcube_normal.pickle'):
     """ Loads a synthetic test bench with time-series without anomalies.
     
     The testbench can be generated using `testbench.py`.
@@ -111,8 +113,8 @@ def loadSyntheticNormalTestbench(filename = BASEPATH + '/testcube_normal.pickle'
     } for i, func in enumerate(f[ftype])] for ftype in f }
 
 
-def loadNabDataset(annotations = BASEPATH + '/../../datasets/NAB-1.0/labels/combined_windows.json',
-                   datadir = BASEPATH + '/../../datasets/NAB-1.0/data/',
+def loadNabDataset(annotations = BASEPATH + '/../../../datasets/NAB-1.0/labels/combined_windows.json',
+                   datadir = BASEPATH + '/../../../datasets/NAB-1.0/data/',
                    subset = None, types = None):
     """ Loads data from the Numenta Anomaly Benchmark (NAB).
     
@@ -198,7 +200,7 @@ def loadNabDataset(annotations = BASEPATH + '/../../datasets/NAB-1.0/labels/comb
     return data
 
 
-def loadYahooDataset(datadir = BASEPATH + '/../../datasets/yahoo-s5-v1_0/', minAnomalyLength = 0, subset = None, types = None):
+def loadYahooDataset(datadir = BASEPATH + '/../../../datasets/yahoo-s5-v1_0/', minAnomalyLength = 0, subset = None, types = None):
     """ Loads data from the Numenta Anomaly Benchmark (NAB).
     
     Download of the Yahoo! Webscope S5 Dataset: http://webscope.sandbox.yahoo.com/catalog.php?datatype=s&did=70

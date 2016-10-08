@@ -1,5 +1,10 @@
-import numpy as np
+""" Tests several deseasonalization methods on a synthetic and the Yahoo! dataset. """
+
 import sys
+sys.path.append('..')
+sys.path.append('../..')
+
+import numpy as np
 from collections import OrderedDict
 
 from maxdiv import preproc, eval, libmaxdiv_wrapper
@@ -15,6 +20,7 @@ TD_DIM = int(sys.argv[3]) if len(sys.argv) > 3 else 6
 TD_LAG = int(sys.argv[4]) if len(sys.argv) > 4 else 2
 
 if PROPOSALS == 'help':
+    print('Test several deseasonalization methods in combination with different variants of the MDI algorithm on a given dataset.\n')
     print('Usage: {} <dataset = yahoo | synthetic> <proposals = dense> <td-dim = 6> <td-lag = 2>'.format(sys.argv[0]))
     exit()
 

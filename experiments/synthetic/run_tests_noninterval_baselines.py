@@ -1,3 +1,9 @@
+""" Tests the performance of non-interval baseline methods on a given dataset. """
+
+import sys
+sys.path.append('..')
+sys.path.append('../..')
+
 import numpy as np
 import matplotlib.pylab as plt
 import argparse, time
@@ -7,13 +13,14 @@ import matplotlib.patches as mpatches
 
 from maxdiv import maxdiv, preproc, eval
 from maxdiv.baselines_noninterval import *
-import maxdiv_tools, datasets
+import datasets
 
 
 METHODS = { 'hotellings_t' : hotellings_t, 'kde' : pointwiseKDE, 'rkde' : rkde, 'gmm' : gmm_scores }
 
 
-parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser = argparse.ArgumentParser(description = 'Test the performance of non-interval baseline methods on a given dataset.',
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--method', help='scoring method', choices=METHODS, required=True)
 parser.add_argument('--novis', action='store_true', help='skip the visualization')
 parser.add_argument('--datasets', help='datasets to be loaded', nargs='+', default=datasets.DATASETS)

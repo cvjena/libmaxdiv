@@ -1,3 +1,6 @@
+""" Evaluates the small-interval bias of the KL divergence by applying the MDI algorithm to time-series of pure white noise. """
+
+
 import sys
 sys.path.append('..')
 
@@ -22,6 +25,7 @@ extint_min_len = 5   # minimum interval length
 extint_max_len = 100 # maximum interval length
 
 if method == 'help':
+    print('Evaluate the small-interval bias of the KL divergence by applying the MDI algorithm to time-series of pure white noise.\n')
     print('Testing on noise (default): {} <method = gaussian_cov> <n = 1000> <dim = 1> <td-embed = 1>'.format(sys.argv[0]))
     print('Testing on synthetic data:  {} <method = gaussian_cov> <dataset> <td-embed = 1>'.format(sys.argv[0]))
     print('Methods: gaussian_cov, gaussian_cov_ts, gaussian_global_cov, gaussian_id_cov, gaussian_id_cov_normalized, parzen, compare')

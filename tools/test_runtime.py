@@ -1,3 +1,5 @@
+""" Compares the run-time of different variants of the MDI algorithm on time-series of varying length. """
+
 import sys
 sys.path.append('..')
 

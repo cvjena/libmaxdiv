@@ -1,3 +1,5 @@
+""" Runs the MDI algorithm on the coastDat dataset. """
+
 import os.path
 from maxdiv_coastdat_utils import *
 from maxdiv.libmaxdiv_wrapper import *

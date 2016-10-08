@@ -2,6 +2,7 @@
 
 import sys
 sys.path.append('..')
+sys.path.append('../experiments')
 
 import numpy as np
 from collections import OrderedDict

@@ -818,7 +818,74 @@ def find_max_regions(intervals, num_intervals = None, overlap_th = 0.0):
 # Wrapper and utility functions
 #
 def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', useLibMaxDiv = None, **kwargs):
-    """ Wrapper function for calling maximum divergent regions """
+    """ Universal wrapper function for running the MDI algorithm.
+    
+    Arguments:
+    
+    - `X`: The time-series as d-by-n numpy array, where `d` is the number of attributes and `n` is the number of
+           time-steps. If the data contains missing values, the array must have been masked.
+    
+    - `method`: Method for probability density estimation. One of: 'gaussian_cov', 'gaussian_global_cov',
+                'gaussian_id_cov', 'parzen', 'erph'
+    
+    - `num_intervals`: Number of detections to be returned. If set to `None`, all detections will be returned
+                       (after applying non-maximum suppression).
+    
+    - `proposals`: Interval proposal method to be used. The following options are available:
+                    - 'dense': full scan over all possible intervals
+                    - 'hotellings_t': generate proposals based on Hotelling's T^2 scores
+                    - 'kde': generate proposals based on point-wise KDE scores
+    
+    - `useLibMaxDiv`: If set to `None`, this function tries to delegate the call to `libmaxdiv`. If the library is not
+                      available or the call failed for some reason, the Python implementation of the MDI algorithm
+                      will be used as a fallback automatically. If this parameter is set to `True`, `libmaxdiv` *must*
+                      be used and an exception will be raised if it is not available. If set to `False`, the Python
+                      implementation will be used.
+    
+    - `mode`: Divergence to be used. Possible options:
+                - Variants of the KL divergence: 'I_OMEGA', 'OMEGA_I', 'SYM', 'TS' (unbiased KL divergence),
+                - 'CROSSENT' (cross entropy)
+                - 'JSD' (Jensen-Shannon divergence)
+    
+    - `extint_min_len`: Minimum length of the anomalous intervals
+    
+    - `extint_max_len`: Maximum length of the anomalous intervals
+    
+    - `overlap_th`: Overlap threshold for non-maximum suppression: Intervals with a greater IoU will be considered overlapping. Default: 0.5
+    
+    - `td_dim`: Time-Delay Embedding Dimension (may be set to 0 for automatic determination)
+    
+    - `td_lag`: Time-Lag for Time-Delay Embedding (may be set to 0 for automatic determination)
+    
+    - `preproc`: List of pre-processing methods to be applied. Possible methods are:
+                 - 'td': Time-Delay Embedding with automatic determination of the embedding dimension
+                 - 'normalize': Normalize the values in the time-series
+                 - 'deseasonalize': Deseasonalization based on ordinary least squares
+                 - 'deseasonalize_ft': Deseasonalization based on the Fourier Transform
+                 - 'detrend_linear': Linear detrending
+    
+    - `kernel_sigma_sq`: Kernel variance for 'parzen' method
+    
+    - `num_hist`: The number of histograms used by the ERPH estimator.
+    
+    - `num_bins`: The number of bins in the histograms used by the ERPH estimator (0 = auto).
+    
+    - `discount`: Discount added to all bins of the histograms of the ERPH estimator in order to make unseen values not completely unlikely.
+    
+    - `pca_dim`: Reduce data to the given number of dimensions using PCA.
+    
+    - `random_projection_dim`: Project data onto the given number of random projection vectors.
+    
+    - `prop_th`: Threshold for pointwise interval proposals (default: 1.5)
+    
+    - `prop_mad`: Use MAD to determine the threshold for interval proposals.
+    
+    - `prop_unfiltered`: If set to true, pointwise scores will be used directly for proposals instead of their gradient.
+    
+    Returns: List of detections as (a, b, score) tuples, where `a` is the index of the first time-step inside
+             of the detected interval and `b` is the first time-step just outside of the interval. The detections
+             are sorted by their score in descending order.
+    """
     
     if useLibMaxDiv != False:
         try:
