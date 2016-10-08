@@ -43,22 +43,13 @@ def get_available_methods():
 #
 # Maximally divergent regions using Kernel Density Estimation
 #
-def maxdiv_parzen(K, intervals, mode = 'I_OMEGA', alpha = 1.0, score_merge_coeff = None, **kwargs):
+def maxdiv_parzen(K, intervals, mode = 'I_OMEGA', alpha = 1.0, **kwargs):
     """ Scores given intervals by using Kernel Density Estimation.
     
     `K` is a symmetric kernel matrix whose components are K(|i - j|) for a given kernel K.
     
     `intervals` has to be an iterable of `(a, b, score)` tuples, which define an
     interval `[a,b)` which is suspected to be an anomaly.
-    The scores should be in the range [0,1] and will be integrated into the final interval
-    score if `score_merge_coeff` is not `None`. The proposed score and the divergence-based
-    score will be combined according to the following equation:
-    
-    `score = score_merge_coeff * divergence_score + (1.0 - score_merge_coeff) * proposed_score`
-    
-    The divergence-based scores will be scaled to be in range [0,1].
-    This scaling won't be performed if score merging is disabled by setting `score_merge_coeff`
-    to `None`.
     
     Returns: a list of `(a, b, score)` tuples. `a` and `b` are the same as in the given
              `intervals` iterable, but the scores will indicate whether a given interval
@@ -192,38 +183,20 @@ def maxdiv_parzen(K, intervals, mode = 'I_OMEGA', alpha = 1.0, score_merge_coeff
             score += jsd / 2.0
 
         # store the score
-        scores.append((a, b, score, base_score) if score_merge_coeff is not None else (a, b, score))
+        scores.append((a, b, score))
     
-    # Merge divergence and proposal scores
-    if score_merge_coeff is None:
-        return scores
-    else:
-        # Apply sigmoid function to scale scores to [0,1)
-        if mode != 'JSD':
-            for i, (a, b, score, base_score) in enumerate(scores):
-                scores[i] = (a, b, 2.0 / (1.0 + math.exp(-0.1 * scores[i][2])) - 1.0, base_score)
-        # Combine divergence-based scores with proposed scores linearly
-        return [(a, b, score_merge_coeff * score + (1.0 - score_merge_coeff) * base_score) for a, b, score, base_score in scores]
+    return scores
 
 #
 # Maximally divergent regions using a Gaussian assumption
 #
-def maxdiv_gaussian_globalcov(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'GLOBAL_COV', score_merge_coeff = None, **kwargs):
+def maxdiv_gaussian_globalcov(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'GLOBAL_COV', **kwargs):
     """ Scores given intervals by assuming gaussian distributions with equal covariance.
     
     `X` is a d-by-n matrix with `n` data points, each with `d` attributes.
     
     `intervals` has to be an iterable of `(a, b, score)` tuples, which define an
     interval `[a,b)` which is suspected to be an anomaly.
-    The scores should be in the range [0,1] and will be integrated into the final interval
-    score if `score_merge_coeff` is not `None`. The proposed score and the divergence-based
-    score will be combined according to the following equation:
-    
-    `score = score_merge_coeff * divergence_score + (1.0 - score_merge_coeff) * proposed_score`
-    
-    The divergence-based scores will be scaled to be in range [0,1].
-    This scaling won't be performed if score merging is disabled by setting `score_merge_coeff`
-    to `None`.
     
     Returns: a list of `(a, b, score)` tuples. `a` and `b` are the same as in the given
              `intervals` iterable, but the scores will indicate whether a given interval
@@ -262,37 +235,21 @@ def maxdiv_gaussian_globalcov(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'G
             score = np.sum(diff * diff)
         if (mode == 'CROSSENT') or (mode == 'CROSSENT_TS'):
             score += dimension * (1 + np.log(2 * np.pi))
-        scores.append((a, b, score, base_score) if score_merge_coeff is not None else (a, b, score))
+        scores.append((a, b, score))
 
-    if score_merge_coeff is None:
-        return scores
-    else:
-        # Apply sigmoid function to scale scores to [0,1)
-        for i, (a, b, score, base_score) in enumerate(scores):
-            scores[i] = (a, b, 2.0 / (1.0 + math.exp(-0.02 * scores[i][2])) - 1.0, base_score)
-        # Combine divergence-based scores with proposed scores linearly
-        return [(a, b, score_merge_coeff * score + (1.0 - score_merge_coeff) * base_score) for a, b, score, base_score in scores]
+    return scores
 
 
 #
 # Maximally divergent regions using a Gaussian assumption
 #
-def maxdiv_gaussian(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'COV', score_merge_coeff = None, **kwargs):
+def maxdiv_gaussian(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'COV', **kwargs):
     """ Scores given intervals by assuming gaussian distributions.
     
     `X` is a d-by-n matrix with `n` data points, each with `d` attributes.
     
     `intervals` has to be an iterable of `(a, b, score)` tuples, which define an
     interval `[a,b)` which is suspected to be an anomaly.
-    The scores should be in the range [0,1] and will be integrated into the final interval
-    score if `score_merge_coeff` is not `None`. The proposed score and the divergence-based
-    score will be combined according to the following equation:
-    
-    `score = score_merge_coeff * divergence_score + (1.0 - score_merge_coeff) * proposed_score`
-    
-    The divergence-based scores will be scaled to be in range [0,1].
-    This scaling won't be performed if score merging is disabled by setting `score_merge_coeff`
-    to `None`.
     
     Returns: a list of `(a, b, score)` tuples. `a` and `b` are the same as in the given
              `intervals` iterable, but the scores will indicate whether a given interval
@@ -413,24 +370,15 @@ def maxdiv_gaussian(X, intervals, mode = 'I_OMEGA', gaussian_mode = 'COV', score
         
         #print score, cov_extreme, cov_non_extreme, diff
 
-        scores.append((a, b, score, base_score) if score_merge_coeff is not None else (a, b, score))
+        scores.append((a, b, score))
 
-    # Merge divergence and proposal scores
-    if score_merge_coeff is None:
-        return scores
-    else:
-        # Apply sigmoid function to scale scores to [0,1)
-        if mode != 'JSD':
-            for i, (a, b, score, base_score) in enumerate(scores):
-                scores[i] = (a, b, 2.0 / (1.0 + math.exp(-0.02 * scores[i][2])) - 1.0, base_score)
-        # Combine divergence-based scores with proposed scores linearly
-        return [(a, b, score_merge_coeff * score + (1.0 - score_merge_coeff) * base_score) for a, b, score, base_score in scores]
+    return scores
 
 
 #
 # Maximally divergent regions using an Ensemble of Random Projection Histograms
 #
-def maxdiv_erph(X, intervals, mode = 'I_OMEGA', num_hist = 100, num_bins = None, discount = 1, score_merge_coeff = None, **kwargs):
+def maxdiv_erph(X, intervals, mode = 'I_OMEGA', num_hist = 100, num_bins = None, discount = 1, **kwargs):
     """ Scores given intervals by estimating the joint likelihood over all attributes using an ensemble
     of histograms over random 1d projections.
     
@@ -438,9 +386,6 @@ def maxdiv_erph(X, intervals, mode = 'I_OMEGA', num_hist = 100, num_bins = None,
     
     `intervals` has to be an iterable of `(a, b, score)` tuples, which define an
     interval `[a,b)` which is suspected to be an anomaly.
-    The scores should be in the range [0,1] and will be integrated into the final interval
-    score if `score_merge_coeff` is not `None`. The proposed score and the divergence-based
-    score will be combined according to the following equation:
     
     `num_hist` specifies the number of histograms / random projections to be used. Should be
     much greater than `d`.
@@ -450,12 +395,6 @@ def maxdiv_erph(X, intervals, mode = 'I_OMEGA', num_hist = 100, num_bins = None,
     
     `discount` is a constant value added to the count of each bin in order to make unseen values
     not completely unlikely.
-    
-    `score = score_merge_coeff * divergence_score + (1.0 - score_merge_coeff) * proposed_score`
-    
-    The divergence-based scores will be scaled to be in range [0,1].
-    This scaling won't be performed if score merging is disabled by setting `score_merge_coeff`
-    to `None`.
     
     Returns: a list of `(a, b, score)` tuples. `a` and `b` are the same as in the given
              `intervals` iterable, but the scores will indicate whether a given interval
@@ -544,18 +483,9 @@ def maxdiv_erph(X, intervals, mode = 'I_OMEGA', num_hist = 100, num_bins = None,
             score += jsd / (np.log(2.0) * 2.0)
 
         # store the score
-        scores.append((a, b, score, base_score) if score_merge_coeff is not None else (a, b, score))
+        scores.append((a, b, score))
 
-    # Merge divergence and proposal scores
-    if score_merge_coeff is None:
-        return scores
-    else:
-        # Apply sigmoid function to scale scores to [0,1)
-        if mode != 'JSD':
-            for i, (a, b, score, base_score) in enumerate(scores):
-                scores[i] = (a, b, 2.0 / (1.0 + math.exp(-0.02 * scores[i][2])) - 1.0, base_score)
-        # Combine divergence-based scores with proposed scores linearly
-        return [(a, b, score_merge_coeff * score + (1.0 - score_merge_coeff) * base_score) for a, b, score, base_score in scores]
+    return scores
 
 
 class Histogram1D(object):
@@ -636,22 +566,13 @@ class Histogram1D(object):
 #
 # Maximally divergent regions using Gaussian Process Regression
 #
-def maxdiv_gp(X, intervals, mode = 'I_OMEGA', theta = 30, train_step = 5, score_merge_coeff = None, **kwargs):
+def maxdiv_gp(X, intervals, mode = 'I_OMEGA', theta = 30, train_step = 5, **kwargs):
     """ Scores given intervals by fitting a Gaussian Process to them.
     
     `X` is a d-by-n matrix with `n` data points, each with `d` attributes.
     
     `intervals` has to be an iterable of `(a, b, score)` tuples, which define an
     interval `[a,b)` which is suspected to be an anomaly.
-    The scores should be in the range [0,1] and will be integrated into the final interval
-    score if `score_merge_coeff` is not `None`. The proposed score and the divergence-based
-    score will be combined according to the following equation:
-    
-    `score = score_merge_coeff * divergence_score + (1.0 - score_merge_coeff) * proposed_score`
-    
-    The divergence-based scores will be scaled to be in range [0,1].
-    This scaling won't be performed if score merging is disabled by setting `score_merge_coeff`
-    to `None`.
     
     Returns: a list of `(a, b, score)` tuples. `a` and `b` are the same as in the given
              `intervals` iterable, but the scores will indicate whether a given interval
@@ -705,18 +626,10 @@ def maxdiv_gp(X, intervals, mode = 'I_OMEGA', theta = 30, train_step = 5, score_
         else:
             score -= ll
         
-        scores.append((a, b, score, base_score) if score_merge_coeff is not None else (a, b, score))
+        scores.append((a, b, score))
 
-    # Merge divergence and proposal scores
-    if score_merge_coeff is None:
-        return scores
-    else:
-        # Apply sigmoid function to scale scores to [0,1)
-        if mode != 'JSD':
-            for i, (a, b, score, base_score) in enumerate(scores):
-                scores[i] = (a, b, 2.0 / (1.0 + math.exp(-0.02 * scores[i][2])) - 1.0, base_score)
-        # Combine divergence-based scores with proposed scores linearly
-        return [(a, b, score_merge_coeff * score + (1.0 - score_merge_coeff) * base_score) for a, b, score, base_score in scores]
+    return scores
+
 
 def condition_gp(gp, f, corr, train_x, test_x):
     
@@ -947,7 +860,6 @@ def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', u
         intervals = proposals
     elif proposals == 'dense':
         intervals = denseRegionProposals(X, **proposalParameters)
-        kwargs['score_merge_coeff'] = None
     elif proposals == 'pointwise':
         intervals = pointwiseRegionProposals(X, **proposalParameters)
     elif isinstance(proposals, types.FunctionType):
