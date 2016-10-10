@@ -4,9 +4,9 @@ Maximally Divergent Intervals for Anomaly Detection
 The **Maximally Divergent Intervals (MDI) Algorithm** can be used to detection anomalous *intervals* (as opposed to
 anomalous points) in multi-variate spatio-temporal time-series. It has first been described in the following paper:
 
-    Erik Rodner, Björn Barz, Yanira Guanche, Milan Flach, Miguel Mahecha, Paul Bodesheim, Markus Reichstein, Joachim Denzler.
-    "Maximally Divergent Intervals for Anomaly Detection".
-    *ICML Workshop on Anomaly Detection (ICML-WS)*. 2016
+> Erik Rodner, Björn Barz, Yanira Guanche, Milan Flach, Miguel Mahecha, Paul Bodesheim, Markus Reichstein, Joachim Denzler.
+> "Maximally Divergent Intervals for Anomaly Detection".
+> *ICML Workshop on Anomaly Detection (ICML-WS)*. 2016
 
 An efficient C++ implementation called `libmaxdiv` is provided in `maxdiv/libmaxdiv` and may be used stand-alone. If it has been
 built in `maxdiv/libmaxdiv/bin`, it will be used automatically by the GUI and the `maxdiv` function in the `maxdiv.maxdiv` Python
