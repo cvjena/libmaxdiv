@@ -19,7 +19,7 @@ def readDetections(filename):
 
 def drawDetections(videoIn, outDir, detections, intvl = 4, colors = [(255, 0, 0), (0, 0, 255), (0, 255, 0)], cellSize = 16):
     
-    font = ImageFont.truetype('arial.ttf', 28)
+    font = ImageFont.truetype('arial.ttf', 36)
     
     reader = imageio.get_reader(videoIn, 'ffmpeg')
     
@@ -38,7 +38,17 @@ def drawDetections(videoIn, outDir, detections, intvl = 4, colors = [(255, 0, 0)
                     for det, col in zip(detections, colors):
                         for numDet, (a, b) in enumerate(det):
                             if (num >= a[0]) and (num <= b[0]):
-                                draw.rectangle([a[1], a[2], b[1], b[2]], outline = col)
+                                for offs in range(-4, 5, 1):
+                                    draw.rectangle(
+                                        [max(0, a[1] + offs), max(0, a[2] + offs), min(img.size[0], b[1] - offs), min(img.size[1], b[2] - offs)],
+                                        outline = (255, 255, 255) if abs(offs) > 2 else col
+                                    )
+                                for xoffs in range(-1, 2, 1):
+                                    for yoffs in range(-1, 2, 1):
+                                        draw.text(
+                                            [a[1] + 10 + xoffs, a[2] + 10 + yoffs],
+                                            str(numDet + 1), fill = (255, 255, 255), font = font
+                                        )
                                 draw.text([a[1] + 10, a[2] + 10], str(numDet + 1), fill = col, font = font)
                     img.save(os.path.join(outDir, 'frame{:04d}.jpg'.format(num)), quality = 100)
                     del draw, img
