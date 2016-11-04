@@ -37,7 +37,7 @@ def loadHistoricEvents(filename = '../coastdat/historic_storms.csv'):
     return events
 
 def matchDetectionWithEvent(detection, historic_events, year_offs):
-    base_date = datetime.date(YEAR_OFFS, 1, 1)
+    base_date = datetime.date(year_offs, 1, 1)
     maxOverlap = max(((event, IoU(
                             (event['START_DATE'] - base_date).days,
                             (event['END_DATE'] - event['START_DATE']).days + 1,
