@@ -4,6 +4,7 @@ import os.path
 from utils import *
 from maxdiv.libmaxdiv_wrapper import *
 import argparse
+import json
 
 default_csv = '../coastdat/historic_storms.csv'
 default_gridspec = getSLPGridSpec()
@@ -18,6 +19,7 @@ parser.add_argument('--latstep', help='Grid specification: latitude step', defau
 parser.add_argument('--lonstep', help='Grid specification: longitude step', default=default_gridspec['lon_step'])
 parser.add_argument('--lonoffset', help='Grid specification: longitude offset', default=default_gridspec['lon_offs'])
 parser.add_argument('--gridspecfile', help='Load grid specification from a simple text file: <var> = <value>')
+parser.add_argument('--out', help='Output file', default='detections.json')
 args = parser.parse_args()
 
 if args.gridspecfile is None:
@@ -35,13 +37,17 @@ else:
         for line in gsf:
             l = line.rstrip().lower()
             variable, value = l.split(' = ')
-            gridspec[variable] = value
+	    if variable=='year_offs':
+	    	gridspec[variable] = int(value)
+	    else:
+	    	gridspec[variable] = float(value)
+		
+
     # check whether we have all necessary variables
     # also set in the default
     for k in default_gridspec:
         if not k in gridspec:
             sys.exit('Variable {} not specified in {}'.format(k, args.gridspecfile))
-        
 
 if args.eventscsv is None:
     print ("No historic events specified, use {} for the SLP data.".format(default_csv))
@@ -67,4 +73,9 @@ tensor = loadTensor(args.matfile, args.tensorvar)
 print ("running maxdiv ...")
 detections = maxdiv_exec(tensor, params, 20)
 print ("matching with historic events ...")
+
+with open(args.out, 'w') as outf:
+	json.dump(outf, {'detections': detections, 
+			 'gridspec': gridspec, 
+			 'settings': vars(args)})
 printDetections(detections, gridspec, historic_events)
