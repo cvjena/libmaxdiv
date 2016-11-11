@@ -20,8 +20,14 @@ def getSLPGridSpec():
 
 def loadTensor(matfile, tensorvar):
     """ load a simple tensor from a MATLAB file """
-    slp = scipy.io.loadmat(matfile)[tensorvar]
-    return slp.reshape(slp.shape + (1, 1))
+    tensor_data = scipy.io.loadmat(matfile)
+    if tensorvar in tensor_data:
+        tensor = tensor_data[tensorvar]
+    else:
+        raise Exception('Variable {} not present in {}\nAvailable variables: {}\n'.format(tensorvar,
+	    matfile, tensor_data.keys()))
+    print ("Tensor shape: {}".format(tensor.shape))
+    return tensor.reshape(tensor.shape + (1, 1))
 
 
 # Historic event data
@@ -44,7 +50,7 @@ def matchDetectionWithEvent(detection, historic_events, year_offs):
                             detection[0][0],
                             detection[1][0] - detection[0][0]
                         )) for event in historic_events), key = lambda x: x[1])
-    return maxOverlapStorm[0] if maxOverlapStorm[1] > 0.0 else None
+    return maxOverlap[0] if maxOverlap[1] > 0.0 else None
 
 def matchDetectionsWithEvents(detections, historic_events, year_offs):
     matchedDetections = [(detection, matchDetectionWithEvent(detection, historic_events, year_offs)) for detection in detections]
@@ -95,7 +101,7 @@ def printDetection(detection, gridspec):
     print('SCORE:     {}'.format(score))
 
 def printDetections(detections, gridspec, historic_events):
-    matchedDetections, totalMatches, uniqueMatches = matchDetectionsWithEvents(detections, gridspec['year_offs'], historic_events)
+    matchedDetections, totalMatches, uniqueMatches = matchDetectionsWithEvents(detections, historic_events, gridspec['year_offs'])
     for i, (detection, event) in enumerate(matchedDetections):
         print('#{}'.format(i))
         printDetection(detection, gridspec)

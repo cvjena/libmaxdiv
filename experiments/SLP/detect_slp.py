@@ -13,11 +13,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--matfile', help='MAT file containing the tensor', default='SLP_ATL.mat')
 parser.add_argument('--tensorvar', help='Variable in the MAT containing the tensor', default='pres')
 parser.add_argument('--eventscsv', help='CSV file containing historic events', default=default_csv)
-parser.add_argument('--yearoffset', help='Grid specification: year offset', default=default_gridspec['year_offs'])
-parser.add_argument('--latoffset', help='Grid specification: latitude offset', default=default_gridspec['lat_offs'])
-parser.add_argument('--latstep', help='Grid specification: latitude step', default=default_gridspec['lat_step'])
-parser.add_argument('--lonstep', help='Grid specification: longitude step', default=default_gridspec['lon_step'])
-parser.add_argument('--lonoffset', help='Grid specification: longitude offset', default=default_gridspec['lon_offs'])
+parser.add_argument('--yearoffset', help='Grid specification: year offset', default=default_gridspec['year_offs'], type=int)
+parser.add_argument('--latoffset', help='Grid specification: latitude offset', default=default_gridspec['lat_offs'], type=float)
+parser.add_argument('--latstep', help='Grid specification: latitude step', default=default_gridspec['lat_step'], type=float)
+parser.add_argument('--lonstep', help='Grid specification: longitude step', default=default_gridspec['lon_step'], type=float)
+parser.add_argument('--lonoffset', help='Grid specification: longitude offset', default=default_gridspec['lon_offs'], type=float)
 parser.add_argument('--gridspecfile', help='Load grid specification from a simple text file: <var> = <value>')
 parser.add_argument('--out', help='Output file', default='detections.json')
 args = parser.parse_args()
@@ -74,8 +74,22 @@ print ("running maxdiv ...")
 detections = maxdiv_exec(tensor, params, 20)
 print ("matching with historic events ...")
 
+readable_detections = []
+y_o = gridspec['year_offs']
+grid_coords = [ gridspec[k] for k in ['lat_offs', 'lat_step', 'lon_offs', 'lon_step' ]]
+for detection in detections:
+    rd = {}
+    range_start, range_end, score = detection
+    rd['start'] = str(ind2date(range_start[0], y_o))
+    rd['end'] = str(ind2date(range_start[1], y_o))
+    rd['start_latlon'] = ind2latlon(range_start[1], range_start[2], *grid_coords),
+    rd['end_latlon'] = ind2latlon(range_end[1] - 1, range_end[2] - 1, *grid_coords)
+    rd['score'] = score
+    readable_detections.append(rd)
+
 with open(args.out, 'w') as outf:
-	json.dump(outf, {'detections': detections, 
-			 'gridspec': gridspec, 
-			 'settings': vars(args)})
+    json.dump({'detections_grid': detections, 
+       'gridspec': gridspec, 
+       'settings': vars(args),
+       'detections': readable_detections}, outf, indent=4)
 printDetections(detections, gridspec, historic_events)
