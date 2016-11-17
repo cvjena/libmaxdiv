@@ -15,7 +15,8 @@ def getSLPGridSpec():
         'lat_step': 2.5,
         'lon_offs': -52.5,
         'lon_step': 2.5,
-        'year_offs': 1957
+        'year_offs': 1957,
+	'day_step': 1
     }
 
 def loadTensor(matfile, tensorvar):
@@ -44,6 +45,7 @@ def loadHistoricEvents(filename = '../coastdat/historic_storms.csv'):
 
 def matchDetectionWithEvent(detection, historic_events, year_offs):
     base_date = datetime.date(year_offs, 1, 1)
+    # we ignore day_step here, since it should cancel out
     maxOverlap = max(((event, IoU(
                             (event['START_DATE'] - base_date).days,
                             (event['END_DATE'] - event['START_DATE']).days + 1,
@@ -73,11 +75,11 @@ def ind2latlon(ind1, ind2, lat_offs, lat_step, lon_offs, lon_step):
 def latlon2ind(lat, lon, lat_offs, lat_step, lon_offs, lon_step):
     return (int(round((lat - lat_offs) / lat_step)), int(round((lon - lon_offs) / lon_step)))
 
-def ind2date(t, year_offs):
-    return datetime.date(year_offs, 1, 1) + datetime.timedelta(days = t)
+def ind2date(t, year_offs, day_step):
+    return datetime.date(year_offs, 1, 1) + datetime.timedelta(days = t*day_step)
 
-def date2ind(date):
-    return (date - datetime.date(year_offs, 1, 1)).days
+def date2ind(date, year_offs, day_step):
+    return (date - datetime.date(year_offs, 1, 1)).days/day_step
 
 def event2str(event):
     startDate, endDate = event['START_DATE'], event['END_DATE']
@@ -91,9 +93,9 @@ def event2str(event):
 
 def printDetection(detection, gridspec):
     range_start, range_end, score = detection
-    y_o = gridspec['year_offs']
+    y_o, d_s = gridspec['year_offs'], gridspec['day_step']
     grid_coords = [ gridspec[k] for k in ['lat_offs', 'lat_step', 'lon_offs', 'lon_step' ]]
-    print('TIMEFRAME: {} - {}'.format(ind2date(range_start[0], y_o), ind2date(range_end[0] - 1, y_o)))
+    print('TIMEFRAME: {} - {}'.format(ind2date(range_start[0], y_o, d_s), ind2date(range_end[0] - 1, y_o, d_s)))
     print('LOCATION:  {start[0]:.2f} N, {start[1]:.2f} E - {end[0]:.2f} N, {end[1]:.2f} E'.format(
         start = ind2latlon(range_start[1], range_start[2], *grid_coords),
         end   = ind2latlon(range_end[1] - 1, range_end[2] - 1, *grid_coords)
