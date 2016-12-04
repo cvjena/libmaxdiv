@@ -1,7 +1,7 @@
 Maximally Divergent Intervals for Anomaly Detection
 ===================================================
 
-The **Maximally Divergent Intervals (MDI) Algorithm** can be used to detection anomalous *intervals* (as opposed to
+The **Maximally Divergent Intervals (MDI) Algorithm** can be used to detect anomalous *intervals* (as opposed to
 anomalous points) in multi-variate spatio-temporal time-series. It has first been described in the following paper:
 
 > Erik Rodner, Björn Barz, Yanira Guanche, Milan Flach, Miguel Mahecha, Paul Bodesheim, Markus Reichstein, Joachim Denzler.

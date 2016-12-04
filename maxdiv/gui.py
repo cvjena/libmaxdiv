@@ -322,7 +322,7 @@ class MDIGUI(tkinter.Tk):
                     btn['style'] = 'Toolbutton'
                     btn['state'] = 'disabled'
                     try:
-                        img = Image.open(os.path.join('gfx', btnIcons[c][r]))
+                        img = Image.open(os.path.join(os.path.dirname(__file__), '..', 'gfx', btnIcons[c][r]))
                         btn._img = ImageTk.PhotoImage(img)
                         btn['image'] = btn._img
                     except:
