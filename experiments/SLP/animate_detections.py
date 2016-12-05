@@ -16,12 +16,13 @@ MAX_DET = 0
 if __name__ == '__main__':
 
     # Load data
-    data = loadSLP()
+    data = loadTensor()
+    gridspec = getSLPGridSpec()
     vmin = data.min()
     vmax = data.max()
-    base_date = datetime.datetime(YEAR_OFFS, 1, 1)
-    lats = np.arange(LAT_OFFS, LAT_OFFS + LAT_STEP * data.shape[1], LAT_STEP)
-    lons = np.arange(LON_OFFS, LON_OFFS + LON_STEP * data.shape[2], LON_STEP)
+    base_date = datetime.datetime(gridspec['year_offs'], 1, 1)
+    lats = np.arange(gridspec['lat_offs'], gridspec['lat_offs'] + gridspec['lat_step'] * data.shape[1], gridspec['lat_step'])
+    lons = np.arange(gridspec['lon_offs'], gridspec['lon_offs'] + gridspec['lon_step'] * data.shape[2], gridspec['lon_step'])
     
     # Load detections
     detections = []
@@ -45,7 +46,7 @@ if __name__ == '__main__':
                 'time_end'  : time_end,
                 'loc_start' : (float(match.group(3)), float(match.group(4))),
                 'loc_end'   : (float(match.group(5)), float(match.group(6))),
-                'storm_name': match.group(8)
+                'event_name': match.group(8)
             })
             if (MAX_DET > 0) and (len(detections) >= MAX_DET):
                 break
@@ -84,8 +85,8 @@ if __name__ == '__main__':
             ax.set_title('Sea Level Pressure')
         else:
             ax.set_title('Sea Level Pressure at {}'.format((base_date + datetime.timedelta(days = t)).date()))
-        if (len(detections) > 0) and (detections[0]['storm_name'] is not None) and (t >= detections[0]['time_start']) and (t <= detections[0]['time_end']):
-            fig.suptitle('{}'.format(detections[0]['storm_name']))
+        if (len(detections) > 0) and (detections[0]['event_name'] is not None) and (t >= detections[0]['time_start']) and (t <= detections[0]['time_end']):
+            fig.suptitle('{}'.format(detections[0]['event_name']))
         else:
             fig.suptitle('')
         

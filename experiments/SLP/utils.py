@@ -8,48 +8,60 @@ from maxdiv.maxdiv_util import IoU
 
 # Constants
 
-LAT_OFFS = 25.0
-LAT_STEP = 2.5
-LON_OFFS = -52.5
-LON_STEP = 2.5
-YEAR_OFFS = 1957
+def getSLPGridSpec():
+    """ old specifications of the SLP data """
+    return {
+        'lat_offs': 25.0,
+        'lat_step': 2.5,
+        'lon_offs': -52.5,
+        'lon_step': 2.5,
+        'year_offs': 1957,
+	'day_step': 1
+    }
+
+def loadTensor(matfile, tensorvar):
+    """ load a simple tensor from a MATLAB file """
+    tensor_data = scipy.io.loadmat(matfile)
+    if tensorvar in tensor_data:
+        tensor = tensor_data[tensorvar]
+    else:
+        raise Exception('Variable {} not present in {}\nAvailable variables: {}\n'.format(tensorvar,
+	    matfile, tensor_data.keys()))
+    print ("Tensor shape: {}".format(tensor.shape))
+    return tensor.reshape(tensor.shape + (1, 1))
 
 
-def loadSLP():
-    slp = scipy.io.loadmat('SLP_ATL.mat')['pres']
-    return slp.reshape(slp.shape + (1, 1))
+# Historic event data
 
+def loadHistoricEvents(filename = '../coastdat/historic_storms.csv'):
+    """ load historic events from a CSV file """
+    with open(filename) as eventfile:
+        events = list(csv.DictReader(eventfile, delimiter = '\t'))
+    for event in events:
+        # historic events are only temporal right now
+        event['START_DATE'] = datetime.datetime.strptime(event['START_DATE'], '%Y-%m-%d').date()
+        event['END_DATE'] = datetime.datetime.strptime(event['END_DATE'], '%Y-%m-%d').date()
+    return events
 
-# Historic storm data
-
-def loadHistoricStorms(filename = '../coastdat/historic_storms.csv'):
-    with open(filename) as stormfile:
-        storms = list(csv.DictReader(stormfile, delimiter = '\t'))
-    for storm in storms:
-        storm['START_DATE'] = datetime.datetime.strptime(storm['START_DATE'], '%Y-%m-%d').date()
-        storm['END_DATE'] = datetime.datetime.strptime(storm['END_DATE'], '%Y-%m-%d').date()
-    return storms
-
-historic_storms = loadHistoricStorms()
-
-def matchDetectionWithStorm(detection):
-    base_date = datetime.date(YEAR_OFFS, 1, 1)
-    maxOverlapStorm = max(((storm, IoU(
-                            (storm['START_DATE'] - base_date).days,
-                            (storm['END_DATE'] - storm['START_DATE']).days + 1,
+def matchDetectionWithEvent(detection, historic_events, year_offs):
+    base_date = datetime.date(year_offs, 1, 1)
+    # we ignore day_step here, since it should cancel out
+    maxOverlap = max(((event, IoU(
+                            (event['START_DATE'] - base_date).days,
+                            (event['END_DATE'] - event['START_DATE']).days + 1,
                             detection[0][0],
                             detection[1][0] - detection[0][0]
-                        )) for storm in historic_storms), key = lambda x: x[1])
-    return maxOverlapStorm[0] if maxOverlapStorm[1] > 0.0 else None
+                        )) for event in historic_events), key = lambda x: x[1])
+    return maxOverlap[0] if maxOverlap[1] > 0.0 else None
 
-def matchDetectionsWithStorms(detections):
-    matchedDetections = [(detection, matchDetectionWithStorm(detection)) for detection in detections]
+def matchDetectionsWithEvents(detections, historic_events, year_offs):
+    matchedDetections = [(detection, matchDetectionWithEvent(detection, historic_events, year_offs)) for detection in detections]
     
-    matched = { storm['NAME'] : False for storm in historic_storms }
+    matched = { event['NAME'] : False for event in historic_events }
     totalMatches = 0
-    for _, storm in matchedDetections:
-        if storm is not None:
-            matched[storm['NAME']] = True
+    for _, event in matchedDetections:
+        if event is not None:
+            matched[event['NAME']] = True
             totalMatches += 1
 
     return (matchedDetections, totalMatches, sum(int(m) for m in matched.values()))
@@ -57,45 +69,47 @@ def matchDetectionsWithStorms(detections):
 
 # Helper functions for indexing and formatting
 
-def ind2latlon(ind1, ind2):
-    return (LAT_OFFS + ind1 * LAT_STEP, LON_OFFS + ind2 * LON_STEP)
+def ind2latlon(ind1, ind2, lat_offs, lat_step, lon_offs, lon_step):
+    return (lat_offs + ind1 * lat_step, lon_offs + ind2 * lon_step)
 
-def latlon2ind(lat, lon):
-    return (int(round((lat - LAT_OFFS) / LAT_STEP)), int(round((lon - LON_OFFS) / LON_STEP)))
+def latlon2ind(lat, lon, lat_offs, lat_step, lon_offs, lon_step):
+    return (int(round((lat - lat_offs) / lat_step)), int(round((lon - lon_offs) / lon_step)))
 
-def ind2date(t):
-    return datetime.date(YEAR_OFFS, 1, 1) + datetime.timedelta(days = t)
+def ind2date(t, year_offs, day_step):
+    return datetime.date(year_offs, 1, 1) + datetime.timedelta(days = t*day_step)
 
-def date2ind(date):
-    return (date - datetime.date(YEAR_OFFS, 1, 1)).days
+def date2ind(date, year_offs, day_step):
+    return (date - datetime.date(year_offs, 1, 1)).days/day_step
 
-def storm2str(storm):
-    startDate, endDate = storm['START_DATE'], storm['END_DATE']
+def event2str(event):
+    startDate, endDate = event['START_DATE'], event['END_DATE']
     if startDate == endDate:
         datestr = startDate.strftime('%b %d')
     elif startDate.month == endDate.month:
         datestr = '{}-{}'.format(startDate.strftime('%b %d'), endDate.strftime('%d'))
     else:
         datestr = '{} - {}'.format(startDate.strftime('%b %d'), endDate.strftime('%b %d'))
-    return '{} ({})'.format(storm['NAME'], datestr)
+    return '{} ({})'.format(event['NAME'], datestr)
 
-def printDetection(detection):
+def printDetection(detection, gridspec):
     range_start, range_end, score = detection
-    print('TIMEFRAME: {} - {}'.format(ind2date(range_start[0]), ind2date(range_end[0] - 1)))
+    y_o, d_s = gridspec['year_offs'], gridspec['day_step']
+    grid_coords = [ gridspec[k] for k in ['lat_offs', 'lat_step', 'lon_offs', 'lon_step' ]]
+    print('TIMEFRAME: {} - {}'.format(ind2date(range_start[0], y_o, d_s), ind2date(range_end[0] - 1, y_o, d_s)))
     print('LOCATION:  {start[0]:.2f} N, {start[1]:.2f} E - {end[0]:.2f} N, {end[1]:.2f} E'.format(
-        start = ind2latlon(range_start[1], range_start[2]),
-        end   = ind2latlon(range_end[1] - 1, range_end[2] - 1)
+        start = ind2latlon(range_start[1], range_start[2], *grid_coords),
+        end   = ind2latlon(range_end[1] - 1, range_end[2] - 1, *grid_coords)
     ))
     print('SCORE:     {}'.format(score))
 
-def printDetections(detections):
-    matchedDetections, totalMatches, uniqueMatches = matchDetectionsWithStorms(detections)
-    for i, (detection, storm) in enumerate(matchedDetections):
+def printDetections(detections, gridspec, historic_events):
+    matchedDetections, totalMatches, uniqueMatches = matchDetectionsWithEvents(detections, historic_events, gridspec['year_offs'])
+    for i, (detection, event) in enumerate(matchedDetections):
         print('#{}'.format(i))
-        printDetection(detection)
-        if storm is not None:
-            print('IDENT:     {}'.format(storm2str(storm)))
+        printDetection(detection, gridspec)
+        if event is not None:
+            print('IDENT:     {}'.format(event2str(event)))
         print()
     print('MATCHED DETECTIONS: {:3d}/{}'.format(totalMatches, len(detections)))
     print('UNIQUE MATCHES:     {:3d}/{}'.format(uniqueMatches, len(detections)))
-    print('TOP-10 DETECTIONS:  {:3d}'.format(sum(1 if storm is not None else 0 for _, storm in matchedDetections[:10])))
+    print('TOP-10 DETECTIONS:  {:3d}'.format(sum(1 if event is not None else 0 for _, event in matchedDetections[:10])))
