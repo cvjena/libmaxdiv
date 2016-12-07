@@ -37,5 +37,7 @@ Get started
 After having installed the dependencies mentioned above and built `libmaxdiv` according to the instructions in `maxdiv/libmaxdiv/README.md`,
 just run `python launch-gui.py` to start the interactive interface.
 
+A comprehensive installation guide and user manual for the GUI can be found in `libmaxdiv user guide.pdf`.
+
 You may also use the maxdiv algorithm programmatically via the `maxdiv` function in the `maxdiv.maxdiv` package or by using the `libmaxdiv`
 library directly from your application. It provides a C-style procedural interface defined in `libmaxdiv.h` for maximum inter-operability.
