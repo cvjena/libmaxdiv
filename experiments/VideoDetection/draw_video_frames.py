@@ -17,7 +17,7 @@ def readDetections(filename):
     return detections
 
 
-def drawDetections(videoIn, outDir, detections, intvl = 4, colors = [(255, 0, 0), (0, 0, 255), (0, 255, 0)], cellSize = 16):
+def drawDetections(videoIn, outDir, detections, intvl = 4, colors = [(255, 0, 0), (0, 0, 255), (0, 255, 0)], labels = 'ABC', cellSize = 16):
     
     font = ImageFont.truetype('arial.ttf', 36)
     
@@ -35,7 +35,7 @@ def drawDetections(videoIn, outDir, detections, intvl = 4, colors = [(255, 0, 0)
                 try:
                     img = Image.fromarray(frame)
                     draw = ImageDraw.Draw(img)
-                    for det, col in zip(detections, colors):
+                    for det, col, lbl in zip(detections, colors, labels):
                         for numDet, (a, b) in enumerate(det):
                             if (num >= a[0]) and (num <= b[0]):
                                 for offs in range(-4, 5, 1):
@@ -47,9 +47,9 @@ def drawDetections(videoIn, outDir, detections, intvl = 4, colors = [(255, 0, 0)
                                     for yoffs in range(-1, 2, 1):
                                         draw.text(
                                             [a[1] + 10 + xoffs, a[2] + 10 + yoffs],
-                                            str(numDet + 1), fill = (255, 255, 255), font = font
+                                            '{}{}'.format(lbl, numDet + 1), fill = (255, 255, 255), font = font
                                         )
-                                draw.text([a[1] + 10, a[2] + 10], str(numDet + 1), fill = col, font = font)
+                                draw.text([a[1] + 10, a[2] + 10], '{}{}'.format(lbl, numDet + 1), fill = col, font = font)
                     img.save(os.path.join(outDir, 'frame{:04d}.jpg'.format(num)), quality = 100)
                     del draw, img
                 except Exception as e:

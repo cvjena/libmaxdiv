@@ -2,8 +2,6 @@ import sys
 sys.path.append('../..')
 
 import numpy as np
-import nltk
-from gensim.models.word2vec import Word2Vec
 from maxdiv import maxdiv
 
 
@@ -33,6 +31,8 @@ def loadFunctionWords(file):
 
 
 def text2mat(text, model):
+    
+    from gensim.models.word2vec import Word2Vec
     
     if not isinstance(model, Word2Vec):
         model = Word2Vec.load(model)

@@ -83,6 +83,7 @@ if __name__ == '__main__':
     text, gt = makeMixedText(minLen, maxLen, numForeign)
     
     feat = text2feat(text)
+    
     start = time.time()
     intervals = maxdiv(feat.T, method = 'gaussian_global_cov', mode = 'TS',
                        extint_min_len = minLen, extint_max_len = maxLen, num_intervals = numForeign * 2)
