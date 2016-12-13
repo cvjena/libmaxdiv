@@ -13,9 +13,9 @@
     <section class="page-header">
       <h1 class="project-name">libmaxdiv</h1>
       <h2 class="project-tagline">Implementation of the Maximally Divergent Intervals algorithm for Anomaly Detection in multivariate spatio-temporal time-series.</h2>
-      <a href="https://github.com/cvjena/libmaxdiv/zipball/v1.0" class="btn">Download .zip (stable release)</a>
-      <a href="https://github.com/cvjena/libmaxdiv/tarball/v1.0" class="btn">Download .tar.gz (stable release)</a>
-      <a href="https://github.com/cvjena/libmaxdiv/tarball/master" class="btn">Download .tar.gz (development snapshot)</a><br />
+      <a href="https://github.com/cvjena/libmaxdiv/zipball/v1.0" class="btn">Download latest release (.zip)</a>
+      <a href="https://github.com/cvjena/libmaxdiv/tarball/v1.0" class="btn">Download latest release (.tar.gz)</a>
+      <a href="https://github.com/cvjena/libmaxdiv/tarball/master" class="btn">Download development snapshot</a><br />
       <a href="https://github.com/cvjena/libmaxdiv" class="btn">View on GitHub</a>
     </section>
 
@@ -65,8 +65,8 @@ This detection corresponds to the well-known "Hamburg-Flut", which flooded one f
 
 <p>As a completely different example, <code>libmaxdiv</code> could also be used to detect anomalies in surveillance videos. The following two examples show the same video of a street scene together with the top 5 detections resulting from the use of two different divergence measures implemented in <code>libmaxdiv</code>: the Kullback-Leibler divergence (left) and cross entropy (right). We have used features extracted from a Convolutional Neural Network to represent video frames.</p>
 
-<div style="float: left; width: 500px;"><iframe src="https://drive.google.com/file/d/0B2RVZpPdzIXkb1RYaUpuY3ZvNmc/preview" width="500" height="375"></iframe></div>
-<div style="float: right; width: 500px;"><iframe src="https://drive.google.com/file/d/0B2RVZpPdzIXkWU1NU3JFOWlmZVU/preview" width="500" height="375"></iframe></div>
+<div style="float: left; width: 360px;"><iframe src="https://drive.google.com/file/d/0B2RVZpPdzIXkb1RYaUpuY3ZvNmc/preview" width="360" height="288"></iframe></div>
+<div style="float: right; width: 360px;"><iframe src="https://drive.google.com/file/d/0B2RVZpPdzIXkWU1NU3JFOWlmZVU/preview" width="360" height="288"></iframe></div>
 
 <p style="clear: both;">Note the different interpretation of the two divergence measures regarding the nominal state of the system: The Kullback-Leibler divergence identifies traffic as the normal behaviour and detects intervals of no traffic, while cross entropy does the opposite and identifies time-frames with a high traffic frequency as anomalies. Moreover, both approaches identify the pedestrians on the sidewalk, but the localization accuracy is much better with cross entropy.</p>
 
