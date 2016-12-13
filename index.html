@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>libmaxdiv by cvjena</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">libmaxdiv</h1>
+      <h2 class="project-tagline">Implementation of the Maximally Divergent Intervals algorithm for Anomaly Detection in multivariate spatio-temporal time-series.</h2>
+      <a href="https://github.com/cvjena/libmaxdiv" class="btn">View on GitHub</a>
+      <a href="https://github.com/cvjena/libmaxdiv/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/cvjena/libmaxdiv/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <h1>
+<a id="maximally-divergent-intervals-for-anomaly-detection" class="anchor" href="#maximally-divergent-intervals-for-anomaly-detection" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Maximally Divergent Intervals for Anomaly Detection</h1>
+
+<p>The <strong>Maximally Divergent Intervals (MDI) Algorithm</strong> can be used to detect anomalous <em>intervals</em> (as opposed to
+anomalous points) in multi-variate spatio-temporal time-series. It has first been described in the following paper:</p>
+
+<blockquote>
+<p>Erik Rodner, Björn Barz, Yanira Guanche, Milan Flach, Miguel Mahecha, Paul Bodesheim, Markus Reichstein, Joachim Denzler.
+"Maximally Divergent Intervals for Anomaly Detection".
+<em>ICML Workshop on Anomaly Detection (ICML-WS)</em>. 2016</p>
+</blockquote>
+
+<p><code>libmaxdiv</code> is a library providing an efficient <code>C++</code> implementation of the MDI algorithm. A <code>C</code>-style interface may be used to run the algorithm from any other programming language, while bindings for <code>Python</code> are also available.</p>
+
+<p>For non-spatial, purely temporal time-series, a convenient graphical user interface (GUI) is provided to facilitate experimentation with your data without having to write a single line of code.</p>
+
+<p>A detailed installation and user guide can be found in the file <code>libmaxdiv user guide.pdf</code>.</p>
+
+<h2>
+<a id="what-is-this-all-about" class="anchor" href="#what-is-this-all-about" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>What is this all about?</h2>
+
+<p>Anomalies occurring in real data are often driven by complex natural processes. The detection of such anomalies can, thus, provide useful insights leading to a deeper understanding of the system being observed. Automated methods for anomaly detection are especially important nowadays, where huge amounts of data are available that cannot be analyzed by humans. Machine learning techniques can hence be employed to point the expert analysts to the interesting portions of the data, the anomalies, which cannot be explained by any existing model of the system.</p>
+
+<p>Most of the anomaly detection methods available today analyze the anomalousness of the data
+on a point-wise basis. This is a sub-optimal approach for many applications dealing with time-series data, since anomalies driven by natural processes rather occur over a space of time and, in the case of spatio-temporal data,
+in a spatial region rather than at a single location at a single time.</p>
+
+<p><code>libmaxdiv</code>, in contrast, searches for anomalous <em>intervals</em> in the data and returns region detections.</p>
+
+<h2>
+<a id="what-can-be-done-with-libmaxdiv" class="anchor" href="#what-can-be-done-with-libmaxdiv" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>What can be done with libmaxdiv?</h2>
+
+<p>While the GUI is limited to non-spatial time-series, the library can also handle spatio-temporal data such as measurements of climate variables or videos.</p>
+
+<p>For example, <code>libmaxdiv</code> is able to detect North Sea Storms in a dataset of marine climate variables (wind speed, significant wave height, mean wave period) measured hourly over the 50 years from 1958 to 2007. This results in a time-series with more than 400,000 time-steps, which <code>libmaxdiv</code> is able to process in less than a second.</p>
+
+<p>The following image shows animated heatmaps of the data during the first detection returned by the algorithm. The duration of the actual detection is indicated by a red box:
+<img src="https://lh6.googleusercontent.com/UFivu01jsglSPPIrWYVd1nhOBmQwqFJ2ycVlyXdXnVg-JkMrQ5JveU_LEzg3A3i0AE0TqXIZ" alt="">
+This detection corresponds to the well-known "Hamburg-Flut", which flooded one fifth of Hamburg in February 1962 and caused 340 deaths.</p>
+
+<p>46 out of the top 50 detections seem to be storms like that indeed and we could verify 28 of them by matching them against historical storm records. 4 of the detections, however, are the very opposite of the storm, but anomalies as well, since they cover time-frames of unusually calm sea conditions with nearly no wind and no waves:
+<img src="https://lh3.googleusercontent.com/9DnCdysN3Cng5zKB1h1AF_jc3ZAnLzt44BUIXbHLFcEW9zVM9doxHZavhBvqYu5cPoyLblOP" alt=""></p>
+
+<p>As a completely different example, <code>libmaxdiv</code> could also be used to detect anomalies in surveillance videos. The following two examples show the same video of a street scene together with the top 5 detections resulting from the use of two different divergence measures implemented in <code>libmaxdiv</code>: the Kullback-Leibler divergence (left) and cross entropy (right). We have used features extracted from a Convolutional Neural Network to represent video frames.</p>
+
+<p>Note the different interpretation of the two divergence measures regarding the nominal state of the system: The Kullback-Leibler divergence identifies traffic as the normal behaviour and detects intervals of no traffic, while cross entropy does the opposite and identifies time-frames with a high traffic frequency as anomalies. Moreover, both approaches identify the pedestrians on the sidewalk, but the localization accuracy is much better with cross entropy.</p>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/cvjena/libmaxdiv">libmaxdiv</a> is maintained by <a href="https://github.com/cvjena">cvjena</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
