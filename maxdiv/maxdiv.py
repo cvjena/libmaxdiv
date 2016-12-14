@@ -19,7 +19,7 @@ from scipy.linalg import solve_triangular, cholesky, cho_factor, cho_solve
 from scipy.stats import multivariate_normal
 from sklearn.gaussian_process import GaussianProcess
 from sklearn.gaussian_process.gaussian_process import l1_cross_distances
-import math, time, types
+import math, time, types, warnings
 from . import maxdiv_util, preproc
 from .baselines_noninterval import pointwiseRegionProposals
 
@@ -751,9 +751,9 @@ def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', u
     
     - `useLibMaxDiv`: If set to `None`, this function tries to delegate the call to `libmaxdiv`. If the library is not
                       available or the call failed for some reason, the Python implementation of the MDI algorithm
-                      will be used as a fallback automatically. If this parameter is set to `True`, `libmaxdiv` *must*
-                      be used and an exception will be raised if it is not available. If set to `False`, the Python
-                      implementation will be used.
+                      will be used as a fallback automatically, but a warning will be printed to stderr.
+                      If this parameter is set to `True`, `libmaxdiv` *must* be used and an exception will be raised
+                      if it is not available. If set to `False`, the Python implementation will be used.
     
     - `mode`: Divergence to be used. Possible options:
                 - Variants of the KL divergence: 'I_OMEGA', 'OMEGA_I', 'SYM', 'TS' (unbiased KL divergence),
@@ -807,6 +807,8 @@ def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', u
         except:
             if useLibMaxDiv == True:
                 raise
+            else:
+                warnings.warn('libmaxdiv could not be loaded. Falling back to the Python implementation, but this will be much slower and results may be different.', RuntimeWarning, stacklevel = 2)
     
     if (not np.ma.isMaskedArray(X)) and np.isnan(X).any():
         X = np.ma.mask_cols(np.ma.masked_invalid(X))
