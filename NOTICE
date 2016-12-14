@@ -6,6 +6,8 @@ Maximally Divergent Intervals algorithm for Anomaly Detection
 developed at the Computer Vision Group of the
 Friedrich Schiller University Jena (http://www.inf-cv.uni-jena.de/).
 
+If you use libmaxdiv, please cite:
+
 Erik Rodner and Björn Barz and Yanira Guanche and Milan Flach and Miguel Mahecha and Paul Bodesheim and Markus Reichstein and Joachim Denzler.
 "Maximally Divergent Intervals for Anomaly Detection"
 ICML Workshop on Anomaly Detection (ICML-WS). 2016.
