@@ -17,6 +17,7 @@ else:
     exit()
 
 # Switch to adequate binary directory
+dataFile = os.path.realpath(sys.argv[1]) if len(sys.argv) == 2 else None
 os.chdir(os.path.join(os.path.dirname(__file__), binary_dir))
 
 # Add root directory to Python search path
@@ -26,7 +27,7 @@ sys.path.append(os.path.join('..', '..'))
 from maxdiv.gui import MDIGUI
 
 # Launch GUI
-app = MDIGUI()
+app = MDIGUI(dataFile, False)
 app.mainloop()
 try:
     app.destroy()

@@ -174,8 +174,14 @@ class MDIGUI(tkinter.Tk):
     """Main window of the GUI to the MDI algorithm."""
     
     
-    def __init__(self):
-        """Initializes the main window of the application."""
+    def __init__(self, dataFile = None, selectSubset = True):
+        """Initializes the main window of the application.
+        
+        If a filename is given as parameter, that file will be loaded immediately.
+        Otherwise, the user will be asked to select a file on start-up.
+        If a file is given and `selectSubset` is set to `False`, it will be loaded
+        without asking the user to select a subset of the data.
+        """
     
         tkinter.Tk.__init__(self)
         self.title("Maximally Divergent Intervals for Anomaly Detection (MDI)")
@@ -240,7 +246,10 @@ class MDIGUI(tkinter.Tk):
         
         self.update()
         self._checkLibMaxDiv()
-        self.selectDataFile()
+        if dataFile:
+            self.loadData(dataFile, selectSubset = selectSubset)
+        else:
+            self.selectDataFile()
     
     
     def _onResize(self, evt):
@@ -654,7 +663,7 @@ class MDIGUI(tkinter.Tk):
             self.loadData(filename)
     
     
-    def loadData(self, filename):
+    def loadData(self, filename, selectSubset = True):
         """Loads data from a CSV file."""
         
         try:
@@ -672,7 +681,7 @@ class MDIGUI(tkinter.Tk):
             self._xlim = None
             
             # Let the user select a subset of the data
-            if len(self.varnames) > 1:
+            if selectSubset and (len(self.varnames) > 1):
                 selectDataDlg = SelectSubDataDialog(self, self.varnames, self.data.shape[1], title = 'Select Variables')
                 if len(selectDataDlg.selected) > 0:
                     firstRecord = selectDataDlg.firstRecord - 1 if selectDataDlg.firstRecord is not None else 0
