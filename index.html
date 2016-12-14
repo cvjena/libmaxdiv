@@ -54,11 +54,11 @@ in a spatial region rather than at a single location at a single time.</p>
 
 <p>While the GUI is limited to non-spatial time-series, the library can also handle spatio-temporal data such as measurements of climate variables or videos.</p>
 
-<p>For example, <code>libmaxdiv</code> is able to detect North Sea Storms in a dataset of marine climate variables (wind speed, significant wave height, mean wave period) measured hourly over the 50 years from 1958 to 2007. This results in a time-series with more than 400,000 time-steps, which <code>libmaxdiv</code> is able to process in less than a second.</p>
+<p>For example, <code>libmaxdiv</code> is able to detect North Sea Storms in a data set of marine climate variables (wind speed, significant wave height, mean wave period) measured hourly over the 50 years from 1958 to 2007. This results in a time-series with more than 400,000 time-steps, which <code>libmaxdiv</code> is able to process in less than a second.</p>
 
-<p>The following image shows animated heatmaps of the data during the first detection returned by the algorithm. The duration of the actual detection is indicated by a red box:<br />
+<p>The following image shows animated heat maps of the data during the first detection returned by the algorithm. The duration of the actual detection is indicated by a red box:<br />
 <img src="coastdat_det_aggregated_00%20(Hamburg-Flut).gif" alt="" style="width: 100%; height: auto;" /><br />
-This detection corresponds to the well-known "Hamburg-Flut", which flooded one fifth of Hamburg in February 1962 and caused 340 deaths.</p>
+This detection corresponds to the well-known &ldquo;Hamburg-Flut&rdquo;, which flooded one fifth of Hamburg in February 1962 and caused 340 deaths.</p>
 
 <p>46 out of the top 50 detections seem to be storms like that indeed and we could verify 28 of them by matching them against historical storm records. 4 of the detections, however, are the very opposite of the storm, but anomalies as well, since they cover time-frames of unusually calm sea conditions with nearly no wind and no waves:<br />
 <img src="coastdat_det_aggregated_11%20(calm%20sea).gif" alt="" style="width: 100%; height: auto;" /></p>
