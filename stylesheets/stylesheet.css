@@ -230,7 +230,17 @@ a {
   font-weight: bold; }
 
 .site-footer-credits {
-  color: #819198; }
+  color: #819198;
+  font-size: 0.8rem; }
+
+.maintainer-logo {
+  float: left;
+  border: 0 none;
+  margin-right: 1rem; }
+
+.license-logo {
+  float: right;
+  border: 0 none; }
 
 @media screen and (min-width: 64em) {
   .site-footer {
