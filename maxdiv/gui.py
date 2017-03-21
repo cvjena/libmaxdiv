@@ -1069,7 +1069,10 @@ class MDIGUI(tkinter.Tk):
                     plt.set_ylim(ymin, ymax)
                     for detInd, (a, b, score) in enumerate(self.detections):
                         ta, tb = self.timesteps[a], self.timesteps[b - 1]
-                        #col = cm(1.0 - (score - minScore) / (maxScore - minScore)) if maxScore != minScore else cm(0.0)
+                        if isinstance(ta, datetime.datetime):
+                            ta = matplotlib.dates.date2num(ta)
+                        if isinstance(tb, datetime.datetime):
+                            tb = matplotlib.dates.date2num(tb)
                         intensity = float(score - minScore) / (maxScore - minScore) if minScore < maxScore else 1.0
                         col = (1.0, 0.8 - intensity * 0.8, 0.8 - intensity * 0.8)
                         plt.fill([ta, ta, tb, tb], [ymin, ymax, ymax, ymin], color = col, alpha = 0.3)
@@ -1105,8 +1108,9 @@ class MDIGUI(tkinter.Tk):
             
                 # Show/hide detection labels depending on the display size of the detected interval
                 for det, lbl in zip(self.detections, self._detectionLabels):
-                    pix_a, _ = self.fig.gca().transData.transform((self.timesteps[det[0]], 0))
-                    pix_b, _ = self.fig.gca().transData.transform((self.timesteps[det[1] - 1], 0))
+                    ta, tb = self.timesteps[det[0]], self.timesteps[det[1] - 1]
+                    pix_a, _ = self.fig.gca().transData.transform((matplotlib.dates.date2num(ta) if isinstance(ta, datetime.datetime) else ta, 0))
+                    pix_b, _ = self.fig.gca().transData.transform((matplotlib.dates.date2num(tb) if isinstance(tb, datetime.datetime) else tb, 0))
                     lbl.set_visible(pix_b - pix_a > 10)
                 
                 # Draw image
