@@ -1058,6 +1058,8 @@ class MDIGUI(tkinter.Tk):
                 plots[0].set_xlim(self.timesteps[0], self.timesteps[-1])
             else:
                 plots[0].set_xlim(self.timesteps[self._xlim[0]], self.timesteps[self._xlim[1]])
+            for plt in plots:
+                plt.grid()
             
             # Plot detections
             if len(self.detections) > 0:
