@@ -91,8 +91,8 @@ def datetime_diff(a, b):
 if __name__ == '__main__':
 
     import sys
-    method = sys.argv[1] if len(sys.argv) > 1 else 'parzen'
-    propmeth = sys.argv[2] if len(sys.argv) > 2 else 'hotellings_t'
+    method = sys.argv[1] if len(sys.argv) > 1 else 'gaussian_cov_ts'
+    propmeth = sys.argv[2] if len(sys.argv) > 2 else 'dense'
 
     # Load data
     data, dates = read_hpw_csv('HPW_2012_41046.csv')
@@ -106,11 +106,11 @@ if __name__ == '__main__':
             scores = baselines_noninterval.hotellings_t(preproc.td(data))
         regions = baselines_noninterval.pointwiseScoresToIntervals(scores, 24)
     elif method == 'gaussian_cov_ts':
-        regions = maxdiv.maxdiv(data, 'gaussian_cov', mode = 'TS', preproc = 'td', proposals = propmeth,
-                                extint_min_len = 24, extint_max_len = 170, num_intervals = 5)
+        regions = maxdiv.maxdiv(data, 'gaussian_cov', mode = 'TS', td_dim = 3, td_lag = 1, proposals = propmeth,
+                                extint_min_len = 24, extint_max_len = 72, num_intervals = 5)
     else:
-        regions = maxdiv.maxdiv(data, method, mode = 'I_OMEGA', preproc = 'td', proposals = propmeth,
-                                extint_min_len = 24, extint_max_len = 170, num_intervals = 5)
+        regions = maxdiv.maxdiv(data, method, mode = 'I_OMEGA', td_dim = 3, td_lag = 1, proposals = propmeth,
+                                extint_min_len = 24, extint_max_len = 72, num_intervals = 5)
     
     # Console output
     print('-- Ground Truth --')
