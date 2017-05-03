@@ -294,7 +294,7 @@ def show_interval(f, a, b, visborder=100, color='b', alpha=0.3, plot_function=Tr
     maxv = np.max(f[:, av:bv])
     if plot_function:
         for i in range(f.shape[0]):
-            plt.plot(x, f[i,av:bv], color='blue')
+            plt.plot(x, f[i,av:bv], color='blue', linewidth = 1)
 
     if border:
         plt.plot([ a, a, b, b, a ], [minv, maxv, maxv, minv, minv], color=color, alpha=alpha, linewidth=3)

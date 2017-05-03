@@ -1049,7 +1049,8 @@ class MDIGUI(tkinter.Tk):
                 plots[min(i, len(plots) - 1)].plot(
                     self.timesteps,
                     self.preprocData[i,:].T if self.boolPreviewPreproc.get() else self.data[i,:].T,
-                    label = self.varnames[i]
+                    label = self.varnames[i],
+                    linewidth = 1
                 )
                 if len(plots) > 1:
                     plots[i].set_ylabel(self.varnames[i])
