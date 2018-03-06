@@ -4,6 +4,7 @@ import os.path
 from utils import *
 from maxdiv.libmaxdiv_wrapper import *
 import argparse
+import time
 import json
 
 default_csv = '../coastdat/historic_storms.csv'
@@ -38,10 +39,10 @@ if not args.gridspecfile is None:
         for line in gsf:
             l = line.rstrip().lower()
             variable, value = l.split(' = ')
-	    if variable=='year_offs':
-	    	gridspec[variable] = int(value)
-	    else:
-	    	gridspec[variable] = float(value)
+        if variable=='year_offs':
+            gridspec[variable] = int(value)
+        else:
+            gridspec[variable] = float(value)
 
 if args.eventscsv is None:
     print ("No historic events specified, use {} for the SLP data.".format(default_csv))
@@ -67,7 +68,7 @@ tensor = loadTensor(args.matfile, args.tensorvar)
 
 # re-order the date if necessary
 if args.timelast:
-	tensor = np.transpose(tensor, (2, 0, 1, 3, 4))
+    tensor = np.transpose(tensor, (2, 0, 1, 3, 4))
 
 # tensor dimensions: grid-time grid-lat grid-lon
 print ("tensor dimensions: {}".format(tensor.shape))
@@ -76,9 +77,12 @@ whole_tensor_span = [0, 0, 0], tensor.shape, 1.0
 printDetection( whole_tensor_span, gridspec )
 
 print ("running maxdiv ...")
+start_time = time.time()
 detections = maxdiv_exec(tensor, params, 20)
-print ("matching with historic events ...")
+stop_time = time.time()
+print ("completed maxdiv in {:.3f} seconds".format(stop_time - start_time))
 
+print ("matching with historic events ...")
 readable_detections = []
 y_o, d_s = gridspec['year_offs'], gridspec['day_step']
 grid_coords = [ gridspec[k] for k in ['lat_offs', 'lat_step', 'lon_offs', 'lon_step' ]]

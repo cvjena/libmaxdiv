@@ -1,15 +1,15 @@
 """ Runs the MDI algorithm on CNN features extracted from a video an reduced to 16 dimensions using PCA. """
 
 import sys
-sys.path.append('..')
+sys.path.append('../..')
 
 import numpy as np
 from maxdiv.libmaxdiv_wrapper import *
 
 
-#data = np.load('../../visor_cnn.npy')
-data = np.load('../../visor_cnn_16.npy')
-#data = np.load('../../visor_avg_8.npy')
+#data = np.load('../../../visor_cnn.npy')
+data = np.load('../../../visor_cnn_16.npy')
+#data = np.load('../../../visor_avg_8.npy')
 
 params = maxdiv_params_t()
 libmaxdiv.maxdiv_init_params(params)
