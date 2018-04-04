@@ -11,7 +11,7 @@ of application examples can be found in the following article:
 
 An efficient C++ implementation called `libmaxdiv` is provided in `maxdiv/libmaxdiv` and may be used stand-alone. If it has been
 built in `maxdiv/libmaxdiv/bin`, it will be used automatically by the GUI and the `maxdiv` function in the `maxdiv.maxdiv` Python
-package. See `maxdiv/libmaxdiv/README.md` for build instructions.  
+package. See [`maxdiv/libmaxdiv/README.md`](maxdiv/libmaxdiv/README.md) for build instructions.  
 Otherwise, the pure Python implementation of the MDI algorithm will be used, which is not recommended, since it is extremely slow
 and lacks some features such as support for spatial data.
 
@@ -29,7 +29,7 @@ Dependencies of the Python implementation and the GUI
 - `scikit-learn`
 - `PIL`/`Pillow`
 
-`libmaxdiv` has its own dependencies in addition. Please refer to `maxdiv/libmaxdiv/README.md`.
+`libmaxdiv` has its own dependencies in addition. Please refer to [`maxdiv/libmaxdiv/README.md`](maxdiv/libmaxdiv/README.md) for build instructions.
 
 
 Get started
@@ -38,7 +38,13 @@ Get started
 After having installed the dependencies mentioned above and built `libmaxdiv` according to the instructions in `maxdiv/libmaxdiv/README.md`,
 just run `python launch-gui.py` to start the interactive interface.
 
-A comprehensive installation guide and user manual for the GUI can be found in `libmaxdiv user guide.pdf`.
+A comprehensive installation guide and user manual for the GUI can be found in [`libmaxdiv user guide.pdf`](libmaxdiv%20user%20guide.pdf).
 
-You may also use the maxdiv algorithm programmatically via the `maxdiv` function in the `maxdiv.maxdiv` package or by using the `libmaxdiv`
-library directly from your application. It provides a C-style procedural interface defined in `libmaxdiv.h` for maximum inter-operability.
+You may also use the maxdiv algorithm programmatically via the [`maxdiv`](maxdiv/maxdiv.py#L733) function in the [`maxdiv.maxdiv`](maxdiv/maxdiv.py)
+package or by using the `libmaxdiv` library directly from your application. It provides a C-style procedural interface defined in
+[`libmaxdiv.h`](maxdiv/libmaxdiv/libmaxdiv.h) for maximum inter-operability.
+
+Note that not all functions of `libmaxdiv` are made available through the high-level interface `maxdiv` python function in the `maxdiv.maxdiv` package.
+In particular, it can only process temporal, but not spatio-temporal data.
+However, you can still use python to interact with `libmaxdiv` by calling the C-style functions defined in [`libmaxdiv.h`](maxdiv/libmaxdiv/libmaxdiv.h)
+from python using the wrapper provided in [`maxdiv.libmaxdiv_wrapper`](maxdiv/libmaxdiv_wrapper.py).

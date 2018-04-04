@@ -8,6 +8,6 @@ Friedrich Schiller University Jena (http://www.inf-cv.uni-jena.de/).
 
 If you use libmaxdiv, please cite:
 
-Erik Rodner and Björn Barz and Yanira Guanche and Milan Flach and Miguel Mahecha and Paul Bodesheim and Markus Reichstein and Joachim Denzler.
-"Maximally Divergent Intervals for Anomaly Detection"
-ICML Workshop on Anomaly Detection (ICML-WS). 2016.
+Björn Barz and Erik Rodner and Yanira Guanche Garcia and Joachim Denzler.
+"Detecting Regions of Maximal Divergence for Spatio-Temporal Anomaly Detection."
+IEEE Transactions on Pattern Analysis and Machine Intelligence, 2018.

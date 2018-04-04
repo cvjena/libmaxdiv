@@ -4,9 +4,9 @@ libmaxdiv
 Welcome to `libmaxdiv`, an efficient C++ implementation of the **Maximally Divergent Intervals Algorithm**
 described in the following publication:
 
-> Erik Rodner, Björn Barz, Yanira Guanche, Milan Flach, Miguel Mahecha, Paul Bodesheim, Markus Reichstein, Joachim Denzler.
-> "Maximally Divergent Intervals for Anomaly Detection".
-> *ICML Workshop on Anomaly Detection (ICML-WS)*. 2016
+> Björn Barz, Erik Rodner, Yanira Guanche Garcia, Joachim Denzler.  
+> "Detecting Regions of Maximal Divergence for Spatio-Temporal Anomaly Detection."  
+> *IEEE Transactions on Pattern Analysis and Machine Intelligence* (accepted). 2018.
 
 `libmaxdiv` supports spatio-temporal data, is easily extendable and provides a `C` interface for a
 maximum of interoperability.
