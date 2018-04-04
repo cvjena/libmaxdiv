@@ -16,9 +16,19 @@ Otherwise, the pure Python implementation of the MDI algorithm will be used, whi
 and lacks some features such as support for spatial data.
 
 The directories `experiments` and `tools` contain some benchmarks, experiments and scripts we've been using for development and
-evaluation of the algorithm. You don't need them if you just want to use it.
+evaluation of the algorithm; for example, detecting severe North Sea storms like the Hamburg-Flut shown below.
+You don't need those directories if you just want to use `libmaxdiv`.
 
-Some examples of what can be done with the MDI algorithm can be found on the [project page](https://cvjena.github.io/libmaxdiv/).
+![Hamburg-Flut](https://cvjena.github.io/libmaxdiv/coastdat_det_aggregated_00%20(Hamburg-Flut).gif)
+
+More examples of what can be done with the MDI algorithm can be found on the [project page](https://cvjena.github.io/libmaxdiv/)
+and in the article mentioned above.
+
+
+GUI
+---
+
+![GUI](https://user-images.githubusercontent.com/7915048/38293859-49f3eeb4-37e9-11e8-9b67-00c0f487ec01.png)
 
 
 Dependencies of the Python implementation and the GUI
@@ -34,8 +44,8 @@ Dependencies of the Python implementation and the GUI
 `libmaxdiv` has its own dependencies in addition. Please refer to [`maxdiv/libmaxdiv/README.md`](maxdiv/libmaxdiv/README.md) for build instructions.
 
 
-Get started
------------
+Getting started
+---------------
 
 After having installed the dependencies mentioned above and built `libmaxdiv` according to the instructions in `maxdiv/libmaxdiv/README.md`,
 just run `python launch-gui.py` to start the interactive interface.
