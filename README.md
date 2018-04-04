@@ -18,6 +18,8 @@ and lacks some features such as support for spatial data.
 The directories `experiments` and `tools` contain some benchmarks, experiments and scripts we've been using for development and
 evaluation of the algorithm. You don't need them if you just want to use it.
 
+Some examples of what can be done with the MDI algorithm can be found on the [project page](https://cvjena.github.io/libmaxdiv/).
+
 
 Dependencies of the Python implementation and the GUI
 -----------------------------------------------------
