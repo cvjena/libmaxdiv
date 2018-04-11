@@ -60,3 +60,34 @@ Note that not all functions of `libmaxdiv` are made available through the high-l
 In particular, it can only process temporal, but not spatio-temporal data.
 However, you can still use python to interact with `libmaxdiv` by calling the C-style functions defined in [`libmaxdiv.h`](maxdiv/libmaxdiv/libmaxdiv.h)
 from python using the wrapper provided in [`maxdiv.libmaxdiv_wrapper`](maxdiv/libmaxdiv_wrapper.py).
+
+### A simple step-by-step example for using the GUI
+
+In this simple example, we will use the graphical user interface (GUI) for detecting hurricanes in a non-spatial time-series comprising measurements
+of significant wave height (Hs), sea level pressure (SLP), and wind speed (W). The measurements have been taken in 2012 at a location near the
+Bahamas and are provided by [NOAA](http://www.ndbc.noaa.gov/).
+
+The hurricane season was particularly active in that year and 3 major hurricanes passed the Bahamas: Isaac (August 22-25), Rafael (October 12-18),
+and Sandy (October 22-29).
+
+We have already converted the data to the correct format for the libmaxdiv GUI and provide it in the file
+[`experiments/HPW_2012_41046_standardized.csv`](experiments/HPW_2012_41046_standardized.csv).
+
+First, we launch the user interface loading that file directly on start-up by running the following command on the command line:
+
+    python launch-gui.py experiments/HPW_2012_41046_standardized.csv
+
+You may also omit the argument and will then be prompted to select the file using a dialog window.
+
+Since the measured variables have very different scales, it is a bit difficult to see anything in the plot of the time-series.
+Thus, we first check the box labeled "Plot pre-processed instead of original data", which will show a normalized version of the time-series,
+which is also used by `libmaxdiv`.
+
+Since hurricanes usually last at least 12 hours and are considered two independent storms if they last longer than 3 days, we set the "minimum
+interval length" to 12 and the "maximum interval length" to 72.
+In order to keep the visualization clean and the analysis easy, we set the "number of detections" to 5.
+
+After hitting the "Detect Anomalous Intervals" button, the time-series will be overlayed with the top 5 detections, shown as red regions.
+The first three detections should correspond to the three hurricanes mentioned above.
+
+You can use the buttons next to the visualization for zooming and panning or navigating between the individual detections.
