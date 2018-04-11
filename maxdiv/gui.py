@@ -237,6 +237,11 @@ class MDIGUI(tkinter.Tk):
         self._shownDetection = -1
         self._lastMousePosition = None
         
+        # Configure ttk widgets to have the same background color as the window
+        style = ttk.Style(self)
+        style.configure('TButton', background = style.lookup('.','background'))
+        style.configure('.', background = self['background'])
+        
         # Create interface
         self.createWidgets()
         self.updatePlot()
