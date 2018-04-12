@@ -31,3 +31,9 @@ Inside the `libmaxdiv` directory, execute the following commands:
     make
 
 Enjoy!
+
+
+Pre-built Windows Binaries
+--------------------------
+
+We provide pre-built binaries for MS Windows (both 32 and 64 bit) in the [`win32`](..\..\win32) directory.

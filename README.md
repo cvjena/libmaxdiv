@@ -48,7 +48,10 @@ Getting started
 ---------------
 
 After having installed the dependencies mentioned above and built `libmaxdiv` according to the instructions in `maxdiv/libmaxdiv/README.md`,
-just run `python launch-gui.py` to start the interactive interface.
+just run `python launch-gui.py` to start the interactive interface.  
+If you are using Windows, pre-built binaries of the `libmaxdiv` library are available, so that it can be used out of the box.
+However, the default `launch-gui.py` script will always search for self-built libraries only. To use the pre-built ones, launch the GUI by
+running `python win32\launch-gui.py` instead.
 
 A comprehensive installation guide and user manual for the GUI can be found in [`libmaxdiv user guide.pdf`](libmaxdiv%20user%20guide.pdf).
 
