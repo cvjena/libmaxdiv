@@ -5,9 +5,9 @@ The **Maximally Divergent Intervals (MDI) Algorithm** can be used to detect anom
 anomalous points) in multi-variate spatio-temporal time-series. A description of the algorithm along with a variety
 of application examples can be found in the following article:
 
+> [**Detecting Regions of Maximal Divergence for Spatio-Temporal Anomaly Detection.**][paper]  
 > Björn Barz, Erik Rodner, Yanira Guanche Garcia, Joachim Denzler.  
-> "Detecting Regions of Maximal Divergence for Spatio-Temporal Anomaly Detection."  
-> *IEEE Transactions on Pattern Analysis and Machine Intelligence* (accepted). 2018.
+> *IEEE Transactions on Pattern Analysis and Machine Intelligence, 2018*.
 
 An efficient C++ implementation called `libmaxdiv` is provided in `maxdiv/libmaxdiv` and may be used stand-alone. If it has been
 built in `maxdiv/libmaxdiv/bin`, it will be used automatically by the GUI and the `maxdiv` function in the `maxdiv.maxdiv` Python
@@ -94,3 +94,6 @@ After hitting the "Detect Anomalous Intervals" button, the time-series will be o
 The first three detections should correspond to the three hurricanes mentioned above.
 
 You can use the buttons next to the visualization for zooming and panning or navigating between the individual detections.
+
+
+[paper]: https://ieeexplore.ieee.org/document/8352745/
