@@ -24,20 +24,7 @@ from . import maxdiv_util, preproc
 from .baselines_noninterval import pointwiseRegionProposals
 
 def get_available_methods():
-    return ['parzen', 'gaussian_cov', 'gaussian_id_cov', 'gaussian_global_cov', 'gaussian_process', 'erph']
-
-
-# Let's derive the algorithm where we try to maximize the KL divergence between the two distributions:
-#
-# $\text{KL}^{\alpha}(p_{\Omega}, p_I)
-# = \frac{1}{n} \sum\limits_{i=1}^n p_{\Omega}(\mathbf{x}_i) \log \frac{ p_{I}^{\alpha}(\mathbf{x}_i) }{ p_{\Omega}(\mathbf{x}_i) }
-# = \frac{1}{n} \sum\limits_{i=1}^n p_{\Omega}(\mathbf{x}_i) \log p_{I}^{\alpha}(\mathbf{x}_i) - \frac{1}{n} \sum\limits_{i=1}^n p_{\Omega}(\mathbf{x}_i) \log ( p_{\Omega}(\mathbf{x}_i) ) $
-#
-# The above formulation uses a parameterized version of the KL divergence (which will be important to get the right results).
-# TODO: However, one should use something like the
-# power divergence (http://link.springer.com/article/10.1007/s13571-012-0050-3) or the
-# density power divergence (http://biomet.oxfordjournals.org/content/85/3/549.full.pdf).
-# Plugging everything together we derive at the following algorithm:
+    return ['parzen', 'gaussian_cov', 'gaussian_id_cov', 'gaussian_global_cov', 'erph']
 
 
 #

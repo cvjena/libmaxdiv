@@ -16,7 +16,7 @@ MAX_DET = 0
 if __name__ == '__main__':
 
     # Load data
-    data = loadTensor()
+    data = loadTensor('SLP_ATL.mat', 'pres')
     gridspec = getSLPGridSpec()
     vmin = data.min()
     vmax = data.max()

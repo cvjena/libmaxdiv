@@ -1,6 +1,7 @@
 """ Runs the MDI algorithm on the Sea Level Pressure dataset. """
 
 import os.path
+import sys
 from utils import *
 from maxdiv.libmaxdiv_wrapper import *
 import argparse
@@ -22,6 +23,7 @@ parser.add_argument('--lonstep', help='Grid specification: longitude step', defa
 parser.add_argument('--lonoffset', help='Grid specification: longitude offset', default=default_gridspec['lon_offs'], type=float)
 parser.add_argument('--gridspecfile', help='Load grid specification from a simple text file: <var> = <value>')
 parser.add_argument('--timelast', help='Time is the third dimension not the first one', action='store_true')
+parser.add_argument('--proposals', help='Use interval proposals to speed up computation.', action='store_true', default=False)
 parser.add_argument('--out', help='Output file', default='detections.json')
 args = parser.parse_args()
 
@@ -34,7 +36,7 @@ gridspec = {
     'day_step': args.daystep
 }
 if not args.gridspecfile is None:
-    print ("loading grid specifications from file {} ...".format(args.gridspecfile))
+    sys.stderr.write ("loading grid specifications from file {} ...\n".format(args.gridspecfile))
     with open(args.gridspecfile, 'r') as gsf:
         for line in gsf:
             l = line.rstrip().lower()
@@ -45,7 +47,7 @@ if not args.gridspecfile is None:
             gridspec[variable] = float(value)
 
 if args.eventscsv is None:
-    print ("No historic events specified, use {} for the SLP data.".format(default_csv))
+    sys.stderr.write ("No historic events specified, use {} for the SLP data.\n".format(default_csv))
 
 params = maxdiv_params_t()
 libmaxdiv.maxdiv_init_params(params)
@@ -53,7 +55,8 @@ params.min_size[0] = 3
 params.min_size[1] = params.min_size[2] = 3
 params.max_size[0] = 10
 params.kl_mode = enums['MAXDIV_KL_UNBIASED']
-#params.proposal_generator = enums['MAXDIV_POINTWISE_PROPOSALS_HOTELLINGST']
+if args.proposals:
+    params.proposal_generator = enums['MAXDIV_POINTWISE_PROPOSALS_HOTELLINGST']
 params.preproc.embedding.kt = 3
 params.preproc.embedding.kx = params.preproc.embedding.ky = 1
 params.preproc.normalization = enums['MAXDIV_NORMALIZE_MAX']
@@ -63,7 +66,7 @@ if args.eventscsv is None:
 else:
     historic_events = loadHistoricEvents(args.eventscsv)
 
-print ("loading tensor from {} ...".format(args.matfile))
+sys.stderr.write ("loading tensor from {} ...\n".format(args.matfile))
 tensor = loadTensor(args.matfile, args.tensorvar)
 
 # re-order the date if necessary
@@ -71,18 +74,15 @@ if args.timelast:
     tensor = np.transpose(tensor, (2, 0, 1, 3, 4))
 
 # tensor dimensions: grid-time grid-lat grid-lon
-print ("tensor dimensions: {}".format(tensor.shape))
-print ("a detection spanning the whole tensor would be: ")
-whole_tensor_span = [0, 0, 0], tensor.shape, 1.0 
-printDetection( whole_tensor_span, gridspec )
+sys.stderr.write ("tensor dimensions: {}\n".format(tensor.shape))
 
-print ("running maxdiv ...")
+sys.stderr.write ("running maxdiv ...\n")
 start_time = time.time()
 detections = maxdiv_exec(tensor, params, 20)
 stop_time = time.time()
-print ("completed maxdiv in {:.3f} seconds".format(stop_time - start_time))
+sys.stderr.write ("completed maxdiv in {:.3f} seconds\n".format(stop_time - start_time))
 
-print ("matching with historic events ...")
+sys.stderr.write ("matching with historic events ...\n")
 readable_detections = []
 y_o, d_s = gridspec['year_offs'], gridspec['day_step']
 grid_coords = [ gridspec[k] for k in ['lat_offs', 'lat_step', 'lon_offs', 'lon_step' ]]
@@ -101,4 +101,5 @@ with open(args.out, 'w') as outf:
        'gridspec': gridspec, 
        'settings': vars(args),
        'detections': readable_detections}, outf, indent=4)
+
 printDetections(detections, gridspec, historic_events)

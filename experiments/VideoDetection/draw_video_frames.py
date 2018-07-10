@@ -19,7 +19,7 @@ def readDetections(filename):
 
 def drawDetections(videoIn, outDir, detections, intvl = 4, colors = [(255, 0, 0), (0, 0, 255), (0, 255, 0)], labels = 'ABC', cellSize = 16):
     
-    font = ImageFont.truetype('arial.ttf', 36)
+    font = ImageFont.truetype('OpenSans-Regular.ttf', 36)
     
     reader = imageio.get_reader(videoIn, 'ffmpeg')
     
@@ -46,10 +46,10 @@ def drawDetections(videoIn, outDir, detections, intvl = 4, colors = [(255, 0, 0)
                                 for xoffs in range(-1, 2, 1):
                                     for yoffs in range(-1, 2, 1):
                                         draw.text(
-                                            [a[1] + 10 + xoffs, a[2] + 10 + yoffs],
+                                            [a[1] + 10 + xoffs, a[2] + yoffs],
                                             '{}{}'.format(lbl, numDet + 1), fill = (255, 255, 255), font = font
                                         )
-                                draw.text([a[1] + 10, a[2] + 10], '{}{}'.format(lbl, numDet + 1), fill = col, font = font)
+                                draw.text([a[1] + 10, a[2]], '{}{}'.format(lbl, numDet + 1), fill = col, font = font)
                     img.save(os.path.join(outDir, 'frame{:04d}.jpg'.format(num)), quality = 100)
                     del draw, img
                 except Exception as e:

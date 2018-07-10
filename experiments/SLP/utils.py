@@ -27,7 +27,7 @@ def loadTensor(matfile, tensorvar):
     else:
         raise Exception('Variable {} not present in {}\nAvailable variables: {}\n'.format(tensorvar,
 	    matfile, tensor_data.keys()))
-    print ("Tensor shape: {}".format(tensor.shape))
+    sys.stderr.write ("Tensor shape: {}\n".format(tensor.shape))
     return tensor.reshape(tensor.shape + (1, 1))
 
 

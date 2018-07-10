@@ -51,7 +51,7 @@ if len(extremetypes) == 0:
 auc = {}    # Area under ROC curve
 auc_sd = {} # Standard deviation of AUC scores
 aps = {}    # Average Precision
-times = { method : [] for method in METHODS } # Lists of runtimes for each method
+times = {} # Lists of runtimes for time series of different length and each method
 labels = {} # Labels for the different combinations
 all_gt = {}
 all_regions = {}
@@ -94,8 +94,10 @@ for fi, ftype in enumerate(extremetypes):
                     
                     ygts.append(func['gt'])
                     aucs.append(eval.auc(func['gt'], regions[-1], func['ts'].shape[1]))
-                    if (preproc is None) and (func['ts'].shape[1] == 250):
-                        times[method].append(time_stop - time_start)
+                    if preproc is None:
+                        if func['ts'].shape[1] not in times:
+                            times[func['ts'].shape[1]] = { m : [] for m in METHODS }
+                        times[func['ts'].shape[1]][method].append(time_stop - time_start)
                 
                 auc[id][ftype] = np.mean(aucs)
                 auc_sd[id][ftype] = np.std(aucs)
@@ -213,10 +215,10 @@ else:
                     print(row)
             num += 1
 
-    print('\n')
 
     maxMethodLen = max(len(m) for m in METHODS)
-    print('Mean runtime for series of length 250')
-    print('-------------------------------------')
-    for method in METHODS:
-        print('{:{}s} | {:{}.3f} s'.format(method, maxMethodLen, np.mean(times[method]), 37 - 5 - maxMethodLen))
+    for ts_len, len_times in times.items():
+        print('\nMean runtime for series of length {:4d}'.format(ts_len))
+        print('--------------------------------------')
+        for method in METHODS:
+            print('{:{}s} | {:{}.3f} s'.format(method, maxMethodLen, np.mean(len_times[method]), 37 - 5 - maxMethodLen))

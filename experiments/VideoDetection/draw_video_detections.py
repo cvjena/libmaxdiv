@@ -19,7 +19,7 @@ def readDetections(filename):
 
 def drawDetections(videoIn, videoOut, detections, color = (255, 0, 0), cellSize = 16):
     
-    font = ImageFont.truetype('arial.ttf', 28)
+    font = ImageFont.truetype('OpenSans-Regular.ttf', 28)
     
     reader = imageio.get_reader(videoIn, 'ffmpeg')
     
@@ -36,7 +36,7 @@ def drawDetections(videoIn, videoOut, detections, color = (255, 0, 0), cellSize 
                         img = Image.fromarray(frame)
                         draw = ImageDraw.Draw(img)
                         draw.rectangle([a[1], a[2], b[1], b[2]], outline = color )
-                        draw.text([a[1] + 10, a[2] + 10], str(numDet + 1), fill = color, font = font)
+                        draw.text([a[1] + 10, a[2]], str(numDet + 1), fill = color, font = font)
                         frame = np.array(img)
                         del draw, img
                 writer.append_data(frame)
