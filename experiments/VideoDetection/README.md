@@ -64,9 +64,15 @@ Sampling individual frames with the top 5 detections every 4 seconds could be ac
 
     python draw_video_frames.py detection_frames/ 5 4 visor_1261565143617_cesta1.wmv detections.txt
 
+| Unbiased KL Divergence | Cross Entropy |
+|:----------------------:|:-------------:|
+| ![Unbiased KL Divergence][5] | ![Cross Entropy][6] |
+
 
 
 [1]: http://www.openvisor.org/video_details.asp?idvideo=339
 [2]: http://ffmpeg.org/
 [3]: https://github.com/BVLC/caffe/tree/master/models/bvlc_reference_caffenet
 [4]: https://drive.google.com/open?id=1QSF0rC6zFt4fyGvpbD18Bh2JTtmOtEmB
+[5]: https://user-images.githubusercontent.com/7915048/42508044-79f6567e-8447-11e8-9267-4ef861e8a948.gif
+[6]: https://user-images.githubusercontent.com/7915048/42508043-79dcb32c-8447-11e8-90da-ff524182aed9.gif
