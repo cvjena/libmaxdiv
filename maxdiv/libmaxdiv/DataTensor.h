@@ -557,7 +557,7 @@ public:
         assert((range.a.vec() <= range.b.vec()).all() && (range.b.vec() <= this->m_shape.vec()).all());
         
         // Shortcut for cutting off some trailing time steps and leaving everything else unchanged
-        if (range.a == 0 && range.b.vec().tail(MAXDIV_INDEX_DIMENSION - 1) == this->m_shape.vec().tail(MAXDIV_INDEX_DIMENSION - 1))
+        if (range.a == 0 && (range.b.vec().tail(MAXDIV_INDEX_DIMENSION - 1) == this->m_shape.vec().tail(MAXDIV_INDEX_DIMENSION - 1)).all())
         {
             this->resize(range.b);
             return;
