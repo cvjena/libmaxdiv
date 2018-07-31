@@ -117,7 +117,7 @@ DataTensor_<Scalar> time_delay_embedding(const DataTensor_<Scalar> & data, int k
             {
                 missingInd.t = pt;
                 missingInd.x = missingInd.y = missingInd.z = 0;
-                for (; missingInd.t == pt; ++missingInd)
+                for (; static_cast<int>(missingInd.t) == pt; ++missingInd)
                     if (data.isMissingSample(missingInd))
                         xdata.setMissingSample(t, missingInd.x, missingInd.y, missingInd.z);
             }
@@ -184,9 +184,7 @@ DataTensor_<Scalar> spatial_neighbour_embedding(const DataTensor_<Scalar> & data
     DataTensor_<Scalar> xdata(newShape);
     
     // Set up some variables
-    typename DataTensor_<Scalar>::Index nLocations = data.shape().prod(1, 3),
-                                        nAttr = data.shape().d,
-                                        nAttrEx = newShape.d,
+    typename DataTensor_<Scalar>::Index nAttr = data.shape().d,
                                         missingTime;
     
     // Copy data

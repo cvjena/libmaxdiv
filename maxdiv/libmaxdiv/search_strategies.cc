@@ -238,6 +238,7 @@ MaximumDetectionList & MaximumDetectionList::operator=(const MaximumDetectionLis
     this->m_detections = other.m_detections;
     this->m_maxDetections = other.m_maxDetections;
     this->m_overlap_th = other.m_overlap_th;
+    return *this;
 }
 
 MaximumDetectionList & MaximumDetectionList::operator=(MaximumDetectionList && other)
@@ -245,6 +246,7 @@ MaximumDetectionList & MaximumDetectionList::operator=(MaximumDetectionList && o
     this->m_detections = std::move(other.m_detections);
     this->m_maxDetections = other.m_maxDetections;
     this->m_overlap_th = other.m_overlap_th;
+    return *this;
 }
 
 bool MaximumDetectionList::insert(const Detection & detection)
