@@ -193,7 +193,7 @@ if __name__ == '__main__':
                 defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
                 if (a >= 50) and (b <= n - 50):
                     break
-            interpolation_mask[i, :, (a - fade_len/2):(b + fade_len/2)] = np.concatenate([fading, np.ones(b - a - fade_len), fading[::-1]])
+            interpolation_mask[i, :, (a - fade_len//2):(b + fade_len//2)] = np.concatenate([fading, np.ones(b - a - fade_len), fading[::-1]])
             y['mixed'].append(defect)
         f['mixed'] = gps_nominal + (gps_anomalous - gps_nominal) * interpolation_mask + 0.1 * np.random.randn(*gps_nominal.shape)
         
@@ -206,7 +206,7 @@ if __name__ == '__main__':
                 defect, a, b = sample_interval(n, defect_minlen, defect_maxlen)
                 if (a >= 50) and (b <= n - 50):
                     break
-            interpolation_mask[i, :, (a - fade_len/2):(b + fade_len/2)] = np.concatenate([fading, np.ones(b - a - fade_len), fading[::-1]])
+            interpolation_mask[i, :, (a - fade_len//2):(b + fade_len//2)] = np.concatenate([fading, np.ones(b - a - fade_len), fading[::-1]])
             y['mixed_multvar'].append(defect)
         f['mixed_multvar'] = gps_nominal + (gps_anomalous - gps_nominal) * interpolation_mask + 0.1 * np.random.randn(*gps_nominal.shape)
 
@@ -308,7 +308,7 @@ if __name__ == '__main__':
                 if (a >= 50) and (b <= n - 50):
                     break
             interpolation_mask = np.zeros((numstates, X.shape[1]))
-            interpolation_mask[:, (a - fade_len/2):(b + fade_len/2)] = np.concatenate([fading, np.ones(b - a - fade_len), fading[::-1]])
+            interpolation_mask[:, (a - fade_len//2):(b + fade_len//2)] = np.concatenate([fading, np.ones(b - a - fade_len), fading[::-1]])
             y['mixed_hd'].append(defect)
             f['mixed_hd'][i] = attributes_from_states(gps_nominal[i] + (gps_anomalous[i] - gps_nominal[i]) * interpolation_mask + 0.1 * np.random.randn(numstates, n), numattr, numcorr)
         
