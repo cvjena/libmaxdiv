@@ -38,7 +38,7 @@ Dependencies of the Python implementation and the GUI
 - `numpy`
 - `matplotlib`
 - `scipy`
-- `scikit-learn`
+- `scikit-learn <= 0.19`
 - `PIL`/`Pillow`
 
 `libmaxdiv` has its own dependencies in addition. Please refer to [`maxdiv/libmaxdiv/README.md`](maxdiv/libmaxdiv/README.md) for build instructions.
