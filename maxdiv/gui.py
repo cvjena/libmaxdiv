@@ -125,7 +125,7 @@ def readDataFromCSV(csvFile):
     # Check if first attribute is a continous sequence of time steps
     if not hasDatelines:
         diff = data[0, 1:] - data[0, :-1]
-        if (np.abs(diff - diff[0]) / data[0, -1] < 1e-4).all():
+        if (diff > 0).all() and (np.abs(diff - diff[0]) / np.maximum(diff, diff[0]) < 1e-4).all():
             timesteps = data[0,:]
             data = data[1:,:]
             if len(varnames) > 0:
@@ -1071,7 +1071,6 @@ class MDIGUI(tkinter.Tk):
             if len(self.detections) > 0:
                 maxScore = max(score for a, b, score in self.detections)
                 minScore = min(score for a, b, score in self.detections)
-                cm = matplotlib.pyplot.cm.autumn
                 for pltInd, plt in enumerate(plots):
                     ymin, ymax = plt.get_ylim()
                     plt.set_ylim(ymin, ymax)
