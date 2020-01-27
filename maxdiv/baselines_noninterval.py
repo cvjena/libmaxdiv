@@ -1,5 +1,9 @@
 import numpy as np
-from sklearn.mixture import GMM
+try:
+    # sklearn < 0.18
+    from sklearn.mixture import GMM
+except ImportError:
+    from sklearn.mixture import GaussianMixture
 from .eval import pointwiseLabelsToIntervals
 from .maxdiv_util import calc_gaussian_kernel, IoU
 
