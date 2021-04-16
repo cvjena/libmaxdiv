@@ -249,6 +249,41 @@ void maxdiv_exec(unsigned int pipeline, MaxDivScalar * data, const unsigned int 
 
 
 /**
+* Uses a processing pipeline built in advance to compute the anomaly score of individual user-defined intervals in spatio-temporal data.
+*
+* @param[in] pipeline The internal handle to the processing pipeline obtained by `maxdiv_compile_pipeline()`.
+*
+* @param[in] data Pointer to the raw data array. The array must have as many elements as the product of all elements
+* of the `shape` array and its memory must be layed out in such a way that the last dimension is changing fastest.
+*
+* @param[in] shape Pointer to an array with 5 elements which specify the size of each dimension of the given data.  
+* Those five dimensions are: time, x, y, z, attribute.  
+* The first dimension is the temporal dimension, i.e. the time axis.  
+* The second, third and fourth dimensions are spatial dimensions. The distance between each
+* pair of consecutive spatial indices is assumed to be constant.  
+* The last dimension is the feature or attribute dimension for multivariate time series.
+*
+* @param[in,out] intervals Pointer to an array of `detection_t` objects specifying the intervals to be scored.
+* The computed scores will be written to the `score` attribute of the provided objects.
+*
+* @param[in] num_intervals Number of elements in `intervals`.
+*
+* @param[in] const_data If `false`, the given data may be modified. Otherwise, a copy will be made.
+*
+* @param[in] custom_missing_value If missing values in the given data aren't encoded as `NaN`, but another special
+* floating point value, set this to `true` and specify the missing value in `missing_value`.
+*
+* @param[in] missing_value A special floating point value which is used to encode missing values in the data.
+* This parameter has no effect if `custom_missing_value` is set to `false`.
+*
+* @note Out-of-bounds intervals and intervals within the padding area removed during pre-processing will receive a NaN score.
+*/
+void maxdiv_score_intervals(unsigned int pipeline, MaxDivScalar * data, const unsigned int * shape,
+                            detection_t * intervals, unsigned int num_intervals,
+                            bool const_data = true, bool custom_missing_value = false, MaxDivScalar missing_value = 0);
+
+
+/**
 * Searches for maximally divergent intervals in spatio-temporal data.
 *
 * @note This is basically a shortcut for the following sequence of function invocations:

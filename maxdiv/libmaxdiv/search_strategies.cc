@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <utility>
 #include <stdexcept>
+#include <limits>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -120,6 +121,123 @@ DetectionList SearchStrategy::operator()(const std::shared_ptr<const DataTensor>
             }
     }
     return detections;
+}
+
+void SearchStrategy::scoreIntervals(const std::shared_ptr<DataTensor> & data, DetectionList & intervals)
+{
+    if (!data)
+        return;
+    
+    // Mask missing values
+    data->mask();
+    
+    // Apply pre-processing
+    ReflessIndexVector borderSize;
+    if (this->m_preproc && !this->m_preproc->empty())
+    {
+        borderSize = this->m_preproc->borderSize(*data);
+        (*(this->m_preproc))(*data);
+    }
+    
+    // Score provided intervals
+    this->doScoreIntervals(data, intervals, borderSize);
+}
+
+void SearchStrategy::scoreIntervals(const std::shared_ptr<const DataTensor> & data, DetectionList & intervals)
+{
+    if (!data)
+        return;
+    
+    // Apply pre-processing
+    ReflessIndexVector borderSize;
+    std::shared_ptr<const DataTensor> modData;
+    bool hasMissingValues = data->hasMissingValues();
+    if ((this->m_preproc && !this->m_preproc->empty()) || hasMissingValues)
+    {
+        DataTensor * md = nullptr;
+        if (hasMissingValues)
+        {
+            md = new DataTensor(*data);
+            md->mask();
+        }
+        if (this->m_preproc && !this->m_preproc->empty())
+        {
+            borderSize = this->m_preproc->borderSize(*data);
+            if (md == nullptr)
+            {
+                md = new DataTensor();
+                (*(this->m_preproc))(*data, *md);
+            }
+            else
+                (*(this->m_preproc))(*md);
+        }
+        modData = std::shared_ptr<const DataTensor>(md);
+    }
+    else
+        modData = data;
+    
+    // Score provided intervals
+    this->doScoreIntervals(modData, intervals, borderSize);
+}
+
+void SearchStrategy::doScoreIntervals(const std::shared_ptr<const DataTensor> & data, DetectionList & intervals, const ReflessIndexVector & offset)
+{
+    if (!data)
+        return;
+
+    bool hasOffset = (offset.vec() > 0).any();
+    
+    // Initialize divergence metric
+    this->m_divergence->init(data);
+
+    // Score provided intervals
+    #ifdef _OPENMP
+    Eigen::setNbThreads(1);
+    bool first_loop = true;
+    std::shared_ptr<Divergence> divergence;
+    #pragma omp parallel for private(divergence) firstprivate(first_loop)
+    for (size_t i = 0; i < intervals.size(); ++i)
+    {
+        if (first_loop)
+        {
+            divergence = this->m_divergence->clone();
+            first_loop = false;
+        }
+        if ((intervals[i].a.vec() >= offset.vec()).all()
+                && (intervals[i].a.vec().head(MAXDIV_INDEX_DIMENSION - 1) < intervals[i].b.vec().head(MAXDIV_INDEX_DIMENSION - 1)).all()
+                && (intervals[i].a.vec() - offset.vec() < data->shape().vec()).all()
+                && (intervals[i].b.vec() - offset.vec() <= data->shape().vec()).all())
+        {
+            if (hasOffset)
+                intervals[i].score = (*divergence)(IndexRange(intervals[i].a - offset, intervals[i].b - offset));
+            else
+                intervals[i].score = (*divergence)(intervals[i]);
+        }
+        else
+            intervals[i].score = std::numeric_limits<Scalar>::quiet_NaN();
+    }
+    Eigen::setNbThreads(0);
+    #else
+    for (size_t i = 0; i < intervals.size(); ++i)
+    {
+        if ((intervals[i].a.vec() >= offset.vec()).all()
+                && (intervals[i].a.vec().head(MAXDIV_INDEX_DIMENSION - 1) < intervals[i].b.vec().head(MAXDIV_INDEX_DIMENSION - 1)).all()
+                && (intervals[i].a.vec() - offset.vec() < data->shape().vec()).all()
+                && (intervals[i].b.vec() - offset.vec() <= data->shape().vec()).all())
+        {
+            if (hasOffset)
+                intervals[i].score = (*(this->m_divergence))(IndexRange(intervals[i].a - offset, intervals[i].b - offset));
+            else
+                intervals[i].score = (*(this->m_divergence))(intervals[i]);
+        }
+        else
+            intervals[i].score = std::numeric_limits<Scalar>::quiet_NaN();
+    }
+    #endif
+    
+    // Release memory
+    if (this->autoReset)
+        this->m_divergence->reset();
 }
 
 

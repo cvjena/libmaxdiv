@@ -181,6 +181,13 @@ class _LibMaxDiv(object):
             ((1, 'pipeline'), (1, 'data'), (1, 'shape'), (1, 'detection_buf'), (1, 'detection_buf_size'),
              (1, 'const_data', True), (1, 'custom_missing_value', False), (1, 'missing_value', 0))
         )
+
+        # maxdiv_score_intervals function
+        self._register_func('maxdiv_score_intervals',
+            (c_void_p, c_uint, maxdiv_scalar_p, index_vector_t, detection_p, c_uint, c_bool, c_bool, maxdiv_scalar),
+            ((1, 'pipeline'), (1, 'data'), (1, 'shape'), (1, 'intervals'), (1, 'num_intervals'),
+             (1, 'const_data', True), (1, 'custom_missing_value', False), (1, 'missing_value', 0))
+        )
         
         # maxdiv function
         self._register_func('maxdiv',
@@ -441,6 +448,73 @@ def maxdiv_exec(X, params, num_intervals = 1):
         return [(det_buf[i].range_start[:4], det_buf[i].range_end[:4], det_buf[i].score) for i in range(det_buf_size.value)]
     else:
         return [(det_buf[i].range_start[0], det_buf[i].range_end[0], det_buf[i].score) for i in range(det_buf_size.value)]
+
+
+def maxdiv_score_intervals(X, params, intervals):
+    """ Computes anomaly scores for a given set of individual intervals.
+    
+    X - np.ndarray with d rows and n columns, where d is the number of attributes and n is
+        the number of time steps. Alternatively, spatio-temporal data may be given as
+        5-d array with 1 temporal, 3 spatial and 1 attribute dimension.
+    params - Either a maxdiv_params_t object or a handle to a compiled pipeline obtained from `libmaxdiv.maxdiv_compile_pipeline()`
+    intervals - List of intervals to be scored. Each interval is given as a tuple of first (inclusive) and last (exclusive) index.
+                For purely temporal data (X is 2-dimensional), the indices are simply integers specifying the timesteps.
+                For spatio-temporal data, each index is a 4-dimensional tuple specifying the point in time and space.
+    
+    Returns: a list of `(a, b, score)` tuples, where `a` is the first point within a detected interval,
+             `b` is the first point right after the interval and `score` is the detection score.
+             For non-spatial data, `a` and `b` will be scalars, while they will be lists of indices for
+             spatio-temporal data.
+             Out-of-bounds intervals and intervals within the padding area removed during pre-processing will receive a NaN score.
+    """
+    
+    if libmaxdiv is None:
+        raise RuntimeError('libmaxdiv could not be found or loaded.')
+    
+    isSpatioTemporal = False
+    if X.ndim == 1:
+        X = X.reshape((1, len(X)))
+    elif X.ndim == 5:
+        isSpatioTemporal = True
+    elif X.ndim != 2:
+        raise ValueError('Unsupported number of data dimensions: {}'.format(X.ndim))
+    
+    if not (isinstance(params, maxdiv_params_t) or isinstance(params, int)):
+        raise ValueError('Parameters must be given as maxdiv_params_t structure or integral handle.')
+    
+    # Load intervals into buffer
+    num_intervals = c_uint(len(intervals))
+    interval_buf = (detection_t * len(intervals))()
+    for i, (start, end) in enumerate(intervals):
+        interval_buf[i].score = 0
+        if isSpatioTemporal:
+            interval_buf[i].range_start[:] = list(start) + [0]
+            interval_buf[i].range_end[:] = list(end) + [0]
+        else:
+            interval_buf[i].range_start[:] = [start] + [0] * (len(interval_buf[i].range_start) - 1)
+            interval_buf[i].range_end[:] = [end] + [1] * (len(interval_buf[i].range_end) - 1)
+    
+    # Prepare data
+    if np.ma.isMaskedArray(X):
+        X = X.filled(np.nan)
+    X = np.require(X if isSpatioTemporal else X.T, np.float32 if maxdiv_scalar == c_float else np.float64, ['C_CONTIGUOUS'])
+    if isSpatioTemporal:
+        shape = index_vector_t()
+        shape[:] = X.shape
+    else:
+        shape = index_vector_t(X.shape[0], 1, 1, 1, X.shape[1])
+    
+    # Run algorithm
+    pipeline = libmaxdiv.maxdiv_compile_pipeline(params) if isinstance(params, maxdiv_params_t) else params
+    libmaxdiv.maxdiv_score_intervals(pipeline, X.ctypes.data_as(maxdiv_scalar_p), shape, interval_buf, num_intervals, True)
+    if isinstance(params, maxdiv_params_t):
+        libmaxdiv.maxdiv_free_pipeline(pipeline)
+    
+    # Convert detections to tuples
+    if isSpatioTemporal:
+        return [(interval_buf[i].range_start[:4], interval_buf[i].range_end[:4], interval_buf[i].score) for i in range(len(intervals))]
+    else:
+        return [(interval_buf[i].range_start[0], interval_buf[i].range_end[0], interval_buf[i].score) for i in range(len(intervals))]
 
 
 

@@ -298,6 +298,59 @@ void maxdiv_exec(unsigned int pipeline, MaxDivScalar * data, const unsigned int 
 }
 
 
+void maxdiv_score_intervals(unsigned int pipeline, MaxDivScalar * data, const unsigned int * shape,
+                            detection_t * intervals, unsigned int num_intervals,
+                            bool const_data, bool custom_missing_value, MaxDivScalar missing_value)
+{
+    if (intervals == NULL || num_intervals == 0)
+        return;
+    
+    // Determine data shape
+    ReflessIndexVector dataShape;
+    if (shape != NULL)
+        std::copy(shape, shape + MAXDIV_INDEX_DIMENSION, dataShape.ind);
+    
+    // Check parameters
+    if (pipeline == 0 || pipeline > maxdiv_pipelines.size() || !maxdiv_pipelines[pipeline - 1] || data == NULL || shape == NULL || dataShape.prod() == 0)
+        return;
+    
+    // Convert detection_t array to DetectionList
+    DetectionList detections;
+    IndexVector rangeStart(dataShape, ReflessIndexVector()), rangeEnd(dataShape, ReflessIndexVector());
+    for (unsigned int i = 0; i < num_intervals; ++i)
+    {
+        std::copy(intervals[i].range_start, intervals[i].range_start + MAXDIV_INDEX_DIMENSION - 1, rangeStart.ind);
+        std::copy(intervals[i].range_end, intervals[i].range_end + MAXDIV_INDEX_DIMENSION - 1, rangeEnd.ind);
+        detections.push_back(Detection(rangeStart, rangeEnd));
+    }
+    
+    // Score intervals
+    if (const_data)
+    {
+        if (custom_missing_value)
+        {
+            std::shared_ptr<DataTensor> data_tensor(new DataTensor(DataTensor(data, dataShape)));
+            data_tensor->mask(missing_value);
+            maxdiv_pipelines[pipeline - 1]->scoreIntervals(data_tensor, detections);
+        }
+        else
+            maxdiv_pipelines[pipeline - 1]->scoreIntervals(std::make_shared<const DataTensor>(data, dataShape), detections);
+    }
+    else
+    {
+        std::shared_ptr<DataTensor> data_tensor(new DataTensor(data, dataShape));
+        if (custom_missing_value)
+            data_tensor->mask(missing_value);
+        maxdiv_pipelines[pipeline - 1]->scoreIntervals(data_tensor, detections);
+    }
+    
+    // Write computed scores back to intervals buffer
+    detection_t * intvl = intervals;
+    for (DetectionList::const_iterator det = detections.begin(); det != detections.end(); ++det, ++intvl)
+        intvl->score = det->score;
+}
+
+
 void maxdiv(const maxdiv_params_t * params, MaxDivScalar * data, const unsigned int * shape,
             detection_t * detection_buf, unsigned int * detection_buf_size,
             bool const_data, bool custom_missing_value, MaxDivScalar missing_value)

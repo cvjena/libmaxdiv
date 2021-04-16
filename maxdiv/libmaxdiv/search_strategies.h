@@ -297,6 +297,31 @@ public:
     * @return Returns a list of detected ranges, sorted by detection score in decreasing order.
     */
     virtual DetectionList operator()(const std::shared_ptr<const DataTensor> & data, unsigned int numDetections = 0);
+
+    /**
+    * Convenience function for scoring individual intervals using the preprocessing pipeline and divergence metric used by this strategy.
+    *
+    * @param[in] data The spatio-temporal data. This function may modify the given data (e.g. during pre-processing,
+    * but there also is a const version).
+    *
+    * @param[in,out] intervals Vector of intervals to be scored.
+    * The determined scores will be stored in the `score` attributes of the provided `Detection` instances.
+    * 
+    * @note Out-of-bounds intervals and intervals within the padding area removed during pre-processing will receive a NaN score.
+    */
+    virtual void scoreIntervals(const std::shared_ptr<DataTensor> & data, DetectionList & intervals);
+    
+    /**
+    * Convenience function for scoring individual intervals using the preprocessing pipeline and divergence metric used by this strategy.
+    *
+    * @param[in] data The spatio-temporal data.
+    *
+    * @param[in,out] intervals Vector of intervals to be scored.
+    * The determined scores will be stored in the `score` attributes of the provided `Detection` instances.
+    * 
+    * @note Out-of-bounds intervals and intervals within the padding area removed during pre-processing will receive a NaN score.
+    */
+    virtual void scoreIntervals(const std::shared_ptr<const DataTensor> & data, DetectionList & intervals);
     
     /**
     * @return Returns a pointer to the divergence measure used by this strategy to compare a sub-block of data with the remaining data.
@@ -356,6 +381,18 @@ protected:
     * @return Returns a list of detected ranges, sorted by detection score in decreasing order.
     */
     virtual DetectionList detect(const std::shared_ptr<const DataTensor> & data, unsigned int numDetections = 0) =0;
+
+    /**
+    * Does the actual work for `scoreIntervals` after pre-processing and masking has been applied.
+    *
+    * @param[in] data The already masked and pre-processed spatio-temporal data.
+    *
+    * @param[in,out] intervals Vector of intervals to be scored.
+    * The determined scores will be stored in the `score` attributes of the provided `Detection` instances.
+    * 
+    * @param[in] offset Index offset to be subtracted from all indices.
+    */
+    virtual void doScoreIntervals(const std::shared_ptr<const DataTensor> & data, DetectionList & intervals, const ReflessIndexVector & offset);
 
 };
 
