@@ -159,14 +159,7 @@ def figure2img(fig, w, h):
     fig.canvas.draw()
     w, h = fig.canvas.get_width_height()
     buf_argb = fig.canvas.tostring_argb()
-    # canvas.tostring_argb returns pixmap in ARGB mode. Roll the alpha channel to have it in RGBA mode:
-    if isinstance(buf_argb, str):
-        # Python 2
-        buf_rgba = ''.join(buf_argb[i+j] for i in range(0, 4*w*h, 4) for j in (1,2,3,0))
-    else:
-        # Python 3
-        buf_rgba = bytes(buf_argb[i+j] for i in range(0, 4*w*h, 4) for j in (1,2,3,0))
-    return Image.frombytes('RGBA', (w, h), buf_rgba)
+    return Image.frombytes('RGBA', (w, h), buf_argb, 'raw', 'ARGB')
 
 
 
