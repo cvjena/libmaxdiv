@@ -958,8 +958,8 @@ class MDIGUI(tkinter.Tk):
             minZoomSize = min(MIN_DET_ZOOM_SIZE, self.data.shape[1])
             detLen = self.detections[det][1] - self.detections[det][0]
             margin = int(0.4 * detLen)
-            if 2 * margin + detLen < MIN_DET_ZOOM_SIZE:
-                margin = (MIN_DET_ZOOM_SIZE - detLen) // 2
+            if 2 * margin + detLen < minZoomSize:
+                margin = (minZoomSize - detLen) // 2
             left = max(0, self.detections[det][0] - margin)
             right = min(len(self.timesteps), self.detections[det][1] + margin) - 1
             self.fig.gca().set_xlim(self.timesteps[left], self.timesteps[right])
@@ -1114,11 +1114,12 @@ class MDIGUI(tkinter.Tk):
             if (w > 20) and (h > 20) and (force or (abs(w - self._lastFigSize[0]) >= 10) or (abs(h - self._lastFigSize[1]) >= 10)):
             
                 # Show/hide detection labels depending on the display size of the detected interval
+                figwidth = self.fig.get_dpi() * self.fig.get_figwidth()
                 for det, lbl in zip(self.detections, self._detectionLabels):
                     ta, tb = self.timesteps[det[0]], self.timesteps[det[1] - 1]
                     pix_a, _ = self.fig.gca().transData.transform((matplotlib.dates.date2num(ta) if isinstance(ta, datetime.datetime) else ta, 0))
                     pix_b, _ = self.fig.gca().transData.transform((matplotlib.dates.date2num(tb) if isinstance(tb, datetime.datetime) else tb, 0))
-                    lbl.set_visible(pix_b - pix_a > 10)
+                    lbl.set_visible(pix_b - pix_a > 10 and pix_a >= 0 and pix_b < figwidth)
                 
                 # Draw image
                 self.lblTS._img = ImageTk.PhotoImage(figure2img(self.fig, w, h))
