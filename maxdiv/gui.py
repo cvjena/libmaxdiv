@@ -1149,10 +1149,13 @@ class SelectSubDataDialog(simpledialog.Dialog):
         self._intro = ttk.Label(master, text = 'Please select the variables to be loaded:')
         self._vars = [tkinter.BooleanVar(self, value = True) for i in range(nv)]
         self._btns = [ttk.Checkbutton(master, text = self.options[i], variable = self._vars[i]) for i in range(nv)]
+        self._checkAllVar = tkinter.BooleanVar(self, value = True)
+        self._checkAllBtn = ttk.Checkbutton(master, text = 'Select/deselect all', variable = self._checkAllVar, command = self.toggleAll)
         
         self._intro.grid(row = 0, column = 0, columnspan = columns, sticky = W, padx = PADDING, pady = PADDING)
+        self._checkAllBtn.grid(row = 1, column = 0, columnspan = columns, sticky = W, padx = PADDING, pady = PADDING)
         for i in range(nv):
-            self._btns[i].grid(row = i % rows + 1, column = i // rows, sticky = W, padx = PADDING, pady = PADDING)
+            self._btns[i].grid(row = i % rows + 2, column = i // rows, sticky = W, padx = PADDING, pady = PADDING)
         
         # Record range
         if self.numRecords > 1:
@@ -1172,10 +1175,16 @@ class SelectSubDataDialog(simpledialog.Dialog):
             self._txtFirstRecord.pack(side = 'left', padx = 2)
             self._lblRecRange2.pack(side = 'left')
             self._txtLastRecord.pack(side = 'left', padx = (2, 0))
-            self._frmRecRange.grid(row = rows + 2, column = 0, columnspan = columns, sticky = W, padx = PADDING, pady = PADDING)
+            self._frmRecRange.grid(row = rows + 3, column = 0, columnspan = columns, sticky = W, padx = PADDING, pady = PADDING)
         
         self.resizable(False, False)
         return None
+    
+
+    def toggleAll(self):
+
+        for var in self._vars:
+            var.set(self._checkAllVar.get())
     
     
     def apply(self):
