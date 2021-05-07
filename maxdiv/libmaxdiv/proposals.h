@@ -319,8 +319,10 @@ public:
     * @param[in] minLength The minimum length of proposed ranges in each dimension.
     *
     * @param[in] maxLength The maximum length of proposed ranges in each dimension.
+    * 
+    * @param[in] stride Offset between two consecutive proposals in each dimension.
     */
-    DenseProposalGenerator(DataTensor::Index minLength, DataTensor::Index maxLength);
+    DenseProposalGenerator(DataTensor::Index minLength, DataTensor::Index maxLength, DataTensor::Index stride = 1);
     
     /**
     * Constructs and initializes proposal generator and specifies a minimum and a maximum length for
@@ -334,6 +336,21 @@ public:
     * If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     */
     DenseProposalGenerator(DataTensor::Index minLength, DataTensor::Index maxLength, const std::shared_ptr<const DataTensor> & data);
+
+    /**
+    * Constructs and initializes proposal generator and specifies a minimum and a maximum length for
+    * the proposed ranges.
+    *
+    * @param[in] minLength The minimum length of proposed ranges in each dimension.
+    *
+    * @param[in] maxLength The maximum length of proposed ranges in each dimension.
+    * 
+    * @param[in] stride Offset between two consecutive proposals in each dimension.
+    *
+    * @param[in] data Pointer to the data to generate range proposals for.  
+    * If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
+    */
+    DenseProposalGenerator(DataTensor::Index minLength, DataTensor::Index maxLength, DataTensor::Index stride, const std::shared_ptr<const DataTensor> & data);
     
     /**
     * Constructs an un-initialized proposal generator and specifies a minimum and a maximum length for
@@ -342,8 +359,10 @@ public:
     * @param[in] lengthRange A range whose start specifies the minimum length of the proposed ranges
     * for each dimension and whose end specifies the maximum length. The attribute dimension will be
     * ignored.
+    * 
+    * @param[in] stride A vector specifying the dimension-wise offset between two consecutive proposals.
     */
-    DenseProposalGenerator(IndexRange lengthRange);
+    DenseProposalGenerator(IndexRange lengthRange, ReflessIndexVector stride = {1, 1, 1, 1, 1});
     
     /**
     * Constructs and initializes proposal generator and specifies a minimum and a maximum length for
@@ -357,6 +376,21 @@ public:
     * If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
     */
     DenseProposalGenerator(IndexRange lengthRange, const std::shared_ptr<const DataTensor> & data);
+
+    /**
+    * Constructs and initializes proposal generator and specifies a minimum and a maximum length for
+    * the proposed ranges.
+    *
+    * @param[in] lengthRange A range whose start specifies the minimum length of the proposed ranges
+    * for each dimension and whose end specifies the maximum length. The attribute dimension will be
+    * ignored.
+    * 
+    * @param[in] stride A vector specifying the dimension-wise offset between two consecutive proposals.
+    *
+    * @param[in] data Pointer to the data to generate range proposals for.  
+    * If the data contain missing samples, they must have been masked by calling `DataTensor::mask()`.
+    */
+    DenseProposalGenerator(IndexRange lengthRange, ReflessIndexVector stride, const std::shared_ptr<const DataTensor> & data);
     
     /**
     * Fetches the next proposal for a specific start point, based on a given state of iteration.
@@ -378,6 +412,8 @@ public:
 
 
 protected:
+
+    ReflessIndexVector m_stride; /**< Vector with dimension-wise offsets between proposals. */
     
     /**
     * Resets @p state (an IndexVector) to the smallest possible offset from @p startIndex and adjusts its associated

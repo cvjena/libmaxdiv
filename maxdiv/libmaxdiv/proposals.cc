@@ -116,28 +116,46 @@ ProposalIterator ProposalGenerator::iteratePartial(unsigned int num_groups, unsi
 // DenseProposalGenerator //
 //------------------------//
 
-DenseProposalGenerator::DenseProposalGenerator() : ProposalGenerator() {}
+DenseProposalGenerator::DenseProposalGenerator() : ProposalGenerator(), m_stride(1, 1, 1, 1, 1) {}
 
-DenseProposalGenerator::DenseProposalGenerator(const std::shared_ptr<const DataTensor> & data) : ProposalGenerator()
+DenseProposalGenerator::DenseProposalGenerator(const std::shared_ptr<const DataTensor> & data) : ProposalGenerator(), m_stride(1, 1, 1, 1, 1)
 {
     this->init(data);
 }
 
-DenseProposalGenerator::DenseProposalGenerator(DataTensor::Index minLength, DataTensor::Index maxLength)
-: ProposalGenerator(minLength, maxLength)
+DenseProposalGenerator::DenseProposalGenerator(DataTensor::Index minLength, DataTensor::Index maxLength, DataTensor::Index stride)
+: ProposalGenerator(minLength, maxLength), m_stride((stride > 0) ? stride : 1, (stride > 0) ? stride : 1, (stride > 0) ? stride : 1, (stride > 0) ? stride : 1, 1)
 {}
 
 DenseProposalGenerator::DenseProposalGenerator(DataTensor::Index minLength, DataTensor::Index maxLength, const std::shared_ptr<const DataTensor> & data)
-: ProposalGenerator(minLength, maxLength)
+: ProposalGenerator(minLength, maxLength), m_stride(1, 1, 1, 1, 1)
 {
     this->init(data);
 }
 
-DenseProposalGenerator::DenseProposalGenerator(IndexRange lengthRange) : ProposalGenerator(lengthRange) {}
+DenseProposalGenerator::DenseProposalGenerator(DataTensor::Index minLength, DataTensor::Index maxLength, DataTensor::Index stride, const std::shared_ptr<const DataTensor> & data)
+: ProposalGenerator(minLength, maxLength), m_stride((stride > 0) ? stride : 1, (stride > 0) ? stride : 1, (stride > 0) ? stride : 1, (stride > 0) ? stride : 1, 1)
+{
+    this->init(data);
+}
+
+DenseProposalGenerator::DenseProposalGenerator(IndexRange lengthRange, ReflessIndexVector stride) : ProposalGenerator(lengthRange), m_stride(stride)
+{
+    this->m_stride.vec() = this->m_stride.vec().max(1);
+    this->m_stride.d = 1;
+}
 
 DenseProposalGenerator::DenseProposalGenerator(IndexRange lengthRange, const std::shared_ptr<const DataTensor> & data)
-: ProposalGenerator(lengthRange)
+: ProposalGenerator(lengthRange), m_stride(1, 1, 1, 1, 1)
 {
+    this->init(data);
+}
+
+DenseProposalGenerator::DenseProposalGenerator(IndexRange lengthRange, ReflessIndexVector stride, const std::shared_ptr<const DataTensor> & data)
+: ProposalGenerator(lengthRange), m_stride(stride)
+{
+    this->m_stride.vec() = this->m_stride.vec().max(1);
+    this->m_stride.d = 1;
     this->init(data);
 }
 
@@ -166,7 +184,12 @@ void DenseProposalGenerator::initState(const ReflessIndexVector & startIndex, st
 
 IndexRange DenseProposalGenerator::next(const ReflessIndexVector & startIndex, std::shared_ptr<void> & state) const
 {
+    // Check if startIndex is out of bounds
     if (this->m_curStartPoint.shape.t == 0 || startIndex.t >= this->m_curStartPoint.shape.t)
+        return IndexRange();
+    
+    // Check whether startIndex is aligned with the stride
+    if ((this->m_stride.vec() > 1).any() && (startIndex.vec() - this->m_stride.vec() * (startIndex.vec() / this->m_stride.vec()) != 0).any())
         return IndexRange();
     
     IndexVector rangeStart, rangeEnd;
@@ -174,25 +197,29 @@ IndexRange DenseProposalGenerator::next(const ReflessIndexVector & startIndex, s
     IndexRange range;
     do
     {
-        if (!state)
+        do
         {
-            // first proposal
-            this->initState(startIndex, state);
-            rangeEndOffs = reinterpret_cast<IndexVector*>(state.get());
+            if (!state)
+            {
+                // first proposal
+                this->initState(startIndex, state);
+                rangeEndOffs = reinterpret_cast<IndexVector*>(state.get());
+            }
+            else
+            {
+                // Forward offset
+                rangeEndOffs = reinterpret_cast<IndexVector*>(state.get());
+                *rangeEndOffs += rangeEndOffs->shape.d;
+                // Respect minimum length
+                for (unsigned int i = 0; i < MAXDIV_INDEX_DIMENSION - 1; i++)
+                    if (this->m_curStartPoint.shape.ind[i] > 1 && this->m_lengthRange.a.ind[i] > 0 && rangeEndOffs->ind[i] < this->m_lengthRange.a.ind[i] - 1)
+                        rangeEndOffs->ind[i] = this->m_lengthRange.a.ind[i] - 1;
+            }
+            
+            if ((rangeEndOffs->vec() >= rangeEndOffs->shape.vec()).any())
+                return IndexRange(); // Maximum length reached -> no proposals left
         }
-        else
-        {
-            // Forward offset
-            rangeEndOffs = reinterpret_cast<IndexVector*>(state.get());
-            *rangeEndOffs += rangeEndOffs->shape.d;
-            // Respect minimum length
-            for (unsigned int i = 0; i < MAXDIV_INDEX_DIMENSION - 1; i++)
-                if (this->m_curStartPoint.shape.ind[i] > 1 && this->m_lengthRange.a.ind[i] > 0 && rangeEndOffs->ind[i] < this->m_lengthRange.a.ind[i] - 1)
-                    rangeEndOffs->ind[i] = this->m_lengthRange.a.ind[i] - 1;
-        }
-        
-        if ((rangeEndOffs->vec() >= rangeEndOffs->shape.vec()).any())
-            return IndexRange(); // Maximum length reached -> no proposals left
+        while ((this->m_stride.vec() > 1).any() && ((rangeEndOffs->vec() + 1 - this->m_stride.vec() * ((rangeEndOffs->vec() + 1) / this->m_stride.vec())) * (rangeEndOffs->shape.vec() > 1).cast<DataTensor::Index>() != 0).any());
         
         rangeStart = startIndex;
         rangeStart.d = 0;

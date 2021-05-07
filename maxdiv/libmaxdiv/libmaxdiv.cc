@@ -37,6 +37,7 @@ void maxdiv_init_params(maxdiv_params_t * params)
     params->estimator = MAXDIV_GAUSSIAN;
     std::fill(params->min_size, params->min_size + MAXDIV_INDEX_DIMENSION - 1, 0);
     std::fill(params->max_size, params->max_size + MAXDIV_INDEX_DIMENSION - 1, 0);
+    std::fill(params->stride, params->stride + MAXDIV_INDEX_DIMENSION - 1, 1);
     params->overlap_th = 0.0;
     
     // Proposal Search Parameters
@@ -128,8 +129,10 @@ unsigned int maxdiv_compile_pipeline(const maxdiv_params_t * params)
     std::shared_ptr<ProposalGenerator> proposals;
     
     IndexRange lengthRange;
+    ReflessIndexVector stride;
     std::copy(params->min_size, params->min_size + MAXDIV_INDEX_DIMENSION - 1, lengthRange.a.ind);
     std::copy(params->max_size, params->max_size + MAXDIV_INDEX_DIMENSION - 1, lengthRange.b.ind);
+    std::copy(params->stride, params->stride + MAXDIV_INDEX_DIMENSION - 1, stride.ind);
     
     PointwiseProposalGenerator::Params ppParams;
     ppParams.gradientFilter = params->pointwise_proposals.gradient_filter;
@@ -140,7 +143,7 @@ unsigned int maxdiv_compile_pipeline(const maxdiv_params_t * params)
     switch (params->proposal_generator)
     {
         case MAXDIV_DENSE_PROPOSALS:
-            proposals = std::make_shared<DenseProposalGenerator>(lengthRange);
+            proposals = std::make_shared<DenseProposalGenerator>(lengthRange, stride);
             break;
         
         case MAXDIV_POINTWISE_PROPOSALS_HOTELLINGST:

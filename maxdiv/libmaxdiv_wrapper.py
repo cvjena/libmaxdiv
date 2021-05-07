@@ -129,6 +129,7 @@ class maxdiv_params_t(Structure):
                 ('estimator', c_int),
                 ('min_size', point_t),
                 ('max_size', point_t),
+                ('stride', point_t),
                 ('overlap_th', maxdiv_scalar),
                 ('proposal_generator', c_int),
                 ('pointwise_proposals', pointwise_proposal_params_t),
@@ -263,6 +264,8 @@ def maxdiv(X, method = 'gaussian_cov', num_intervals = 1, proposals = 'dense', *
     params.min_size[:] = [kwargs['extint_min_len'] if 'extint_min_len' in kwargs else 20] * len(params.min_size)
     if 'extint_max_len' in kwargs:
         params.max_size[:] = [kwargs['extint_max_len']] * len(params.max_size)
+    if 'stride' in kwargs:
+        params.stride[:] = [kwargs['stride']] * len(params.stride)
     
     # Overlap Threshold
     if 'overlap_th' in kwargs:

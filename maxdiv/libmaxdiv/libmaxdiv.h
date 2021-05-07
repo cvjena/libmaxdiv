@@ -121,6 +121,7 @@ typedef struct {
     maxdiv_estimator_t estimator; /**< The distribution model to be fit to the data. */
     unsigned int min_size[MAXDIV_INDEX_DIMENSION - 1]; /**< Minimum size size of the detected ranges along each of the 4 dimensions. */
     unsigned int max_size[MAXDIV_INDEX_DIMENSION - 1]; /**< Maximum size size of the detected ranges along each of the 4 dimensions. `0` means no limit. */
+    unsigned int stride[MAXDIV_INDEX_DIMENSION - 1]; /**< Step size between two consecutive ranges to be checked along each of the 4 dimensions. Only applies to dense proposals. */
     MaxDivScalar overlap_th; /**< Overlap threshold for non-maximum suppression: Intervals with a greater IoU will be considered overlapping. */
     
     /* ProposalSearch Parameters */

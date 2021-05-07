@@ -53,7 +53,7 @@ void printHelp(const char *);
 DetectionList apply_maxdiv(const std::shared_ptr<DataTensor> & data,
                            maxdiv_divergence_t divergence, maxdiv_estimator_t estimator, maxdiv_proposal_generator_t proposals,
                            KLDivergence::KLMode kl_mode, GaussianDensityEstimator::CovMode gauss_cov_mode,
-                           unsigned int min_len, unsigned int max_len, unsigned int num_intervals, Scalar overlap_th,
+                           unsigned int min_len, unsigned int max_len, unsigned int stride, unsigned int num_intervals, Scalar overlap_th,
                            Scalar kernel_sigma_sq, unsigned int num_hist, unsigned int num_bins, Scalar discount,
                            Scalar prop_th, bool prop_mad, bool prop_filter,
                            bool normalize, unsigned int td_embed, unsigned int td_lag, BorderPolicy borders,
@@ -107,7 +107,7 @@ DetectionList apply_maxdiv(const std::shared_ptr<DataTensor> & data,
     switch (proposals)
     {
         case MAXDIV_DENSE_PROPOSALS:
-            proposal_gen = std::make_shared<DenseProposalGenerator>(min_len, max_len);
+            proposal_gen = std::make_shared<DenseProposalGenerator>(min_len, max_len, stride);
             break;
         
         case MAXDIV_POINTWISE_PROPOSALS_HOTELLINGST:
@@ -162,10 +162,10 @@ int main(int argc, char * argv[])
     maxdiv_divergence_t divergence = MAXDIV_KL_DIVERGENCE;
     maxdiv_estimator_t estimator = MAXDIV_GAUSSIAN;
     maxdiv_proposal_generator_t proposals = MAXDIV_DENSE_PROPOSALS;
-    KLDivergence::KLMode kl_mode = KLDivergence::KLMode::I_OMEGA;
+    KLDivergence::KLMode kl_mode = KLDivergence::KLMode::UNBIASED;
     GaussianDensityEstimator::CovMode gauss_cov_mode = GaussianDensityEstimator::CovMode::FULL;
     BorderPolicy borders = BorderPolicy::AUTO;
-    unsigned int min_len = 0, max_len = 0, num_intervals = 0,
+    unsigned int min_len = 0, max_len = 0, stride = 1, num_intervals = 0,
                  num_hist = 100, num_bins = 0,
                  td_embed = 1, td_lag = 1, period_num = 0, period_len = 1,
                  pca_dims = 0, random_projection_dims = 0,
@@ -186,6 +186,7 @@ int main(int argc, char * argv[])
             {"help",                no_argument,        NULL,       'h'},
             {"min_len",             required_argument,  NULL,       'a'},
             {"max_len",             required_argument,  NULL,       'b'},
+            {"stride",              required_argument,  NULL,       'S'},
             {"num",                 required_argument,  NULL,       'n'},
             {"overlap_th",          required_argument,  NULL,       'o'},
             {"timing",              no_argument,        &timing,      1},
@@ -228,7 +229,7 @@ int main(int argc, char * argv[])
         };
         
         int option_index = 0;
-        c = getopt_long(argc, argv, "a:b:c:d:e:f:g:hi:j:l:m:n:o:p:q:r:st::u:w:x:z:P:Q:", long_options, &option_index);
+        c = getopt_long(argc, argv, "a:b:c:d:e:f:g:hi:j:l:m:n:o:p:q:r:st::u:w:x:z:P:Q:S:", long_options, &option_index);
         switch (c)
         {
             case 'h':
@@ -247,6 +248,14 @@ int main(int argc, char * argv[])
                 if (conv_end == NULL || *conv_end != '\0')
                 {
                     cerr << "Invalid value specified for option --max_len" << endl;
+                    return 1;
+                }
+                break;
+            case 'S':
+                stride = strtoul(optarg, &conv_end, 10);
+                if (conv_end == NULL || *conv_end != '\0')
+                {
+                    cerr << "Invalid value specified for option --stride" << endl;
                     return 1;
                 }
                 break;
@@ -536,7 +545,7 @@ int main(int argc, char * argv[])
     // Apply MaxDiv algorithm
     auto start = high_resolution_clock::now();
     DetectionList detections = apply_maxdiv(data, divergence, estimator, proposals, kl_mode, gauss_cov_mode,
-                                            min_len, max_len, num_intervals, overlap_th, kernel_sigma_sq, num_hist, num_bins, discount,
+                                            min_len, max_len, stride, num_intervals, overlap_th, kernel_sigma_sq, num_hist, num_bins, discount,
                                             prop_th, prop_mad, prop_filter,
                                             normalize, td_embed, td_lag, borders,
                                             zscore_deseas, period_num, period_len, linear_trend, linear_season_trend,
@@ -576,6 +585,9 @@ void printHelp(const char * progName)
          << "    --max_len <int>, -b <int>" << endl
          << "        Maximum length of intervals to be taken into account." << endl
          << endl
+         << "    --stride <int>, -S <int> (default: 1)" << endl
+         << "        Step size between two intervals to be taken into account (only applicable to dense proposals)." << endl
+         << endl
          << "    --num <int>, -n <int>" << endl
          << "        Maximum number of detections to be returned." << endl
          << endl
@@ -586,7 +598,7 @@ void printHelp(const char * progName)
          << "    --timing" << endl
          << "        Print the time taken by the algorithm to stderr." << endl
          << endl
-         << "    --divergence <str>, -d <str> (default: KL_I_OMEGA)" << endl
+         << "    --divergence <str>, -d <str> (default: KL_UNBIASED)" << endl
          << "        Divergence measure. One of: KL_I_OMEGA, KL_OMEGA_I, KL_SYM, KL_UNBIASED, JS, CROSSENT, CROSSENT_TS" << endl
          << endl
          << "    --estimator <str>, -e <str> (default: GAUSSIAN)" << endl
