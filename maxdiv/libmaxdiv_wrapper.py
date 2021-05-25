@@ -491,8 +491,8 @@ def maxdiv_score_intervals(X, params, intervals):
     for i, (start, end) in enumerate(intervals):
         interval_buf[i].score = 0
         if isSpatioTemporal:
-            interval_buf[i].range_start[:] = list(start) + [0]
-            interval_buf[i].range_end[:] = list(end) + [0]
+            interval_buf[i].range_start[:] = list(start)
+            interval_buf[i].range_end[:] = list(end)
         else:
             interval_buf[i].range_start[:] = [start] + [0] * (len(interval_buf[i].range_start) - 1)
             interval_buf[i].range_end[:] = [end] + [1] * (len(interval_buf[i].range_end) - 1)
